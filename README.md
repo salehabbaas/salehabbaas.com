@@ -141,12 +141,16 @@ Trigger:
 What it does:
 
 1. Installs root and `functions` dependencies
-2. Authenticates to Google Cloud using service account JSON from a GitHub secret
+2. Selects one auth mode (Workload Identity, service account JSON, or `FIREBASE_TOKEN`)
 3. Deploys to Firebase Hosting project `artelo-f7475`
 
 Required GitHub repository secrets:
 
-- `FIREBASE_SERVICE_ACCOUNT_ARTELO_F7475` (raw JSON content)
+- One auth option is required:
+  - Preferred: `FIREBASE_SERVICE_ACCOUNT_ARTELO_F7475` (raw JSON content)
+  - Legacy fallback: `FIREBASE_SERVICE_ACCOUNT` (raw JSON content)
+  - Workload Identity: `GCP_WORKLOAD_IDENTITY_PROVIDER` + `GCP_SERVICE_ACCOUNT_EMAIL`
+  - Token fallback: `FIREBASE_TOKEN`
 - `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_FIREBASE_API_KEY`
 - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
@@ -159,6 +163,8 @@ Required GitHub repository secrets:
 - `NEXT_PUBLIC_FIRESTORE_DATABASE_ID` (set to `salehabbaas`)
 - `FIRESTORE_DATABASE_ID` (set to `salehabbaas`)
 - `NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY`
+
+If the workflow is triggered by Dependabot or a fork context, configure the same auth secret(s) in that context too. Repository secrets are not always injected for those runs.
 
 ## Production Deployment (Manual)
 
