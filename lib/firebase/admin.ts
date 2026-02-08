@@ -57,12 +57,24 @@ function getCredentialFromEnvironment() {
 
 const credential = getCredentialFromServiceAccountFile() ?? getCredentialFromEnvironment();
 
-const adminApp = getApps().length
-  ? getApps()[0]
-  : initializeApp({
-      credential: credential ?? undefined,
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    });
+function initializeAdminApp() {
+  const existingApp = getApps()[0];
+  if (existingApp) return existingApp;
+
+  const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+  if (credential && storageBucket) {
+    return initializeApp({ credential, storageBucket });
+  }
+  if (credential) {
+    return initializeApp({ credential });
+  }
+  if (storageBucket) {
+    return initializeApp({ storageBucket });
+  }
+  return initializeApp();
+}
+
+const adminApp = initializeAdminApp();
 
 const firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID;
 
