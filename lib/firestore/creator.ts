@@ -1,6 +1,6 @@
 import "server-only";
 
-import { CollectionReference, DocumentData, Query } from "firebase-admin/firestore";
+import { CollectionReference, DocumentData, Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
 
 import { adminDb } from "@/lib/firebase/admin";
 import { ContentVariant, CreatorSettings } from "@/types/creator";
@@ -37,7 +37,7 @@ function mapVariant(id: string, data: DocumentData): ContentVariant {
     seoTitle: data.seoTitle ?? "",
     seoDesc: data.seoDesc ?? "",
     ogImage: data.ogImage ?? "",
-    pillar: data.pillar ?? "General",
+    pillar: data.pillar ?? "Other",
     tags: Array.isArray(data.tags) ? data.tags : [],
     metrics: data.metrics ?? undefined,
     createdAt: asIso(data.createdAt),
@@ -70,7 +70,7 @@ export async function getCreatorSettings(): Promise<CreatorSettings> {
   const snap = await adminDb.collection("creatorSettings").doc("default").get();
   const data = snap.exists ? snap.data() : null;
   return {
-    pillars: data?.pillars ?? ["Engineering", "Career", "Growth"],
+    pillars: data?.pillars ?? ["AI", "HealthTech", "Software", "Cloud", "Cybersecurity", "Career", "Other"],
     platforms: data?.platforms ?? ["linkedin", "youtube", "instagram", "tiktok", "x"],
     pinnedVariantSlugs: data?.pinnedVariantSlugs ?? [],
     newsletterEnabled: data?.newsletterEnabled ?? true,
@@ -142,12 +142,13 @@ export async function getFeaturedCreatorContent(limit = 3) {
 }
 
 export async function getCreatorVariantBySlug(slug: string) {
-  const snap = await variantsCollectionGroup().where("slug", "==", slug).limit(1).get();
-  if (snap.empty) return null;
-  const mapped = mapVariant(snap.docs[0].id, snap.docs[0].data());
-  if (!VARIANT_VISIBILITIES_FOR_ROUTE.has(mapped.visibility)) return null;
-  if (!mapped.publishedAt) return null;
-  return mapped;
+  const normalizedSlug = slug.trim().toLowerCase();
+  if (!normalizedSlug) return null;
+
+  const publicMatch = await findVariantBySlug(normalizedSlug, "public");
+  if (publicMatch) return publicMatch;
+
+  return findVariantBySlug(normalizedSlug, "unlisted");
 }
 
 export async function getRelatedCreatorContent(options: {
@@ -196,4 +197,31 @@ export function variantDocRef(contentItemId: string, variantId: string) {
 
 export function contentItemsCollection() {
   return adminDb.collection("contentItems") as CollectionReference<DocumentData>;
+}
+
+async function findVariantBySlug(slug: string, visibility: "public" | "unlisted") {
+  const pageSize = 100;
+  let cursor: QueryDocumentSnapshot<DocumentData> | null = null;
+
+  for (let page = 0; page < 50; page += 1) {
+    let query = variantsCollectionGroup().where("visibility", "==", visibility).orderBy("publishedAt", "desc").limit(pageSize);
+    if (cursor) {
+      query = query.startAfter(cursor);
+    }
+
+    const snap = await query.get();
+    if (snap.empty) break;
+
+    for (const document of snap.docs) {
+      const mapped = mapVariant(document.id, document.data());
+      if (mapped.slug === slug && mapped.publishedAt && VARIANT_VISIBILITIES_FOR_ROUTE.has(mapped.visibility)) {
+        return mapped;
+      }
+    }
+
+    cursor = snap.docs[snap.docs.length - 1];
+    if (snap.size < pageSize) break;
+  }
+
+  return null;
 }

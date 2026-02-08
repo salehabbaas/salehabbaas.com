@@ -8,18 +8,16 @@ import { NewsletterForm } from "@/components/creator/newsletter-form";
 import { SectionShell } from "@/components/site/section-shell";
 import { Button } from "@/components/ui/button";
 import { safeGetCreatorFeed, safeGetCreatorSettings, safeGetFeatured } from "@/lib/firestore/public";
-import { resolveAbsoluteUrl } from "@/lib/utils";
+import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
 
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: "Creator | Saleh Abbaas",
+export const metadata: Metadata = buildPageMetadata({
+  title: "Creator",
   description:
     "Saleh Abbaas content creator hub: engineering insights, growth systems, and platform content optimized for discovery.",
-  alternates: {
-    canonical: resolveAbsoluteUrl("/creator")
-  }
-};
+  path: "/creator"
+});
 
 function normalizeSearchParam(value: string | string[] | undefined) {
   if (!value) return undefined;
@@ -61,6 +59,12 @@ export default async function CreatorPage({
   const previousPage = feed.page > 1 ? feed.page - 1 : null;
   const nextPage = feed.page < feed.totalPages ? feed.page + 1 : null;
 
+  const webPageJsonLd = pageSchema({
+    title: "Creator",
+    description: "Creator content by Saleh Abbaas.",
+    path: "/creator"
+  });
+
   return (
     <SectionShell
       title="Creator"
@@ -92,7 +96,7 @@ export default async function CreatorPage({
             activeType={type}
             pillars={settings.pillars}
             platforms={settings.platforms}
-            types={["post", "video", "carousel", "thread"]}
+            types={["short_video", "carousel", "post", "thread", "article"]}
           />
           <div className="grid gap-4 md:grid-cols-3">
             {feed.items.length ? (
@@ -149,6 +153,7 @@ export default async function CreatorPage({
           <FollowBlock socialLinks={settings.socialLinks} />
         </section>
       </div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
     </SectionShell>
   );
 }

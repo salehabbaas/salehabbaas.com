@@ -1,11 +1,5 @@
-import { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { JobTracker } from "@/components/admin/job-tracker";
-
-export const metadata: Metadata = {
-  title: "Admin Job Tracker | Saleh Abbaas"
-};
-
-export default function AdminJobsPage() {
-  return <JobTracker />;
+export default function LegacyJobsRedirect() {
+  redirect("/admin/job-tracker");
 }

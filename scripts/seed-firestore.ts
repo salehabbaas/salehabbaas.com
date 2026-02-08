@@ -1,36 +1,103 @@
-import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { initAdminForScripts } from "./firebase-admin-init";
 
-function initAdmin() {
-  if (getApps().length) return getApps()[0];
+function isDatastoreModeError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const maybeError = error as { code?: unknown; message?: unknown; details?: unknown };
+  const code = String(maybeError.code ?? "");
+  const message = String(maybeError.message ?? "");
+  const details = String(maybeError.details ?? "");
+  const combined = `${message} ${details}`;
 
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error("Missing FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY env vars.");
-  }
+  return (
+    (code === "9" || code.toUpperCase().includes("FAILED_PRECONDITION")) &&
+    /datastore mode|firestore in datastore mode/i.test(combined)
+  );
+}
 
-  return initializeApp({
-    credential: cert({
-      projectId,
-      clientEmail,
-      privateKey
-    })
-  });
+function isDatabaseNotFoundError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+
+  const maybeError = error as { code?: unknown; message?: unknown; details?: unknown };
+  const code = String(maybeError.code ?? "");
+  const message = String(maybeError.message ?? "");
+  const details = String(maybeError.details ?? "");
+  const combined = `${message} ${details}`;
+
+  return code === "5" || /not[_\s-]?found/i.test(combined);
+}
+
+function databaseNotFoundGuidance() {
+  return [
+    "Seed failed because the configured Firestore database ID was not found.",
+    "Set FIRESTORE_DATABASE_ID and NEXT_PUBLIC_FIRESTORE_DATABASE_ID to an existing Native Firestore database.",
+    "",
+    "Current repo configuration:",
+    "- firebase.json firestore.database: salehabbaas",
+    "- .env.local should include FIRESTORE_DATABASE_ID=salehabbaas",
+    "",
+    "Then re-run: npm run seed"
+  ].join("\n");
+}
+
+function datastoreModeGuidance() {
+  return [
+    "Seed failed because this Firebase project uses Firestore in Datastore Mode.",
+    "This app requires Firestore Native Mode for Firebase SDK queries/rules.",
+    "",
+    "How to fix:",
+    "1) Create/use a Firebase project with Firestore Native Mode enabled.",
+    "2) Update .firebaserc and .env.local to point to that project.",
+    "3) Keep FIREBASE_SERVICE_ACCOUNT_PATH pointing to the matching service account JSON.",
+    "4) Re-run: npm run seed",
+    "",
+    "Current project in this repo is set in .firebaserc (default)."
+  ].join("\n");
 }
 
 async function seed() {
-  initAdmin();
-  const db = getFirestore();
+  const app = initAdminForScripts();
+  const firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID;
+  const db = firestoreDatabaseId ? getFirestore(app, firestoreDatabaseId) : getFirestore(app);
 
-  await db.collection("resumeSections").doc("about").set(
+  await db.collection("siteContent").doc("profile").set(
     {
       name: "Saleh Abbaas",
-      title: "Senior Full-Stack Engineer",
-      summary:
-        "I build production systems with Next.js and Firebase, combining architecture, product design, and SEO-driven growth.",
+      headline: "Software Engineer",
+      bio: "",
+      location: "",
+      email: "",
+      resumeUrl: "",
+      avatarUrl: "",
+      updatedAt: FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  await db.collection("siteContent").doc("seoDefaults").set(
+    {
+      titleTemplate: "Saleh Abbaas | Software Engineer",
+      defaultDescription: "",
+      defaultOgImage: "",
+      updatedAt: FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  await db.collection("siteContent").doc("integrations").set(
+    {
+      emailProvider: "resend",
+      senderEmail: "",
+      senderName: "Saleh Abbaas",
+      sendgridApiKeyPlaceholder: "",
+      resendApiKeyPlaceholder: "",
+      mailgunApiKeyPlaceholder: "",
+      mailgunDomainPlaceholder: "",
+      zohoEnabled: false,
+      zohoClientIdPlaceholder: "",
+      zohoClientSecretPlaceholder: "",
+      zohoRedirectUriPlaceholder: "",
       updatedAt: FieldValue.serverTimestamp()
     },
     { merge: true }
@@ -38,9 +105,43 @@ async function seed() {
 
   await db.collection("jobTrackerSettings").doc("default").set(
     {
-      statuses: ["saved", "applied", "screening", "assessment", "interview", "offer", "rejected", "withdrawn"],
-      sources: ["LinkedIn", "Indeed", "Referral", "Company Site"],
-      workModels: ["remote", "hybrid", "onsite"],
+      responses: [
+        "No response",
+        "Rejected",
+        "Screening call",
+        "Interview requested",
+        "On hold",
+        "Offer",
+        "Withdrawn"
+      ],
+      interviewStages: [
+        "None",
+        "Recruiter screen",
+        "Hiring manager",
+        "Technical test",
+        "Technical interview",
+        "Panel interview",
+        "Final interview"
+      ],
+      updatedAt: FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  await db.collection("bookingSettings").doc("default").set(
+    {
+      enabled: true,
+      timezone: "America/Toronto",
+      slotDurationMinutes: 30,
+      maxDaysAhead: 30,
+      workDays: [1, 2, 3, 4, 5],
+      dayStartHour: 9,
+      dayEndHour: 17,
+      meetingTypes: [
+        { id: "intro", label: "Intro Call", durationMinutes: 30 },
+        { id: "project", label: "Project Discovery", durationMinutes: 45 },
+        { id: "advisory", label: "Advisory Session", durationMinutes: 60 }
+      ],
       updatedAt: FieldValue.serverTimestamp()
     },
     { merge: true }
@@ -50,7 +151,7 @@ async function seed() {
     {
       defaultVisibility: "private",
       newsletterEnabled: true,
-      pillars: ["Engineering", "Career", "Growth", "Content Strategy"],
+      pillars: ["AI", "HealthTech", "Software", "Cloud", "Cybersecurity", "Career", "Other"],
       platforms: ["linkedin", "youtube", "instagram", "tiktok", "x"],
       pinnedVariantSlugs: [],
       socialLinks: [
@@ -69,55 +170,55 @@ async function seed() {
   await templateRef.set({
     name: "Problem-Insight-CTA",
     platform: "linkedin",
-    hook: "Most creators are not short on ideas, they are short on systems.",
-    body: "I build operating systems for content teams: ideation, varianting, scheduling, and attribution in one stack.",
-    cta: "If you want a creator engine that scales, message me.",
-    hashtags: ["creator", "firebase", "growth"],
+    hook: "",
+    body: "",
+    cta: "",
+    hashtags: [],
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp()
   });
 
   await db.collection("hookLibrary").add({
-    text: "If you cannot measure it, you cannot improve it.",
+    text: "",
     createdAt: FieldValue.serverTimestamp()
   });
 
   await db.collection("ctaLibrary").add({
-    text: "Follow for practical systems you can apply this week.",
+    text: "",
     createdAt: FieldValue.serverTimestamp()
   });
 
   const contentItemRef = db.collection("contentItems").doc();
   await contentItemRef.set({
-    title: "How to build a Creator OS with Firebase",
-    pillar: "Engineering",
+    title: "",
+    pillar: "Software",
     type: "post",
-    status: "published",
-    notes: "Seed sample content item",
-    tags: ["firebase", "creator", "seo"],
+    status: "draft",
+    notes: "",
+    tags: [],
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp()
   });
 
   await contentItemRef.collection("variants").doc().set({
     contentItemId: contentItemRef.id,
-    contentTitle: "How to build a Creator OS with Firebase",
+    contentTitle: "",
     contentType: "post",
-    pillar: "Engineering",
-    tags: ["firebase", "creator", "seo"],
+    pillar: "Software",
+    tags: [],
     platform: "linkedin",
-    slug: "build-creator-os-firebase",
-    visibility: "public",
-    hook: "Creators fail because content systems are fragmented.",
-    body: "Use a unified data model with content item + platform variants, and push analytics events per interaction.",
-    cta: "Save this and build your system this week.",
-    hashtags: ["firebase", "nextjs", "contentstrategy"],
-    media: ["https://www.youtube.com/watch?v=dQw4w9WgXcQ"],
-    publishedAt: FieldValue.serverTimestamp(),
-    seoTitle: "Build a Creator OS with Firebase and Next.js",
-    seoDesc: "A practical blueprint for structuring and publishing creator content using Firebase and Next.js.",
+    slug: `draft-${Date.now()}`,
+    visibility: "private",
+    hook: "",
+    body: "",
+    cta: "",
+    hashtags: [],
+    media: [],
+    publishedAt: null,
+    seoTitle: "",
+    seoDesc: "",
     ogImage: "",
-    externalUrl: "https://linkedin.com/posts/salehabbaas",
+    externalUrl: "",
     metrics: {
       views: 0,
       likes: 0,
@@ -136,6 +237,16 @@ async function seed() {
 }
 
 seed().catch((error) => {
+  if (isDatastoreModeError(error)) {
+    console.error(datastoreModeGuidance());
+    process.exit(1);
+  }
+
+  if (isDatabaseNotFoundError(error)) {
+    console.error(databaseNotFoundGuidance());
+    process.exit(1);
+  }
+
   console.error(error);
   process.exit(1);
 });

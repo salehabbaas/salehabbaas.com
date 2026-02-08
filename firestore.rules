@@ -69,9 +69,70 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
-    match /resumeSections/{docId} {
+    match /analyticsEvents/{docId} {
+      allow create: if request.resource.data.name is string;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /siteContent/{docId} {
+      allow read: if docId != 'integrations' || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /experiences/{docId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /services/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /certificates/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /socialLinks/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /projects/{docId} {
+      allow read: if isAdmin() || resource.data.status == 'published';
+      allow write: if isAdmin();
+    }
+
+    match /blogPosts/{docId} {
+      allow read: if isAdmin() || resource.data.status == 'published';
+      allow write: if isAdmin();
+    }
+
+    match /mediaAssets/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /bookingSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /bookings/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /blockedSlots/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /bookingSlotLocks/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /creatorReminders/{docId} {
+      allow read, write: if isAdmin();
     }
   }
 }

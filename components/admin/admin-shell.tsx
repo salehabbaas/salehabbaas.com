@@ -12,8 +12,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-border/70 bg-white">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border/70 bg-background/85 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
           <Link href="/admin" className="font-serif text-2xl">
             Admin Panel
@@ -25,7 +25,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <div className="container grid gap-6 py-6 md:grid-cols-[220px_1fr]">
-        <aside className="h-fit rounded-2xl border border-border/70 bg-white p-2">
+        <aside className="h-fit rounded-2xl border border-border/70 bg-card/80 p-2">
           {adminNavigation.map((item) => (
             <Link
               key={item.href}

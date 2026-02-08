@@ -11,7 +11,8 @@ const eventSchema = z.object({
     "download_resume",
     "contact_submit",
     "book_meeting",
-    "social_click"
+    "social_click",
+    "subscribe_newsletter"
   ]),
   path: z.string().optional(),
   slug: z.string().optional(),

@@ -15,6 +15,19 @@ export async function POST(request: Request) {
     const body = await request.json();
     const payload = contactSchema.parse(body);
 
+    if (process.env.CONTACT_FUNCTION_URL) {
+      const response = await fetch(process.env.CONTACT_FUNCTION_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || "Cloud Function contact submit failed.");
+      }
+      return NextResponse.json({ success: true, source: "function" });
+    }
+
     await adminDb.collection("contactSubmissions").add({
       ...payload,
       createdAt: new Date(),

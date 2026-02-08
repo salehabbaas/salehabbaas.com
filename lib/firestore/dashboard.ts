@@ -1,5 +1,7 @@
 import "server-only";
 
+import { DocumentData, QueryDocumentSnapshot } from "firebase-admin/firestore";
+
 import { adminDb } from "@/lib/firebase/admin";
 
 function asIso(value: unknown): string {
@@ -20,7 +22,7 @@ export async function getAdminDashboardSummary() {
     adminDb.collection("analyticsEvents").where("createdAt", ">=", thirtyDaysAgo).get(),
     adminDb.collection("bookings").where("startAt", ">=", new Date()).get(),
     adminDb.collection("jobApplications").get(),
-    adminDb.collectionGroup("variants").where("visibility", "==", "public").get()
+    getPublicVariantDocs()
   ]);
 
   const pageViews = eventsSnap.docs.filter((doc) => doc.data().name === "page_view");
@@ -75,4 +77,28 @@ export async function getAdminDashboardSummary() {
     bookings: bookingStats,
     jobs: jobStats
   };
+}
+
+async function getPublicVariantDocs() {
+  const pageSize = 200;
+  let cursor: QueryDocumentSnapshot<DocumentData> | null = null;
+  const docs: QueryDocumentSnapshot<DocumentData>[] = [];
+
+  for (let page = 0; page < 50; page += 1) {
+    let query = adminDb.collectionGroup("variants").where("visibility", "==", "public").orderBy("publishedAt", "desc").limit(pageSize);
+
+    if (cursor) {
+      query = query.startAfter(cursor);
+    }
+
+    const snap = await query.get();
+    if (snap.empty) break;
+
+    docs.push(...snap.docs);
+    cursor = snap.docs[snap.docs.length - 1];
+
+    if (snap.size < pageSize) break;
+  }
+
+  return { docs };
 }

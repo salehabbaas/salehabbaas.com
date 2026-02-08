@@ -5,7 +5,8 @@ export type AnalyticsEventName =
   | "download_resume"
   | "contact_submit"
   | "book_meeting"
-  | "social_click";
+  | "social_click"
+  | "subscribe_newsletter";
 
 export interface AnalyticsEventRecord {
   id: string;

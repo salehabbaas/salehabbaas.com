@@ -21,6 +21,7 @@ const firebaseConfig = {
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const firestoreDatabaseId = process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID;
 
 if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY) {
   try {
@@ -34,7 +35,7 @@ if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_RECAPTCHA_V3_SITE_K
 }
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = firestoreDatabaseId ? getFirestore(app, firestoreDatabaseId) : getFirestore(app);
 export const storage = getStorage(app);
 
 let analyticsPromise: Promise<ReturnType<typeof getAnalytics> | null> | null = null;
@@ -49,7 +50,7 @@ export async function getClientAnalytics() {
 export async function trackEvent(name: AnalyticsEventName, params?: Record<string, string | number | boolean>) {
   const analytics = await getClientAnalytics();
   if (analytics) {
-    logEvent(analytics, name, params);
+    logEvent(analytics, name as string, params);
   }
 
   // Mirror analytics events to Firestore for admin-side growth dashboards.

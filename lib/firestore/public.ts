@@ -51,7 +51,7 @@ export async function safeGetCreatorSettings() {
     return await getCreatorSettings();
   } catch {
     return {
-      pillars: ["Engineering", "Career", "Growth"],
+      pillars: ["AI", "HealthTech", "Software", "Cloud", "Cybersecurity", "Career", "Other"],
       platforms: ["linkedin", "youtube", "instagram", "tiktok", "x"],
       pinnedVariantSlugs: [],
       newsletterEnabled: true,

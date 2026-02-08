@@ -10,6 +10,7 @@ import { ShareActions } from "@/components/creator/share-actions";
 import { Badge } from "@/components/ui/badge";
 import { safeGetCreatorBySlug, safeGetRelatedContent } from "@/lib/firestore/public";
 import { breadcrumbSchema, creatorArticleSchema } from "@/lib/seo/schema";
+import { pageSchema } from "@/lib/seo/metadata";
 import { formatDate, resolveAbsoluteUrl } from "@/lib/utils";
 
 export const revalidate = 300;
@@ -39,6 +40,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical
     },
+    robots: item.visibility === "unlisted" ? { index: false, follow: false } : undefined,
     openGraph: {
       type: "article",
       title,
@@ -87,6 +89,11 @@ export default async function CreatorItemPage({ params }: Props) {
     { name: "Creator", url: resolveAbsoluteUrl("/creator") },
     { name: item.contentTitle, url: canonical }
   ]);
+  const webPageJsonLd = pageSchema({
+    title: item.contentTitle,
+    description: item.seoDesc || item.hook || item.body.slice(0, 150),
+    path: `/creator/${item.slug}`
+  });
 
   return (
     <article className="container py-16 md:py-20">
@@ -106,7 +113,7 @@ export default async function CreatorItemPage({ params }: Props) {
         <CreatorMediaEmbed externalUrl={item.externalUrl} media={item.media} />
 
         {item.visibility === "public" ? (
-          <section className="prose-custom space-y-6 rounded-3xl border border-border/70 bg-white/85 p-6">
+          <section className="prose-custom space-y-6 rounded-3xl border border-border/70 bg-card/85 p-6">
             {item.hook ? (
               <div>
                 <h2>Hook</h2>
@@ -130,7 +137,7 @@ export default async function CreatorItemPage({ params }: Props) {
             ) : null}
           </section>
         ) : (
-          <section className="rounded-3xl border border-border/70 bg-white/85 p-6">
+          <section className="rounded-3xl border border-border/70 bg-card/85 p-6">
             <p className="text-sm text-muted-foreground">
               This content is unlisted. Full script content is hidden from public listings.
             </p>
@@ -154,6 +161,7 @@ export default async function CreatorItemPage({ params }: Props) {
           Back to creator feed
         </Link>
       </div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
     </article>

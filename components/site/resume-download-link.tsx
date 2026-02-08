@@ -11,7 +11,7 @@ export function ResumeDownloadLink({ url }: { url?: string }) {
     <Link
       href={url}
       target="_blank"
-      className="inline-flex rounded-full border border-border bg-white/80 px-4 py-2 text-sm font-medium hover:border-primary hover:text-primary"
+      className="inline-flex rounded-full border border-border bg-card/85 px-4 py-2 text-sm font-medium hover:border-primary hover:text-primary"
       onClick={() => trackEvent("download_resume", { path: "/" })}
     >
       Download Resume

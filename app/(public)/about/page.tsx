@@ -1,34 +1,42 @@
 import { Metadata } from "next";
 
 import { CreatorPillars } from "@/components/creator/creator-pillars";
+import { ResumeDownloadLink } from "@/components/site/resume-download-link";
 import { SectionShell } from "@/components/site/section-shell";
 import { Card, CardContent } from "@/components/ui/card";
-import { aboutSummary } from "@/lib/data/resume";
 import { safeGetPillars } from "@/lib/firestore/public";
+import { safeProfile } from "@/lib/firestore/site-public";
+import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "About | Saleh Abbaas",
-  description: "About Saleh Abbaas, full-stack engineer and Firebase architect."
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "About",
+  description: "About Saleh Abbaas, software engineer and Firebase architect.",
+  path: "/about"
+});
 
 export const revalidate = 300;
 
 export default async function AboutPage() {
-  const pillars = await safeGetPillars();
+  const [pillars, profile] = await Promise.all([safeGetPillars(), safeProfile()]);
+
+  const webPageJsonLd = pageSchema({
+    title: "About",
+    description: "About Saleh Abbaas, software engineer and Firebase architect.",
+    path: "/about"
+  });
 
   return (
-    <SectionShell
-      title="About"
-      description="I design and engineer product systems that combine technology, storytelling, and measurable growth."
-    >
+    <SectionShell title="About" description={profile.headline || "I design and engineer product systems for measurable growth."}>
       <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
-        <Card className="bg-white/80">
-          <CardContent className="pt-6">
-            <p className="text-lg leading-8 text-foreground/80">{aboutSummary}</p>
+        <Card className="bg-card/85">
+          <CardContent className="space-y-4 pt-6">
+            <p className="text-lg leading-8 text-foreground/80">{profile.bio || "Update biography from the admin CMS."}</p>
+            <ResumeDownloadLink url={profile.resumeUrl} />
           </CardContent>
         </Card>
         <CreatorPillars pillars={pillars} />
       </div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
     </SectionShell>
   );
 }

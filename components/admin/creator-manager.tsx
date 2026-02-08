@@ -26,7 +26,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { db, auth } from "@/lib/firebase/client";
 import { formatDate, slugify } from "@/lib/utils";
-import { ContentItem, ContentStatus, ContentVariant, CreatorSettings, CreatorTemplate, Platform, Visibility } from "@/types/creator";
+import {
+  ContentItem,
+  ContentStatus,
+  ContentVariant,
+  CreatorSettings,
+  CreatorTemplate,
+  Platform,
+  TopicPillar,
+  Visibility
+} from "@/types/creator";
 
 function timestampToIso(value: unknown) {
   if (!value) return "";
@@ -52,7 +61,7 @@ function fromDatetimeInput(value: string) {
 
 const defaultItem: Omit<ContentItem, "id"> = {
   title: "",
-  pillar: "Engineering",
+  pillar: "Software",
   type: "post",
   status: "idea",
   notes: "",
@@ -77,7 +86,7 @@ const defaultVariant: Omit<ContentVariant, "id"> = {
   seoTitle: "",
   seoDesc: "",
   ogImage: "",
-  pillar: "Engineering",
+  pillar: "Software",
   tags: [],
   metrics: {
     views: 0,
@@ -99,9 +108,9 @@ export function CreatorManager() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [variantForm, setVariantForm] = useState(defaultVariant);
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
-  const [scheduledVariants, setScheduledVariants] = useState<ContentVariant[]>([]);
+  const [allVariants, setAllVariants] = useState<ContentVariant[]>([]);
   const [settings, setSettings] = useState<CreatorSettings>({
-    pillars: ["Engineering", "Career", "Growth"],
+    pillars: ["AI", "HealthTech", "Software", "Cloud", "Cybersecurity", "Career", "Other"],
     platforms: ["linkedin", "youtube", "instagram", "tiktok", "x"],
     pinnedVariantSlugs: [],
     newsletterEnabled: true,
@@ -121,7 +130,7 @@ export function CreatorManager() {
         return {
           id: document.id,
           title: data.title ?? "",
-          pillar: data.pillar ?? "Engineering",
+          pillar: data.pillar ?? "Software",
           type: data.type ?? "post",
           status: data.status ?? "idea",
           notes: data.notes ?? "",
@@ -166,7 +175,7 @@ export function CreatorManager() {
           seoTitle: data.seoTitle ?? "",
           seoDesc: data.seoDesc ?? "",
           ogImage: data.ogImage ?? "",
-          pillar: data.pillar ?? "Engineering",
+          pillar: data.pillar ?? "Software",
           tags: Array.isArray(data.tags) ? data.tags : [],
           metrics: data.metrics ?? defaultVariant.metrics,
           createdAt: timestampToIso(data.createdAt),
@@ -178,9 +187,13 @@ export function CreatorManager() {
   }, [selectedContentId]);
 
   useEffect(() => {
-    const q = query(collectionGroup(db, "variants"), where("scheduledAt", "!=", null), orderBy("scheduledAt", "asc"));
+    const q = query(
+      collectionGroup(db, "variants"),
+      where("visibility", "in", ["private", "unlisted", "public"]),
+      orderBy("publishedAt", "desc")
+    );
     return onSnapshot(q, (snap) => {
-      setScheduledVariants(
+      setAllVariants(
         snap.docs.map((document) => {
           const data = document.data();
           return {
@@ -202,8 +215,11 @@ export function CreatorManager() {
             seoTitle: data.seoTitle ?? "",
             seoDesc: data.seoDesc ?? "",
             ogImage: data.ogImage ?? "",
-            pillar: data.pillar ?? "Engineering",
-            tags: Array.isArray(data.tags) ? data.tags : []
+            pillar: data.pillar ?? "Software",
+            tags: Array.isArray(data.tags) ? data.tags : [],
+            metrics: data.metrics ?? defaultVariant.metrics,
+            createdAt: timestampToIso(data.createdAt),
+            updatedAt: timestampToIso(data.updatedAt)
           } satisfies ContentVariant;
         })
       );
@@ -259,6 +275,41 @@ export function CreatorManager() {
     () => contentItems.find((item) => item.id === selectedContentId) ?? null,
     [contentItems, selectedContentId]
   );
+
+  const scheduledVariants = useMemo(
+    () =>
+      allVariants
+        .filter((variant) => variant.scheduledAt)
+        .sort((a, b) => new Date(a.scheduledAt || 0).getTime() - new Date(b.scheduledAt || 0).getTime()),
+    [allVariants]
+  );
+
+  const growthInsights = useMemo(() => {
+    const topicScores = new Map<string, number>();
+    const platformScores = new Map<string, number>();
+    const hookScores: Array<{ hook: string; views: number }> = [];
+
+    allVariants.forEach((variant) => {
+      const views = Number(variant.metrics?.views ?? 0);
+      topicScores.set(variant.pillar, (topicScores.get(variant.pillar) ?? 0) + views);
+      platformScores.set(variant.platform, (platformScores.get(variant.platform) ?? 0) + views);
+      if (variant.hook) {
+        hookScores.push({ hook: variant.hook, views });
+      }
+    });
+
+    return {
+      bestTopics: Array.from(topicScores.entries())
+        .map(([topic, views]) => ({ topic, views }))
+        .sort((a, b) => b.views - a.views)
+        .slice(0, 5),
+      bestPlatforms: Array.from(platformScores.entries())
+        .map(([platform, views]) => ({ platform, views }))
+        .sort((a, b) => b.views - a.views)
+        .slice(0, 5),
+      bestHooks: hookScores.sort((a, b) => b.views - a.views).slice(0, 5)
+    };
+  }, [allVariants]);
 
   async function saveContentItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -453,11 +504,18 @@ export function CreatorManager() {
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label>Pillar</Label>
-                  <Input
+                  <Select
                     value={itemForm.pillar}
-                    onChange={(event) => setItemForm((prev) => ({ ...prev, pillar: event.target.value }))}
-                    required
-                  />
+                    onChange={(event) => setItemForm((prev) => ({ ...prev, pillar: event.target.value as TopicPillar }))}
+                  >
+                    <option value="AI">AI</option>
+                    <option value="HealthTech">HealthTech</option>
+                    <option value="Software">Software</option>
+                    <option value="Cloud">Cloud</option>
+                    <option value="Cybersecurity">Cybersecurity</option>
+                    <option value="Career">Career</option>
+                    <option value="Other">Other</option>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Type</Label>
@@ -465,10 +523,11 @@ export function CreatorManager() {
                     value={itemForm.type}
                     onChange={(event) => setItemForm((prev) => ({ ...prev, type: event.target.value as ContentItem["type"] }))}
                   >
-                    <option value="post">Post</option>
-                    <option value="video">Video</option>
+                    <option value="short_video">Short video</option>
                     <option value="carousel">Carousel</option>
+                    <option value="post">Post</option>
                     <option value="thread">Thread</option>
+                    <option value="article">Article</option>
                   </Select>
                 </div>
                 <div className="space-y-2">
@@ -567,8 +626,8 @@ export function CreatorManager() {
           <CardContent className="space-y-4">
             <form onSubmit={saveVariant} className="space-y-3">
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Platform</Label>
+              <div className="space-y-2">
+                <Label>Platform</Label>
                   <Select
                     value={variantForm.platform}
                     onChange={(event) => setVariantForm((prev) => ({ ...prev, platform: event.target.value as Platform }))}
@@ -802,7 +861,7 @@ export function CreatorManager() {
           <CardContent className="space-y-2">
             {scheduledVariants.length ? (
               scheduledVariants.map((variant) => (
-                <div key={variant.id} className="rounded-2xl border border-border/70 bg-white p-3 text-sm">
+                <div key={variant.id} className="rounded-2xl border border-border/70 bg-card/80 p-3 text-sm">
                   <p className="font-medium">{variant.contentTitle}</p>
                   <p className="text-muted-foreground">
                     {variant.platform} • {variant.visibility} • {formatDate(variant.scheduledAt)}
@@ -828,7 +887,7 @@ export function CreatorManager() {
                   <button
                     key={template.id}
                     type="button"
-                    className="w-full rounded-2xl border border-border/70 bg-white p-3 text-left"
+                    className="w-full rounded-2xl border border-border/70 bg-card/80 p-3 text-left"
                     onClick={() =>
                       setVariantForm((prev) => ({
                         ...prev,
@@ -854,7 +913,7 @@ export function CreatorManager() {
                     <button
                       key={hook}
                       type="button"
-                      className="w-full rounded-xl border border-border/70 bg-white p-2 text-left hover:border-primary"
+                      className="w-full rounded-xl border border-border/70 bg-card/80 p-2 text-left hover:border-primary"
                       onClick={() => setVariantForm((prev) => ({ ...prev, hook }))}
                     >
                       {hook}
@@ -879,7 +938,7 @@ export function CreatorManager() {
                     <button
                       key={cta}
                       type="button"
-                      className="w-full rounded-xl border border-border/70 bg-white p-2 text-left hover:border-primary"
+                      className="w-full rounded-xl border border-border/70 bg-card/80 p-2 text-left hover:border-primary"
                       onClick={() => setVariantForm((prev) => ({ ...prev, cta }))}
                     >
                       {cta}
@@ -979,6 +1038,46 @@ export function CreatorManager() {
               <Button type="submit">Save Settings</Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Analytics Dashboards</CardTitle>
+          <CardDescription>Best topics, hooks, and platforms based on manually entered metrics.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-border/70 bg-card/85 p-4">
+            <p className="text-sm font-semibold">Best Topics</p>
+            <div className="mt-3 space-y-2 text-sm">
+              {growthInsights.bestTopics.map((item) => (
+                <p key={item.topic}>
+                  {item.topic} · {item.views} views
+                </p>
+              ))}
+              {!growthInsights.bestTopics.length ? <p className="text-muted-foreground">No topic data yet.</p> : null}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-card/85 p-4">
+            <p className="text-sm font-semibold">Best Hooks</p>
+            <div className="mt-3 space-y-2 text-sm">
+              {growthInsights.bestHooks.map((item, index) => (
+                <p key={`${item.hook}-${index}`}>{item.hook.slice(0, 60)} · {item.views} views</p>
+              ))}
+              {!growthInsights.bestHooks.length ? <p className="text-muted-foreground">No hook data yet.</p> : null}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-card/85 p-4">
+            <p className="text-sm font-semibold">Best Platforms</p>
+            <div className="mt-3 space-y-2 text-sm">
+              {growthInsights.bestPlatforms.map((item) => (
+                <p key={item.platform}>
+                  {item.platform} · {item.views} views
+                </p>
+              ))}
+              {!growthInsights.bestPlatforms.length ? <p className="text-muted-foreground">No platform data yet.</p> : null}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

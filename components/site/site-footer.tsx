@@ -6,7 +6,7 @@ export async function SiteFooter() {
   const socialLinks = await safeSocialLinks();
 
   return (
-    <footer className="mt-24 border-t border-border/70 bg-white/50">
+    <footer className="mt-24 border-t border-border/70 bg-background/70">
       <div className="container flex flex-col gap-6 py-10 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="font-serif text-lg font-medium">Saleh Abbaas</p>

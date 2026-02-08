@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState, useEffect } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   addDoc,
   collection,
@@ -12,7 +12,6 @@ import {
   setDoc,
   updateDoc
 } from "firebase/firestore";
-import * as XLSX from "xlsx";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,8 +22,48 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { db } from "@/lib/firebase/client";
-import { formatDate } from "@/lib/utils";
-import { JobApplication, JobStatus, JOB_EXPORT_HEADERS, JobTrackerSettings } from "@/types/job";
+import { JobApplication, JobResponse, InterviewStage, JOB_EXPORT_HEADERS, JobTrackerSettings } from "@/types/job";
+
+const defaultResponses: JobResponse[] = [
+  "No response",
+  "Rejected",
+  "Screening call",
+  "Interview requested",
+  "On hold",
+  "Offer",
+  "Withdrawn"
+];
+
+const defaultInterviewStages: InterviewStage[] = [
+  "None",
+  "Recruiter screen",
+  "Hiring manager",
+  "Technical test",
+  "Technical interview",
+  "Panel interview",
+  "Final interview"
+];
+
+const defaultSettings: JobTrackerSettings = {
+  responses: defaultResponses,
+  interviewStages: defaultInterviewStages
+};
+
+const defaultForm: Omit<JobApplication, "id"> = {
+  company: "",
+  roleTitle: "",
+  salaryRate: "",
+  jobAdvertUrl: "",
+  applicationDate: "",
+  contact: "",
+  response: "No response",
+  interviewStage: "None",
+  interviewDate: "",
+  interviewTime: "",
+  interviewerName: "",
+  offer: "",
+  notes: ""
+};
 
 function timestampToIso(value: unknown): string {
   if (!value) return "";
@@ -36,37 +75,26 @@ function timestampToIso(value: unknown): string {
   return "";
 }
 
-const defaultSettings: JobTrackerSettings = {
-  statuses: ["saved", "applied", "screening", "assessment", "interview", "offer", "rejected", "withdrawn"],
-  sources: ["LinkedIn", "Indeed", "Referral", "Company Site"],
-  workModels: ["remote", "hybrid", "onsite"]
-};
-
-const defaultForm: Omit<JobApplication, "id"> = {
-  company: "",
-  role: "",
-  status: "saved",
-  location: "",
-  workModel: "remote",
-  source: "LinkedIn",
-  jobUrl: "",
-  salaryRange: "",
-  contactName: "",
-  contactEmail: "",
-  appliedDate: "",
-  nextStepDate: "",
-  notes: ""
-};
+function normalizeDate(input: string) {
+  if (!input) return "";
+  const match = input.match(/^(\d{2})\/(\d{2})\/(\d{2,4})$/);
+  if (!match) return input;
+  const [, dd, mm, yy] = match;
+  const year = yy.length === 2 ? `20${yy}` : yy;
+  return `${dd}/${mm}/${year}`;
+}
 
 export function JobTracker() {
   const [jobs, setJobs] = useState<JobApplication[]>([]);
   const [settings, setSettings] = useState<JobTrackerSettings>(defaultSettings);
   const [form, setForm] = useState(defaultForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>("");
-  const [filterSource, setFilterSource] = useState<string>("");
-  const [searchText, setSearchText] = useState("");
   const [message, setMessage] = useState("");
+
+  const [filterResponse, setFilterResponse] = useState("");
+  const [filterStage, setFilterStage] = useState("");
+  const [queryText, setQueryText] = useState("");
+  const [sortBy, setSortBy] = useState<"updatedAt" | "company" | "response">("updatedAt");
 
   useEffect(() => {
     const jobsQuery = query(collection(db, "jobApplications"), orderBy("updatedAt", "desc"));
@@ -77,17 +105,17 @@ export function JobTracker() {
           return {
             id: document.id,
             company: data.company ?? "",
-            role: data.role ?? "",
-            status: data.status ?? "saved",
-            location: data.location ?? "",
-            workModel: data.workModel ?? "remote",
-            source: data.source ?? "LinkedIn",
-            jobUrl: data.jobUrl ?? "",
-            salaryRange: data.salaryRange ?? "",
-            contactName: data.contactName ?? "",
-            contactEmail: data.contactEmail ?? "",
-            appliedDate: timestampToIso(data.appliedDate),
-            nextStepDate: timestampToIso(data.nextStepDate),
+            roleTitle: data.roleTitle ?? "",
+            salaryRate: data.salaryRate ?? "",
+            jobAdvertUrl: data.jobAdvertUrl ?? "",
+            applicationDate: data.applicationDate ?? "",
+            contact: data.contact ?? "",
+            response: data.response ?? "No response",
+            interviewStage: data.interviewStage ?? "None",
+            interviewDate: data.interviewDate ?? "",
+            interviewTime: data.interviewTime ?? "",
+            interviewerName: data.interviewerName ?? "",
+            offer: data.offer ?? "",
             notes: data.notes ?? "",
             createdAt: timestampToIso(data.createdAt),
             updatedAt: timestampToIso(data.updatedAt)
@@ -100,9 +128,8 @@ export function JobTracker() {
       if (!snap.exists()) return;
       const data = snap.data();
       setSettings({
-        statuses: data.statuses ?? defaultSettings.statuses,
-        sources: data.sources ?? defaultSettings.sources,
-        workModels: data.workModels ?? defaultSettings.workModels
+        responses: data.responses ?? defaultResponses,
+        interviewStages: data.interviewStages ?? defaultInterviewStages
       });
     });
 
@@ -112,27 +139,44 @@ export function JobTracker() {
     };
   }, []);
 
-  const filteredJobs = useMemo(() => {
-    return jobs.filter((job) => {
-      if (filterStatus && job.status !== filterStatus) return false;
-      if (filterSource && job.source !== filterSource) return false;
-      const keyword = searchText.trim().toLowerCase();
-      if (!keyword) return true;
+  const filtered = useMemo(() => {
+    const filteredRows = jobs.filter((job) => {
+      if (filterResponse && job.response !== filterResponse) return false;
+      if (filterStage && job.interviewStage !== filterStage) return false;
+
+      const search = queryText.trim().toLowerCase();
+      if (!search) return true;
       return (
-        job.company.toLowerCase().includes(keyword) ||
-        job.role.toLowerCase().includes(keyword) ||
-        job.notes?.toLowerCase().includes(keyword)
+        job.company.toLowerCase().includes(search) ||
+        job.roleTitle.toLowerCase().includes(search) ||
+        (job.contact ?? "").toLowerCase().includes(search)
       );
     });
-  }, [jobs, filterStatus, filterSource, searchText]);
+
+    const sortedRows = [...filteredRows];
+    sortedRows.sort((a, b) => {
+      if (sortBy === "company") return a.company.localeCompare(b.company);
+      if (sortBy === "response") return a.response.localeCompare(b.response);
+      return (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "");
+    });
+
+    return sortedRows;
+  }, [jobs, filterResponse, filterStage, queryText, sortBy]);
+
+  const stats = useMemo(() => {
+    const total = jobs.length;
+    const offers = jobs.filter((job) => job.response === "Offer").length;
+    const interviews = jobs.filter((job) => job.interviewStage !== "None").length;
+    const noResponse = jobs.filter((job) => job.response === "No response").length;
+    return { total, offers, interviews, noResponse };
+  }, [jobs]);
 
   async function saveJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const payload = {
       ...form,
-      appliedDate: form.appliedDate ? new Date(form.appliedDate) : null,
-      nextStepDate: form.nextStepDate ? new Date(form.nextStepDate) : null,
+      applicationDate: normalizeDate(form.applicationDate || ""),
       updatedAt: serverTimestamp()
     };
 
@@ -164,29 +208,73 @@ export function JobTracker() {
     setMessage("Dropdown settings saved.");
   }
 
-  function exportToExcel() {
-    const rows = filteredJobs.map((job) => ({
-      Company: job.company,
-      Role: job.role,
-      Status: job.status,
-      Location: job.location,
-      "Work Model": job.workModel,
-      Source: job.source,
-      "Job URL": job.jobUrl || "",
-      "Salary Range": job.salaryRange || "",
-      "Contact Name": job.contactName || "",
-      "Contact Email": job.contactEmail || "",
-      "Applied Date": formatDate(job.appliedDate),
-      "Next Step Date": formatDate(job.nextStepDate),
-      Notes: job.notes || "",
-      "Created At": formatDate(job.createdAt),
-      "Updated At": formatDate(job.updatedAt)
+  async function exportToExcel() {
+    const ExcelJs = await import("exceljs");
+    const workbook = new ExcelJs.Workbook();
+    const worksheet = workbook.addWorksheet("Job Tracker");
+
+    worksheet.columns = [
+      { header: JOB_EXPORT_HEADERS[0], key: "company", width: 20 },
+      { header: JOB_EXPORT_HEADERS[1], key: "roleTitle", width: 22 },
+      { header: JOB_EXPORT_HEADERS[2], key: "salaryRate", width: 14 },
+      { header: JOB_EXPORT_HEADERS[3], key: "jobAdvertUrl", width: 28 },
+      { header: JOB_EXPORT_HEADERS[4], key: "applicationDate", width: 16 },
+      { header: JOB_EXPORT_HEADERS[5], key: "contact", width: 20 },
+      { header: JOB_EXPORT_HEADERS[6], key: "response", width: 18 },
+      { header: JOB_EXPORT_HEADERS[7], key: "interviewStage", width: 20 },
+      { header: JOB_EXPORT_HEADERS[8], key: "interviewDate", width: 16 },
+      { header: JOB_EXPORT_HEADERS[9], key: "interviewTime", width: 14 },
+      { header: JOB_EXPORT_HEADERS[10], key: "interviewerName", width: 18 },
+      { header: JOB_EXPORT_HEADERS[11], key: "offer", width: 18 },
+      { header: JOB_EXPORT_HEADERS[12], key: "notes", width: 28 },
+      { header: JOB_EXPORT_HEADERS[13], key: "createdAt", width: 20 },
+      { header: JOB_EXPORT_HEADERS[14], key: "updatedAt", width: 20 }
+    ];
+
+    // Keep header row visible while scrolling long exports.
+    worksheet.views = [{ state: "frozen", ySplit: 1 }];
+
+    const rows = filtered.map((job) => ({
+      company: job.company,
+      roleTitle: job.roleTitle,
+      salaryRate: job.salaryRate || "",
+      jobAdvertUrl: job.jobAdvertUrl || "",
+      applicationDate: job.applicationDate || "",
+      contact: job.contact || "",
+      response: job.response,
+      interviewStage: job.interviewStage,
+      interviewDate: job.interviewDate || "",
+      interviewTime: job.interviewTime || "",
+      interviewerName: job.interviewerName || "",
+      offer: job.offer || "",
+      notes: job.notes || "",
+      createdAt: job.createdAt || "",
+      updatedAt: job.updatedAt || ""
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(rows, { header: [...JOB_EXPORT_HEADERS] as string[] });
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Job Applications");
-    XLSX.writeFile(workbook, "saleh-job-tracker.xlsx");
+    rows.forEach((row) => worksheet.addRow(row));
+
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.alignment = { vertical: "middle", horizontal: "left" };
+
+    worksheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: JOB_EXPORT_HEADERS.length }
+    };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "saleh-job-tracker.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -194,10 +282,37 @@ export function JobTracker() {
       <Card>
         <CardHeader>
           <CardTitle>Job Application Tracker</CardTitle>
-          <CardDescription>Track applications, pipeline progress, and export reports to Excel.</CardDescription>
+          <CardDescription>Track applications, interviews, and offers with sortable reporting.</CardDescription>
           {message ? <p className="text-sm text-primary">{message}</p> : null}
         </CardHeader>
       </Card>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="bg-card/85">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground">Total Applications</p>
+            <p className="mt-2 text-2xl font-semibold">{stats.total}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/85">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground">Offers</p>
+            <p className="mt-2 text-2xl font-semibold">{stats.offers}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/85">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground">Interview Pipeline</p>
+            <p className="mt-2 text-2xl font-semibold">{stats.interviews}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/85">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground">No Response</p>
+            <p className="mt-2 text-2xl font-semibold">{stats.noResponse}</p>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Card>
@@ -212,99 +327,87 @@ export function JobTracker() {
                   <Input value={form.company} onChange={(event) => setForm((prev) => ({ ...prev, company: event.target.value }))} required />
                 </div>
                 <div className="space-y-2">
-                  <Label>Role</Label>
-                  <Input value={form.role} onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))} required />
+                  <Label>Role Title</Label>
+                  <Input value={form.roleTitle} onChange={(event) => setForm((prev) => ({ ...prev, roleTitle: event.target.value }))} required />
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Salary/Rate</Label>
+                  <Input value={form.salaryRate} onChange={(event) => setForm((prev) => ({ ...prev, salaryRate: event.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Link to Job Advert</Label>
+                  <Input value={form.jobAdvertUrl} onChange={(event) => setForm((prev) => ({ ...prev, jobAdvertUrl: event.target.value }))} />
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Application Date (dd/mm/yy)</Label>
+                  <Input
+                    value={form.applicationDate}
+                    onChange={(event) => setForm((prev) => ({ ...prev, applicationDate: event.target.value }))}
+                    placeholder="dd/mm/yy"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contact</Label>
+                  <Input value={form.contact} onChange={(event) => setForm((prev) => ({ ...prev, contact: event.target.value }))} />
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Response</Label>
+                  <Select
+                    value={form.response}
+                    onChange={(event) => setForm((prev) => ({ ...prev, response: event.target.value as JobResponse }))}
+                  >
+                    {settings.responses.map((response) => (
+                      <option key={response} value={response}>
+                        {response}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Interview Stage</Label>
+                  <Select
+                    value={form.interviewStage}
+                    onChange={(event) => setForm((prev) => ({ ...prev, interviewStage: event.target.value as InterviewStage }))}
+                  >
+                    {settings.interviewStages.map((stage) => (
+                      <option key={stage} value={stage}>
+                        {stage}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={form.status}
-                    onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value as JobStatus }))}
-                  >
-                    {settings.statuses.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </Select>
+                  <Label>Interview Date</Label>
+                  <Input value={form.interviewDate} onChange={(event) => setForm((prev) => ({ ...prev, interviewDate: event.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Work Model</Label>
-                  <Select
-                    value={form.workModel}
-                    onChange={(event) =>
-                      setForm((prev) => ({ ...prev, workModel: event.target.value as JobApplication["workModel"] }))
-                    }
-                  >
-                    {settings.workModels.map((model) => (
-                      <option key={model} value={model}>
-                        {model}
-                      </option>
-                    ))}
-                  </Select>
+                  <Label>Interview Time</Label>
+                  <Input value={form.interviewTime} onChange={(event) => setForm((prev) => ({ ...prev, interviewTime: event.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Source</Label>
-                  <Select value={form.source} onChange={(event) => setForm((prev) => ({ ...prev, source: event.target.value }))}>
-                    {settings.sources.map((source) => (
-                      <option key={source} value={source}>
-                        {source}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Location</Label>
-                  <Input value={form.location} onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Salary Range</Label>
+                  <Label>Interviewer Name</Label>
                   <Input
-                    value={form.salaryRange}
-                    onChange={(event) => setForm((prev) => ({ ...prev, salaryRange: event.target.value }))}
-                    placeholder="$120k - $150k"
+                    value={form.interviewerName}
+                    onChange={(event) => setForm((prev) => ({ ...prev, interviewerName: event.target.value }))}
                   />
                 </div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Job URL</Label>
-                  <Input value={form.jobUrl} onChange={(event) => setForm((prev) => ({ ...prev, jobUrl: event.target.value }))} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Contact Email</Label>
-                  <Input
-                    type="email"
-                    value={form.contactEmail}
-                    onChange={(event) => setForm((prev) => ({ ...prev, contactEmail: event.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Applied Date</Label>
-                  <Input
-                    type="date"
-                    value={form.appliedDate ? form.appliedDate.slice(0, 10) : ""}
-                    onChange={(event) => setForm((prev) => ({ ...prev, appliedDate: event.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Next Step Date</Label>
-                  <Input
-                    type="date"
-                    value={form.nextStepDate ? form.nextStepDate.slice(0, 10) : ""}
-                    onChange={(event) => setForm((prev) => ({ ...prev, nextStepDate: event.target.value }))}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Offer</Label>
+                <Input value={form.offer} onChange={(event) => setForm((prev) => ({ ...prev, offer: event.target.value }))} />
               </div>
 
               <div className="space-y-2">
@@ -319,57 +422,42 @@ export function JobTracker() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Dropdown Settings</CardTitle>
-            <CardDescription>Configure admin dropdown options from Firestore.</CardDescription>
+            <CardTitle>Dropdown Defaults</CardTitle>
+            <CardDescription>Manage Response and Interview Stage options.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={saveSettings} className="space-y-3">
               <div className="space-y-2">
-                <Label>Statuses</Label>
+                <Label>Response Options</Label>
                 <Input
-                  value={settings.statuses.join(", ")}
+                  value={settings.responses.join(", ")}
                   onChange={(event) =>
                     setSettings((prev) => ({
                       ...prev,
-                      statuses: event.target.value
+                      responses: event.target.value
                         .split(",")
-                        .map((value) => value.trim() as JobStatus)
+                        .map((value) => value.trim() as JobResponse)
                         .filter(Boolean)
                     }))
                   }
                 />
               </div>
               <div className="space-y-2">
-                <Label>Sources</Label>
+                <Label>Interview Stage Options</Label>
                 <Input
-                  value={settings.sources.join(", ")}
+                  value={settings.interviewStages.join(", ")}
                   onChange={(event) =>
                     setSettings((prev) => ({
                       ...prev,
-                      sources: event.target.value
+                      interviewStages: event.target.value
                         .split(",")
-                        .map((value) => value.trim())
+                        .map((value) => value.trim() as InterviewStage)
                         .filter(Boolean)
                     }))
                   }
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Work Models</Label>
-                <Input
-                  value={settings.workModels.join(", ")}
-                  onChange={(event) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      workModels: event.target.value
-                        .split(",")
-                        .map((value) => value.trim() as JobApplication["workModel"])
-                        .filter(Boolean)
-                    }))
-                  }
-                />
-              </div>
-              <Button type="submit">Save Dropdowns</Button>
+              <Button type="submit">Save Defaults</Button>
             </form>
           </CardContent>
         </Card>
@@ -377,31 +465,32 @@ export function JobTracker() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Applications</CardTitle>
-          <CardDescription>Filter, inspect, and export your pipeline.</CardDescription>
+          <CardTitle>Applications Table</CardTitle>
+          <CardDescription>Filter, sort, and export.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-4">
-            <Input
-              placeholder="Search company/role/notes"
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-            />
-            <Select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}>
-              <option value="">All statuses</option>
-              {settings.statuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
+          <div className="grid gap-3 md:grid-cols-5">
+            <Input placeholder="Search company/role/contact" value={queryText} onChange={(event) => setQueryText(event.target.value)} />
+            <Select value={filterResponse} onChange={(event) => setFilterResponse(event.target.value)}>
+              <option value="">All responses</option>
+              {settings.responses.map((response) => (
+                <option key={response} value={response}>
+                  {response}
                 </option>
               ))}
             </Select>
-            <Select value={filterSource} onChange={(event) => setFilterSource(event.target.value)}>
-              <option value="">All sources</option>
-              {settings.sources.map((source) => (
-                <option key={source} value={source}>
-                  {source}
+            <Select value={filterStage} onChange={(event) => setFilterStage(event.target.value)}>
+              <option value="">All interview stages</option>
+              {settings.interviewStages.map((stage) => (
+                <option key={stage} value={stage}>
+                  {stage}
                 </option>
               ))}
+            </Select>
+            <Select value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)}>
+              <option value="updatedAt">Sort: Updated</option>
+              <option value="company">Sort: Company</option>
+              <option value="response">Sort: Response</option>
             </Select>
             <Button variant="secondary" onClick={exportToExcel}>
               Export XLSX
@@ -412,24 +501,23 @@ export function JobTracker() {
             <TableHeader>
               <TableRow>
                 <TableHead>Company</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Next Step</TableHead>
+                <TableHead>Role Title</TableHead>
+                <TableHead>Response</TableHead>
+                <TableHead>Interview Stage</TableHead>
+                <TableHead>Offer</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredJobs.map((job) => (
+              {filtered.map((job) => (
                 <TableRow key={job.id}>
+                  <TableCell className="font-medium">{job.company}</TableCell>
+                  <TableCell>{job.roleTitle}</TableCell>
                   <TableCell>
-                    <p className="font-medium">{job.company}</p>
-                    <p className="text-xs text-muted-foreground">{job.location}</p>
+                    <Badge variant="secondary">{job.response}</Badge>
                   </TableCell>
-                  <TableCell>{job.role}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{job.status}</Badge>
-                  </TableCell>
-                  <TableCell>{formatDate(job.nextStepDate)}</TableCell>
+                  <TableCell>{job.interviewStage}</TableCell>
+                  <TableCell>{job.offer || "-"}</TableCell>
                   <TableCell>
                     <Button
                       size="sm"
@@ -438,17 +526,17 @@ export function JobTracker() {
                         setEditingId(job.id);
                         setForm({
                           company: job.company,
-                          role: job.role,
-                          status: job.status,
-                          location: job.location,
-                          workModel: job.workModel,
-                          source: job.source,
-                          jobUrl: job.jobUrl,
-                          salaryRange: job.salaryRange,
-                          contactName: job.contactName,
-                          contactEmail: job.contactEmail,
-                          appliedDate: job.appliedDate,
-                          nextStepDate: job.nextStepDate,
+                          roleTitle: job.roleTitle,
+                          salaryRate: job.salaryRate,
+                          jobAdvertUrl: job.jobAdvertUrl,
+                          applicationDate: job.applicationDate,
+                          contact: job.contact,
+                          response: job.response,
+                          interviewStage: job.interviewStage,
+                          interviewDate: job.interviewDate,
+                          interviewTime: job.interviewTime,
+                          interviewerName: job.interviewerName,
+                          offer: job.offer,
                           notes: job.notes
                         });
                       }}

@@ -11,7 +11,7 @@ service firebase.storage {
 
     function variantVisible(contentItemId, variantId) {
       let variant = firestore.get(
-        /databases/(default)/documents/contentItems/$(contentItemId)/variants/$(variantId)
+        /databases/salehabbaas/documents/contentItems/$(contentItemId)/variants/$(variantId)
       );
       return variant.data != null
         && (variant.data.visibility == 'public' || variant.data.visibility == 'unlisted')
@@ -20,6 +20,21 @@ service firebase.storage {
 
     match /creator/{contentItemId}/{variantId}/{fileName} {
       allow read: if isAdmin() || variantVisible(contentItemId, variantId);
+      allow write: if isAdmin();
+    }
+
+    match /media/{fileName=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /certificates/{fileName=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /resume/{fileName=**} {
+      allow read: if true;
       allow write: if isAdmin();
     }
 

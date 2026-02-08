@@ -3,7 +3,7 @@
 ## Public Website
 
 - [ ] Home H1 contains "Saleh Abbaas"
-- [ ] Public pages load: Home, About, Experience, Projects, Services, Certificates, Knowledge, Creator, Contact
+- [ ] Public pages load: Home, About, Experience, Projects, Services, Certificates, Knowledge, Creator, Book Meeting, Contact
 - [ ] "From the Creator" section shows latest 3 public items
 - [ ] About page shows topic pillars
 - [ ] Project details page shows related creator posts by tags
@@ -38,6 +38,14 @@
 - [ ] XLSX export works and headers match `JOB_EXPORT_HEADERS`
 - [ ] Dropdown settings persist in Firestore
 
+## Booking System
+
+- [ ] `/book-meeting` loads availability, meeting types, and timezone input
+- [ ] Booking submit blocks unavailable or already-booked slots
+- [ ] Booking writes `bookings` + `bookingSlotLocks` documents
+- [ ] Admin `/admin/bookings` can cancel/reschedule and lock cleanup occurs
+- [ ] Remote Config toggle enables/disables booking end-to-end
+
 ## Security
 
 - [ ] Firestore rules block admin collections for non-admins
@@ -62,7 +70,11 @@
 
 ## Analytics
 
+- [ ] `page_view` triggered on route change
 - [ ] `view_creator_item` triggered on creator detail visit
 - [ ] `click_external_post` triggered on outbound post link click
+- [ ] `download_resume` triggered on resume click
+- [ ] `contact_submit` triggered on contact success
+- [ ] `book_meeting` triggered on booking success
 - [ ] `subscribe_newsletter` triggered on subscribe success
-- [ ] `click_social` triggered on social follow link clicks
+- [ ] `social_click` triggered on social follow link clicks

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { trackEvent } from "@/lib/firebase/client";
 
 export function ContactForm() {
   const [loading, setLoading] = useState(false);
@@ -33,6 +34,7 @@ export function ContactForm() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to submit");
       setMessage("Message sent successfully.");
+      trackEvent("contact_submit", { path: "/contact" });
       event.currentTarget.reset();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Something went wrong.");
@@ -42,7 +44,7 @@ export function ContactForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-3xl border border-border/70 bg-white/85 p-6">
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-3xl border border-border/70 bg-card/85 p-6">
       <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
         <Input id="name" name="name" required />

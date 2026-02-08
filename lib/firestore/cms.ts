@@ -1,5 +1,7 @@
 import "server-only";
 
+import { DocumentData, Query } from "firebase-admin/firestore";
+
 import { adminDb } from "@/lib/firebase/admin";
 import {
   BlogPostContent,
@@ -90,12 +92,12 @@ export async function getExperiences(): Promise<ExperienceContent[]> {
 }
 
 export async function getProjects(options?: { publishedOnly?: boolean }): Promise<ProjectContent[]> {
-  let query = adminDb.collection("projects").orderBy("sortOrder", "asc");
+  let query: Query<DocumentData> = adminDb.collection("projects");
   if (options?.publishedOnly) {
-    query = query.where("status", "==", "published").orderBy("sortOrder", "asc");
+    query = query.where("status", "==", "published");
   }
 
-  const snap = await query.get();
+  const snap = await query.orderBy("sortOrder", "asc").get();
   return snap.docs.map((doc) => {
     const data = doc.data();
     return {

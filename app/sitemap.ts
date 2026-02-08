@@ -1,6 +1,7 @@
 import { MetadataRoute } from "next";
 
 import { safeGetSitemapEntries } from "@/lib/firestore/public";
+import { safeBlogPosts, safeProjects } from "@/lib/firestore/site-public";
 import { resolveAbsoluteUrl } from "@/lib/utils";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -13,10 +14,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/certificates",
     "/knowledge",
     "/creator",
+    "/book-meeting",
     "/contact"
   ];
 
-  const creatorEntries = await safeGetSitemapEntries();
+  const [creatorEntries, projects, blogPosts] = await Promise.all([
+    safeGetSitemapEntries(),
+    safeProjects({ publishedOnly: true }),
+    safeBlogPosts({ publishedOnly: true })
+  ]);
 
   const staticItems = staticRoutes.map((path) => ({
     url: resolveAbsoluteUrl(path),
@@ -31,5 +37,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7
   }));
 
-  return [...staticItems, ...creatorItems];
+  const projectItems = projects.map((project) => ({
+    url: resolveAbsoluteUrl(`/projects/${project.slug}`),
+    lastModified: project.updatedAt,
+    changeFrequency: "weekly" as const,
+    priority: 0.72
+  }));
+
+  const blogItems = blogPosts.map((post) => ({
+    url: resolveAbsoluteUrl(`/knowledge/${post.slug}`),
+    lastModified: post.updatedAt || post.publishedAt,
+    changeFrequency: "weekly" as const,
+    priority: 0.7
+  }));
+
+  return [...staticItems, ...projectItems, ...blogItems, ...creatorItems];
 }

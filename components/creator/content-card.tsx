@@ -5,14 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, truncate } from "@/lib/utils";
 import { ContentVariant } from "@/types/creator";
 
+function formatLabel(input: string) {
+  return input.replace(/_/g, " ");
+}
+
 export function CreatorContentCard({ item }: { item: ContentVariant }) {
   return (
-    <Card className="h-full border-border/70 bg-white/80 backdrop-blur">
+    <Card className="h-full border-border/70 bg-card/85 backdrop-blur">
       <CardHeader className="space-y-3">
         <div className="flex flex-wrap gap-2">
-          <Badge variant="default">{item.platform}</Badge>
+          <Badge variant="default">{formatLabel(item.platform)}</Badge>
           <Badge variant="secondary">{item.pillar}</Badge>
-          <Badge variant="outline">{item.contentType}</Badge>
+          <Badge variant="outline">{formatLabel(item.contentType)}</Badge>
         </div>
         <CardTitle className="text-xl leading-snug">
           <Link href={`/creator/${item.slug}`} className="hover:text-primary">

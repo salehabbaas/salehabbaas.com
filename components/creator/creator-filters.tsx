@@ -10,9 +10,13 @@ interface FilterProps {
   types: string[];
 }
 
+function formatLabel(input: string) {
+  return input.replace(/_/g, " ");
+}
+
 export function CreatorFilters({ activePillar, activePlatform, activeType, pillars, platforms, types }: FilterProps) {
   return (
-    <form className="grid gap-3 rounded-3xl border border-border/70 bg-white/80 p-5 md:grid-cols-5">
+    <form className="grid gap-3 rounded-3xl border border-border/70 bg-card/85 p-5 md:grid-cols-5">
       <Select name="pillar" defaultValue={activePillar || ""}>
         <option value="">All Pillars</option>
         {pillars.map((pillar) => (
@@ -25,7 +29,7 @@ export function CreatorFilters({ activePillar, activePlatform, activeType, pilla
         <option value="">All Platforms</option>
         {platforms.map((platform) => (
           <option key={platform} value={platform}>
-            {platform}
+            {formatLabel(platform)}
           </option>
         ))}
       </Select>
@@ -33,7 +37,7 @@ export function CreatorFilters({ activePillar, activePlatform, activeType, pilla
         <option value="">All Content Types</option>
         {types.map((type) => (
           <option key={type} value={type}>
-            {type}
+            {formatLabel(type)}
           </option>
         ))}
       </Select>
