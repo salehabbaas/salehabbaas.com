@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    function isPublicOrUnlistedPublished(visibility, publishedAt) {
+      return (visibility == 'public' || visibility == 'unlisted') && publishedAt != null;
+    }
+
+    match /contentItems/{contentItemId} {
+      allow read, write: if isAdmin();
+
+      match /variants/{variantId} {
+        allow read: if isAdmin() || isPublicOrUnlistedPublished(resource.data.visibility, resource.data.publishedAt);
+        allow create, update, delete: if isAdmin();
+
+        match /metrics/{metricId} {
+          allow read: if isAdmin() || isPublicOrUnlistedPublished(
+            get(/databases/$(database)/documents/contentItems/$(contentItemId)/variants/$(variantId)).data.visibility,
+            get(/databases/$(database)/documents/contentItems/$(contentItemId)/variants/$(variantId)).data.publishedAt
+          );
+          allow write: if isAdmin();
+        }
+      }
+    }
+
+    match /creatorSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /creatorTemplates/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /hookLibrary/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /ctaLibrary/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /jobApplications/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /jobTrackerSettings/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /newsletterSubscribers/{subscriberId} {
+      allow create: if request.resource.data.email is string
+        && request.resource.data.status == 'pending'
+        && request.resource.data.source is string;
+      allow update, read, delete: if isAdmin();
+    }
+
+    match /contactSubmissions/{docId} {
+      allow create: if request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.message is string;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /resumeSections/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    function variantVisible(contentItemId, variantId) {
+      let variant = firestore.get(
+        /databases/(default)/documents/contentItems/$(contentItemId)/variants/$(variantId)
+      );
+      return variant.data != null
+        && (variant.data.visibility == 'public' || variant.data.visibility == 'unlisted')
+        && variant.data.publishedAt != null;
+    }
+
+    match /creator/{contentItemId}/{variantId}/{fileName} {
+      allow read: if isAdmin() || variantVisible(contentItemId, variantId);
+      allow write: if isAdmin();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
