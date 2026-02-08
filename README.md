@@ -95,6 +95,7 @@ After first login, rotate to a new password immediately.
 - `npm run lint` lint
 - `npm run typecheck` TypeScript type check
 - `npm run seed` seed Firestore defaults
+- `npm run import-resume -- "<absolute-path-to-resume.pdf>"` import profile/experience/projects/services/certificates from an Enhancv PDF resume
 - `npm run create-admin` create/update admin user + set `admin=true` claim
 - `npm run set-admin -- <uid>` set admin claim for any existing user
 
@@ -140,7 +141,7 @@ Trigger:
 What it does:
 
 1. Installs root and `functions` dependencies
-2. Writes service account JSON from GitHub secret
+2. Authenticates to Google Cloud using service account JSON from a GitHub secret
 3. Deploys to Firebase Hosting project `artelo-f7475`
 
 Required GitHub repository secrets:

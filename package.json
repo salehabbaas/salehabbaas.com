@@ -12,6 +12,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed-firestore.ts",
+    "import-resume": "tsx scripts/import-resume.ts",
     "set-admin": "tsx scripts/set-admin-claim.ts",
     "create-admin": "tsx scripts/create-admin-user.ts"
   },

@@ -11,6 +11,9 @@ concurrency:
   group: firebase-hosting-production
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -29,13 +32,18 @@ jobs:
           npm install --no-audit --no-fund
           npm --prefix functions install --no-audit --no-fund
 
-      - name: Write Firebase service account
-        run: |
-          printf '%s' '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARTELO_F7475 }}' > "${{ runner.temp }}/firebase-service-account.json"
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARTELO_F7475 }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Verify Firebase authentication
+        run: npx firebase-tools projects:list --non-interactive > /dev/null
 
       - name: Deploy to Firebase Hosting (production)
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
           FIREBASE_CLI_EXPERIMENTS: webframeworks
           NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
           NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
