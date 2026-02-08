@@ -36,6 +36,7 @@ jobs:
       - name: Resolve authentication strategy
         id: auth
         env:
+          GITHUB_ACTOR: ${{ github.actor }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARTELO_F7475 }}
           FIREBASE_SERVICE_ACCOUNT_JSON_LEGACY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
@@ -59,6 +60,12 @@ jobs:
 
           if [ -n "${FIREBASE_TOKEN}" ]; then
             echo "mode=firebase_token" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${GITHUB_ACTOR}" = "dependabot[bot]" ]; then
+            echo "mode=skip" >> "$GITHUB_OUTPUT"
+            echo "::warning::No Firebase deploy credentials available in Dependabot context. Skipping deployment."
             exit 0
           fi
 
@@ -91,11 +98,13 @@ jobs:
           export_environment_variables: true
 
       - name: Verify Firebase authentication
+        if: ${{ steps.auth.outputs.mode != 'skip' }}
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: npx firebase-tools projects:list --non-interactive > /dev/null
 
       - name: Deploy to Firebase Hosting (production)
+        if: ${{ steps.auth.outputs.mode != 'skip' }}
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

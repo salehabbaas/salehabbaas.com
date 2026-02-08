@@ -165,6 +165,7 @@ Required GitHub repository secrets:
 - `NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY`
 
 If the workflow is triggered by Dependabot or a fork context, configure the same auth secret(s) in that context too. Repository secrets are not always injected for those runs.
+If no auth secrets are available in a Dependabot-triggered run, the deploy workflow now skips deployment with a warning instead of failing the pipeline.
 
 ## Production Deployment (Manual)
 
