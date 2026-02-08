@@ -20,10 +20,12 @@ const firebaseConfig = {
   databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL
 };
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const isBrowser = typeof window !== "undefined";
+const hasFirebaseConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId);
+const app = isBrowser && hasFirebaseConfig ? (getApps().length ? getApp() : initializeApp(firebaseConfig)) : null;
 const firestoreDatabaseId = process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID;
 
-if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY) {
+if (app && process.env.NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY) {
   try {
     initializeAppCheck(app, {
       provider: new ReCaptchaV3Provider(process.env.NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY),
@@ -34,13 +36,20 @@ if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_RECAPTCHA_V3_SITE_K
   }
 }
 
-export const auth = getAuth(app);
-export const db = firestoreDatabaseId ? getFirestore(app, firestoreDatabaseId) : getFirestore(app);
-export const storage = getStorage(app);
+export const auth = app ? getAuth(app) : (null as unknown as ReturnType<typeof getAuth>);
+export const db = app
+  ? firestoreDatabaseId
+    ? getFirestore(app, firestoreDatabaseId)
+    : getFirestore(app)
+  : (null as unknown as ReturnType<typeof getFirestore>);
+export const storage = app ? getStorage(app) : (null as unknown as ReturnType<typeof getStorage>);
 
 let analyticsPromise: Promise<ReturnType<typeof getAnalytics> | null> | null = null;
 
 export async function getClientAnalytics() {
+  if (!app) {
+    return null;
+  }
   if (!analyticsPromise) {
     analyticsPromise = isSupported().then((supported) => (supported ? getAnalytics(app) : null));
   }
@@ -48,6 +57,7 @@ export async function getClientAnalytics() {
 }
 
 export async function trackEvent(name: AnalyticsEventName, params?: Record<string, string | number | boolean>) {
+  if (!app) return;
   const analytics = await getClientAnalytics();
   if (analytics) {
     logEvent(analytics, name as string, params);
