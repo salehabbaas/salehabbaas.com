@@ -6,6 +6,12 @@ on:
       - main
       - master
   workflow_dispatch:
+    inputs:
+      deploy_from_github:
+        description: "Run firebase deploy from GitHub Actions (includes framework backend function)"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: firebase-hosting-production
@@ -26,14 +32,44 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
 
       - name: Install dependencies
         run: |
           npm install --no-audit --no-fund
-          npm --prefix functions install --no-audit --no-fund
+
+      - name: Build (CI validation only)
+        env:
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+          NEXT_PUBLIC_FIREBASE_DATABASE_URL: ${{ secrets.NEXT_PUBLIC_FIREBASE_DATABASE_URL }}
+          NEXT_PUBLIC_FIRESTORE_DATABASE_ID: ${{ secrets.NEXT_PUBLIC_FIRESTORE_DATABASE_ID }}
+          FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID }}
+          NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY: ${{ secrets.NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY }}
+        run: npm run build
+
+      - name: Decide deploy mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.deploy_from_github }}" = "true" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GitHub deploy is disabled. Hosting/framework deploy is expected to run locally."
+          fi
+
+      - name: Install functions dependencies (deploy only)
+        if: ${{ steps.mode.outputs.deploy == 'true' }}
+        run: npm --prefix functions install --no-audit --no-fund
 
       - name: Resolve authentication strategy
+        if: ${{ steps.mode.outputs.deploy == 'true' }}
         id: auth
         env:
           GITHUB_ACTOR: ${{ github.actor }}
@@ -73,7 +109,7 @@ jobs:
           exit 1
 
       - name: Authenticate to Google Cloud (Workload Identity)
-        if: ${{ steps.auth.outputs.mode == 'workload_identity' }}
+        if: ${{ steps.mode.outputs.deploy == 'true' && steps.auth.outputs.mode == 'workload_identity' }}
         id: auth_wif
         uses: google-github-actions/auth@v2
         with:
@@ -84,7 +120,7 @@ jobs:
           export_environment_variables: true
 
       - name: Authenticate to Google Cloud (Service Account JSON)
-        if: ${{ steps.auth.outputs.mode == 'service_account_json' }}
+        if: ${{ steps.mode.outputs.deploy == 'true' && steps.auth.outputs.mode == 'service_account_json' }}
         id: auth_sa
         uses: google-github-actions/auth@v2
         with:
@@ -94,7 +130,7 @@ jobs:
           export_environment_variables: true
 
       - name: Authenticate to Google Cloud (Legacy Service Account JSON)
-        if: ${{ steps.auth.outputs.mode == 'service_account_json_legacy' }}
+        if: ${{ steps.mode.outputs.deploy == 'true' && steps.auth.outputs.mode == 'service_account_json_legacy' }}
         id: auth_sa_legacy
         uses: google-github-actions/auth@v2
         with:
@@ -104,7 +140,7 @@ jobs:
           export_environment_variables: true
 
       - name: Preflight IAM for Firebase frameworks deploy
-        if: ${{ steps.auth.outputs.mode == 'workload_identity' || steps.auth.outputs.mode == 'service_account_json' || steps.auth.outputs.mode == 'service_account_json_legacy' }}
+        if: ${{ steps.mode.outputs.deploy == 'true' && (steps.auth.outputs.mode == 'workload_identity' || steps.auth.outputs.mode == 'service_account_json' || steps.auth.outputs.mode == 'service_account_json_legacy') }}
         env:
           ACCESS_TOKEN: ${{ steps.auth_wif.outputs.access_token || steps.auth_sa.outputs.access_token || steps.auth_sa_legacy.outputs.access_token }}
           PROJECT_ID: artelo-f7475
@@ -120,13 +156,13 @@ jobs:
           done
 
       - name: Verify Firebase authentication
-        if: ${{ steps.auth.outputs.mode != 'skip' }}
+        if: ${{ steps.mode.outputs.deploy == 'true' && steps.auth.outputs.mode != 'skip' }}
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: npx firebase-tools projects:list --non-interactive > /dev/null
 
       - name: Deploy to Firebase Hosting (production)
-        if: ${{ steps.auth.outputs.mode != 'skip' }}
+        if: ${{ steps.mode.outputs.deploy == 'true' && steps.auth.outputs.mode != 'skip' }}
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

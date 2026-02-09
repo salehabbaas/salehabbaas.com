@@ -135,22 +135,19 @@ Workflow file:
 
 Trigger:
 
-- Push to `main`
-- Manual `workflow_dispatch`
+- Push to `main` / `master` (build validation only, no deploy)
+- Manual `workflow_dispatch` with `deploy_from_github=true` (optional deploy)
 
 What it does:
 
-1. Installs root and `functions` dependencies
-2. Selects one auth mode (Workload Identity, service account JSON, or `FIREBASE_TOKEN`)
-3. Deploys to Firebase Hosting project `artelo-f7475`
+1. Installs root dependencies
+2. Runs `npm run build` for CI validation
+3. By default, skips Firebase deploy from GitHub
+4. If manually dispatched with `deploy_from_github=true`, deploys to Firebase Hosting project `artelo-f7475` (includes framework backend function deploy)
 
 Required GitHub repository secrets:
 
-- One auth option is required:
-  - Preferred: `FIREBASE_SERVICE_ACCOUNT_ARTELO_F7475` (raw JSON content)
-  - Legacy fallback: `FIREBASE_SERVICE_ACCOUNT` (raw JSON content)
-  - Workload Identity: `GCP_WORKLOAD_IDENTITY_PROVIDER` + `GCP_SERVICE_ACCOUNT_EMAIL`
-  - Token fallback: `FIREBASE_TOKEN`
+Required for build validation:
 - `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_FIREBASE_API_KEY`
 - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
@@ -163,6 +160,14 @@ Required GitHub repository secrets:
 - `NEXT_PUBLIC_FIRESTORE_DATABASE_ID` (set to `salehabbaas`)
 - `FIRESTORE_DATABASE_ID` (set to `salehabbaas`)
 - `NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY`
+
+Additional secrets required only when `deploy_from_github=true`:
+
+- One auth option:
+  - Preferred: `FIREBASE_SERVICE_ACCOUNT_ARTELO_F7475` (raw JSON content)
+  - Legacy fallback: `FIREBASE_SERVICE_ACCOUNT` (raw JSON content)
+  - Workload Identity: `GCP_WORKLOAD_IDENTITY_PROVIDER` + `GCP_SERVICE_ACCOUNT_EMAIL`
+  - Token fallback: `FIREBASE_TOKEN`
 
 If the workflow is triggered by Dependabot or a fork context, configure the same auth secret(s) in that context too. Repository secrets are not always injected for those runs.
 
