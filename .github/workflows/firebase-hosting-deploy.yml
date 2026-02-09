@@ -26,7 +26,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
 
       - name: Install dependencies
         run: |
@@ -74,28 +74,50 @@ jobs:
 
       - name: Authenticate to Google Cloud (Workload Identity)
         if: ${{ steps.auth.outputs.mode == 'workload_identity' }}
+        id: auth_wif
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+          token_format: access_token
           create_credentials_file: true
           export_environment_variables: true
 
       - name: Authenticate to Google Cloud (Service Account JSON)
         if: ${{ steps.auth.outputs.mode == 'service_account_json' }}
+        id: auth_sa
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARTELO_F7475 }}
+          token_format: access_token
           create_credentials_file: true
           export_environment_variables: true
 
       - name: Authenticate to Google Cloud (Legacy Service Account JSON)
         if: ${{ steps.auth.outputs.mode == 'service_account_json_legacy' }}
+        id: auth_sa_legacy
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          token_format: access_token
           create_credentials_file: true
           export_environment_variables: true
+
+      - name: Preflight IAM for Firebase frameworks deploy
+        if: ${{ steps.auth.outputs.mode == 'workload_identity' || steps.auth.outputs.mode == 'service_account_json' || steps.auth.outputs.mode == 'service_account_json_legacy' }}
+        env:
+          ACCESS_TOKEN: ${{ steps.auth_wif.outputs.access_token || steps.auth_sa.outputs.access_token || steps.auth_sa_legacy.outputs.access_token }}
+          PROJECT_ID: artelo-f7475
+        run: |
+          for service in cloudfunctions.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com; do
+            status_code="$(curl -sS -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+              "https://serviceusage.googleapis.com/v1/projects/${PROJECT_ID}/services/${service}")"
+            if [ "${status_code}" != "200" ]; then
+              echo "::error::Missing permission for ${service} (HTTP ${status_code}) on project ${PROJECT_ID}. Grant the deploy identity roles/serviceusage.serviceUsageConsumer."
+              exit 1
+            fi
+          done
 
       - name: Verify Firebase authentication
         if: ${{ steps.auth.outputs.mode != 'skip' }}
