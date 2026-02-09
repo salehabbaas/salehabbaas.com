@@ -1,5 +1,14 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initAdminForScripts } from "./firebase-admin-init";
+import {
+  certificates as resumeCertificates,
+  experiences as resumeExperiences,
+  profileDefaults,
+  projects as resumeProjects,
+  seoDefaults as resumeSeoDefaults,
+  services as resumeServices,
+  socialLinks as resumeSocialLinks
+} from "../lib/data/resume";
 
 function isDatastoreModeError(error: unknown) {
   if (!error || typeof error !== "object") return false;
@@ -56,6 +65,38 @@ function datastoreModeGuidance() {
   ].join("\n");
 }
 
+function slugify(input: string) {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100);
+}
+
+async function replaceCollection(
+  db: FirebaseFirestore.Firestore,
+  collectionName: string,
+  docs: Array<{ id: string; data: Record<string, unknown> }>
+) {
+  const existing = await db.collection(collectionName).get();
+  const batch = db.batch();
+
+  existing.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+
+  docs.forEach((entry) => {
+    const ref = db.collection(collectionName).doc(entry.id);
+    batch.set(ref, {
+      ...entry.data,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    });
+  });
+
+  await batch.commit();
+}
+
 async function seed() {
   const app = initAdminForScripts();
   const firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID;
@@ -63,13 +104,13 @@ async function seed() {
 
   await db.collection("siteContent").doc("profile").set(
     {
-      name: "Saleh Abbaas",
-      headline: "Software Engineer",
-      bio: "",
-      location: "",
-      email: "",
-      resumeUrl: "",
-      avatarUrl: "",
+      name: profileDefaults.name,
+      headline: profileDefaults.headline,
+      bio: profileDefaults.bio,
+      location: profileDefaults.location ?? "",
+      email: profileDefaults.email ?? "",
+      resumeUrl: profileDefaults.resumeUrl ?? "",
+      avatarUrl: profileDefaults.avatarUrl ?? "",
       updatedAt: FieldValue.serverTimestamp()
     },
     { merge: true }
@@ -77,9 +118,9 @@ async function seed() {
 
   await db.collection("siteContent").doc("seoDefaults").set(
     {
-      titleTemplate: "Saleh Abbaas | Software Engineer",
-      defaultDescription: "",
-      defaultOgImage: "",
+      titleTemplate: resumeSeoDefaults.titleTemplate,
+      defaultDescription: resumeSeoDefaults.defaultDescription,
+      defaultOgImage: resumeSeoDefaults.defaultOgImage ?? "",
       updatedAt: FieldValue.serverTimestamp()
     },
     { merge: true }
@@ -154,16 +195,89 @@ async function seed() {
       pillars: ["AI", "HealthTech", "Software", "Cloud", "Cybersecurity", "Career", "Other"],
       platforms: ["linkedin", "youtube", "instagram", "tiktok", "x"],
       pinnedVariantSlugs: [],
-      socialLinks: [
-        { label: "LinkedIn", url: "https://linkedin.com/in/salehabbaas" },
-        { label: "YouTube", url: "https://youtube.com/@salehabbaas" },
-        { label: "Instagram", url: "https://instagram.com/salehabbaas" },
-        { label: "TikTok", url: "https://tiktok.com/@salehabbaas" },
-        { label: "X", url: "https://x.com/salehabbaas" }
-      ],
+      socialLinks: resumeSocialLinks.map((item, index) => ({
+        label: item.label,
+        url: item.url,
+        sortOrder: index + 1
+      })),
       updatedAt: FieldValue.serverTimestamp()
     },
     { merge: true }
+  );
+
+  await replaceCollection(
+    db,
+    "experiences",
+    resumeExperiences.map((item, index) => ({
+      id: slugify(`${item.company}-${item.role}`) || `experience-${index + 1}`,
+      data: {
+        company: item.company,
+        role: item.role,
+        startDate: item.startDate ?? "",
+        endDate: item.endDate ?? "",
+        summary: item.summary,
+        achievements: item.achievements,
+        sortOrder: index
+      }
+    }))
+  );
+
+  await replaceCollection(
+    db,
+    "projects",
+    resumeProjects.map((item, index) => ({
+      id: item.slug || slugify(item.title) || `project-${index + 1}`,
+      data: {
+        slug: item.slug || slugify(item.title),
+        title: item.title,
+        description: item.description,
+        longDescription: item.description,
+        tags: item.tags,
+        projectUrl: item.url || "",
+        status: "published",
+        sortOrder: index
+      }
+    }))
+  );
+
+  await replaceCollection(
+    db,
+    "services",
+    resumeServices.map((item, index) => ({
+      id: slugify(item.title) || `service-${index + 1}`,
+      data: {
+        title: item.title,
+        detail: item.detail,
+        sortOrder: index
+      }
+    }))
+  );
+
+  await replaceCollection(
+    db,
+    "certificates",
+    resumeCertificates.map((item, index) => ({
+      id: slugify(`${item.issuer}-${item.title}`) || `certificate-${index + 1}`,
+      data: {
+        title: item.title,
+        issuer: item.issuer,
+        year: item.year || "",
+        sortOrder: index
+      }
+    }))
+  );
+
+  await replaceCollection(
+    db,
+    "socialLinks",
+    resumeSocialLinks.map((item, index) => ({
+      id: slugify(item.label) || `social-${index + 1}`,
+      data: {
+        label: item.label,
+        url: item.url,
+        sortOrder: index + 1
+      }
+    }))
   );
 
   const templateRef = db.collection("creatorTemplates").doc();

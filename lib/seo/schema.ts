@@ -6,14 +6,27 @@ export function personSchema() {
     "@type": "Person",
     name: "Saleh Abbaas",
     url: resolveAbsoluteUrl("/"),
-    jobTitle: "Senior Full-Stack Engineer",
+    jobTitle: "Software Engineer (Healthcare Interoperability)",
     sameAs: [
       "https://linkedin.com/in/salehabbaas",
       "https://youtube.com/@salehabbaas",
       "https://instagram.com/salehabbaas",
       "https://x.com/salehabbaas"
     ],
-    knowsAbout: ["Firebase", "Next.js", "Growth Engineering", "Content Strategy", "Product Design"]
+    knowsAbout: [
+      "Healthcare Interoperability",
+      "HL7",
+      "FHIR",
+      "Rhapsody",
+      "Mirth Connect",
+      "Epic EHR",
+      "HIPAA",
+      "PHIPA",
+      "DICOM",
+      "PACS",
+      "Power BI",
+      "Clinical Data Platforms"
+    ]
   };
 }
 
@@ -23,7 +36,8 @@ export function websiteSchema() {
     "@type": "WebSite",
     name: "Saleh Abbaas",
     url: resolveAbsoluteUrl("/"),
-    description: "Personal website and creator hub for Saleh Abbaas.",
+    description:
+      "Personal website of Saleh Abbaas with healthcare interoperability engineering, clinical data platform work, and professional services.",
     publisher: {
       "@type": "Person",
       name: "Saleh Abbaas"

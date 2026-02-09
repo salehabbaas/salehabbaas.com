@@ -2,6 +2,8 @@ export interface ExperienceEntry {
   company: string;
   role: string;
   period: string;
+  startDate?: string;
+  endDate?: string;
   summary: string;
   achievements: string[];
 }

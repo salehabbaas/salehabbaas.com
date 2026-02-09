@@ -1,16 +1,23 @@
 import { getAuth } from "firebase-admin/auth";
 import { initAdminForScripts } from "./firebase-admin-init";
 
-const DEFAULT_EMAIL = "saleh@artelo.ai";
-const DEFAULT_PASSWORD = "sH@.2026";
+function getArg(index: number) {
+  return process.argv[index]?.trim() || "";
+}
 
-function getArg(index: number, fallback: string) {
-  return process.argv[index]?.trim() || fallback;
+function getEnv(name: string) {
+  return process.env[name]?.trim() || "";
 }
 
 async function main() {
-  const email = getArg(2, DEFAULT_EMAIL);
-  const password = getArg(3, DEFAULT_PASSWORD);
+  const email = getArg(2) || getEnv("ADMIN_BOOTSTRAP_EMAIL");
+  const password = getArg(3) || getEnv("ADMIN_BOOTSTRAP_PASSWORD");
+
+  if (!email || !password) {
+    throw new Error(
+      "Missing admin credentials. Provide `npm run create-admin -- <email> <password>` or set ADMIN_BOOTSTRAP_EMAIL and ADMIN_BOOTSTRAP_PASSWORD in .env.local."
+    );
+  }
 
   if (password.length < 6) {
     throw new Error("Password must be at least 6 characters.");

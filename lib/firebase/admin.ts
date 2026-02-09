@@ -21,7 +21,7 @@ function getCredentialFromServiceAccountFile() {
   const configuredPath =
     process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
     process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-    "artelo-f7475-firebase-adminsdk-krn92-1e4c710408.json";
+    "secrets/firebase-adminsdk.json";
 
   const absolutePath = resolve(configuredPath);
   if (!existsSync(absolutePath)) return null;

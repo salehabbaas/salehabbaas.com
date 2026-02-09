@@ -38,15 +38,16 @@ Run these from repository root (`salehabbaas.com`) so `firebase.json` is used.
    - `firebase deploy --only functions`
 3. Deploy hosting/Next app:
    - `firebase deploy --only hosting`
+4. Confirm App Hosting is not in use:
+   - `firebase apphosting:backends:list --project artelo-f7475`
+   - Expected: no backends returned
 
 ## 4) Admin Bootstrap
 
 1. Create admin user + claim in one command:
-   - `npm run create-admin`
-2. Default admin credentials used by script:
-   - Email: `saleh@artelo.ai`
-   - Password: `sH@.2026`
-3. Ask user to sign out/in again (token refresh) if claim was updated on an existing user.
+   - `npm run create-admin -- <email> <password>`
+   - or set `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` in `.env.local`, then run `npm run create-admin`
+2. Ask user to sign out/in again (token refresh) if claim was updated on an existing user.
 
 Manual alternative:
 - Create Firebase Auth user (email/password), then run:

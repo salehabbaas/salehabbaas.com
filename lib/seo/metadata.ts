@@ -4,7 +4,7 @@ import { resolveAbsoluteUrl } from "@/lib/utils";
 
 export const DEFAULT_TITLE = "Saleh Abbaas | Software Engineer";
 export const DEFAULT_DESCRIPTION =
-  "Saleh Abbaas is a software engineer, Firebase architect, product designer, and growth engineer.";
+  "Software engineer specializing in healthcare interoperability, HL7/FHIR integrations, and clinical data platforms. Based in Ottawa, Ontario.";
 
 export function buildPageMetadata(input: {
   title?: string;
