@@ -9,7 +9,7 @@ export function ExternalPostLink({ url, platform }: { url: string; platform: str
     <Link
       href={url}
       target="_blank"
-      className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+      className="inline-flex items-center text-sm font-medium text-[hsl(var(--accent-strong))] hover:underline"
       onClick={() => trackEvent("click_external_post", { platform })}
     >
       View original post

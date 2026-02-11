@@ -10,6 +10,10 @@
 3. Fill `.env.local` with Firebase Web SDK and Admin SDK values.
    - Set `NEXT_PUBLIC_FIRESTORE_DATABASE_ID=salehabbaas`
    - Set `FIRESTORE_DATABASE_ID=salehabbaas`
+   - Ensure `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` is a bare host (example: `your-project-id.firebaseapp.com`, no `https://`, no path like `/__/auth/handler`, no port, no trailing slash)
+   - (Optional) Enable Saleh-OS (AI assistant):
+     - Set `GEMINI_API_KEY`
+     - Optionally set `GEMINI_MODEL` (defaults to `gemini-2.5-flash`)
 4. Start app:
    - `npm run dev`
 
@@ -39,7 +43,7 @@ Run these from repository root (`salehabbaas.com`) so `firebase.json` is used.
 3. Deploy hosting/Next app:
    - `firebase deploy --only hosting`
 4. Confirm App Hosting is not in use:
-   - `firebase apphosting:backends:list --project artelo-f7475`
+   - `firebase apphosting:backends:list --project salehabbaas-com`
    - Expected: no backends returned
 
 ## 4) Admin Bootstrap

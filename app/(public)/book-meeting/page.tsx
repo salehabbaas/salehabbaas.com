@@ -4,16 +4,19 @@ import { MeetingBooker } from "@/components/booking/meeting-booker";
 import { SectionShell } from "@/components/site/section-shell";
 import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
 
+const BOOK_MEETING_DESCRIPTION =
+  "Book a meeting with Saleh Abbaas (Saleh Abbas) to discuss AI agents, healthcare interoperability, and custom software delivery.";
+
 export const metadata: Metadata = buildPageMetadata({
   title: "Book Meeting",
-  description: "Schedule a meeting with Saleh Abbaas with timezone-aware booking and Google Meet.",
+  description: BOOK_MEETING_DESCRIPTION,
   path: "/book-meeting"
 });
 
 export default function BookMeetingPage() {
   const webPageJsonLd = pageSchema({
     title: "Book Meeting",
-    description: "Schedule a meeting with Saleh Abbaas",
+    description: BOOK_MEETING_DESCRIPTION,
     path: "/book-meeting"
   });
 

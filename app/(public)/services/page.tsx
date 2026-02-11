@@ -5,9 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { safeServices } from "@/lib/firestore/site-public";
 import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
 
+const SERVICES_DESCRIPTION =
+  "Explore services by Saleh Abbaas (Saleh Abbas): AI agent engineering, healthcare interoperability consulting, and cloud software delivery in Ottawa, Canada.";
+
 export const metadata: Metadata = buildPageMetadata({
   title: "Services",
-  description: "Services provided by Saleh Abbaas.",
+  description: SERVICES_DESCRIPTION,
   path: "/services"
 });
 
@@ -17,7 +20,7 @@ export default async function ServicesPage() {
   const services = await safeServices();
   const webPageJsonLd = pageSchema({
     title: "Services",
-    description: "Services provided by Saleh Abbaas.",
+    description: SERVICES_DESCRIPTION,
     path: "/services"
   });
 
@@ -26,12 +29,12 @@ export default async function ServicesPage() {
       <div className="grid gap-4 md:grid-cols-3">
         {services.length ? (
           services.map((service) => (
-            <Card key={service.id} className="bg-card/85">
+            <Card key={service.id} className="bg-card/75">
               <CardHeader>
                 <CardTitle>{service.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">{service.detail}</p>
+                <p className="text-sm text-foreground/75">{service.detail}</p>
               </CardContent>
             </Card>
           ))

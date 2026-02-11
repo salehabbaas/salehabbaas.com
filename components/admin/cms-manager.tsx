@@ -48,7 +48,7 @@ const emptyProfile: ProfileContent = {
 };
 
 const emptySeo: SeoDefaults = {
-  titleTemplate: "Saleh Abbaas | Software Engineer",
+  titleTemplate: "Saleh Abbaas",
   defaultDescription: "",
   defaultOgImage: ""
 };

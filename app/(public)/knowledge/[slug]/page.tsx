@@ -67,30 +67,32 @@ export default async function BlogPostPage({ params }: Props) {
 
   const breadcrumbJsonLd = breadcrumbSchema([
     { name: "Home", url: resolveAbsoluteUrl("/") },
-    { name: "Knowledge", url: resolveAbsoluteUrl("/knowledge") },
+    { name: "Blog", url: resolveAbsoluteUrl("/knowledge") },
     { name: post.title, url: canonical }
   ]);
 
   return (
     <article className="container py-16 md:py-20">
       <div className="mx-auto max-w-3xl space-y-6">
-        <h1 className="font-serif text-4xl leading-tight tracking-tight md:text-5xl">{post.title}</h1>
+        <h1 className="font-serif text-4xl leading-tight tracking-tight text-foreground md:text-5xl">{post.title}</h1>
         <p className="text-sm text-muted-foreground">{formatDate(post.publishedAt)}</p>
-        <p className="text-lg text-foreground/80">{post.excerpt}</p>
+        <p className="text-lg text-foreground/75">{post.excerpt}</p>
 
-        <section className="prose-custom whitespace-pre-wrap rounded-3xl border border-border/70 bg-card/80 p-6">{post.body}</section>
+        <section className="prose-custom whitespace-pre-wrap rounded-3xl border border-border/70 bg-card/75 p-6 text-foreground/90">
+          {post.body}
+        </section>
 
         {related.length ? (
           <section className="space-y-3">
-            <h2 className="font-serif text-2xl">Related posts</h2>
+            <h2 className="font-serif text-2xl text-foreground">Related posts</h2>
             <div className="grid gap-3 md:grid-cols-3">
               {related.map((entry) => (
                 <Link
                   key={entry.id}
                   href={`/knowledge/${entry.slug}`}
-                  className="rounded-2xl border border-border/70 bg-card/80 p-4 text-sm hover:border-primary"
+                  className="rounded-2xl border border-border/70 bg-card/75 p-4 text-sm text-foreground/90 transition hover:border-[hsl(var(--accent))]"
                 >
-                  <p className="font-semibold">{entry.title}</p>
+                  <p className="font-semibold text-foreground">{entry.title}</p>
                   <p className="mt-2 text-muted-foreground">{entry.excerpt}</p>
                 </Link>
               ))}
@@ -98,8 +100,8 @@ export default async function BlogPostPage({ params }: Props) {
           </section>
         ) : null}
 
-        <Link href="/knowledge" className="inline-flex text-sm font-medium text-primary hover:underline">
-          Back to Knowledge
+        <Link href="/knowledge" className="inline-flex text-sm font-medium text-[hsl(var(--accent-strong))] hover:underline">
+          Back to Blog
         </Link>
       </div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />

@@ -96,14 +96,14 @@ export function MeetingBooker() {
 
   if (!availability.enabled) {
     return (
-      <div className="rounded-3xl border border-border/70 bg-card/80 p-6">
+      <div className="rounded-3xl border border-border/70 bg-card/75 p-6">
         <p className="text-sm text-muted-foreground">Bookings are currently disabled. Please use the contact form instead.</p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-3xl border border-border/70 bg-card/85 p-6">
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-3xl border border-border/70 bg-card/75 p-6 shadow-elev2 backdrop-blur">
       <div className="grid gap-3 md:grid-cols-3">
         <div className="space-y-2">
           <Label>Date</Label>

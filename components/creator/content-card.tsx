@@ -11,7 +11,7 @@ function formatLabel(input: string) {
 
 export function CreatorContentCard({ item }: { item: ContentVariant }) {
   return (
-    <Card className="h-full border-border/70 bg-card/85 backdrop-blur">
+    <Card className="h-full border-border/70 bg-card/75 backdrop-blur">
       <CardHeader className="space-y-3">
         <div className="flex flex-wrap gap-2">
           <Badge variant="default">{formatLabel(item.platform)}</Badge>
@@ -19,16 +19,16 @@ export function CreatorContentCard({ item }: { item: ContentVariant }) {
           <Badge variant="outline">{formatLabel(item.contentType)}</Badge>
         </div>
         <CardTitle className="text-xl leading-snug">
-          <Link href={`/creator/${item.slug}`} className="hover:text-primary">
+          <Link href={`/creator/${item.slug}`} className="text-foreground hover:text-[hsl(var(--accent-strong))]">
             {item.seoTitle || item.contentTitle}
           </Link>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground">{truncate(item.hook || item.body || "No preview yet.", 145)}</p>
+        <p className="text-sm text-foreground/75">{truncate(item.hook || item.body || "No preview yet.", 145)}</p>
         <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
           <span>{formatDate(item.publishedAt)}</span>
-          <Link href={`/creator/${item.slug}`} className="font-medium text-primary hover:underline">
+          <Link href={`/creator/${item.slug}`} className="font-medium text-[hsl(var(--accent-strong))] hover:underline">
             Read content
           </Link>
         </div>

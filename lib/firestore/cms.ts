@@ -3,6 +3,7 @@ import "server-only";
 import { DocumentData, Query } from "firebase-admin/firestore";
 
 import { adminDb } from "@/lib/firebase/admin";
+import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import {
   BlogPostContent,
   CertificateContent,
@@ -36,8 +37,8 @@ export async function getProfileContent(): Promise<ProfileContent> {
 
   return {
     name: data.name ?? "Saleh Abbaas",
-    headline: data.headline ?? "Software Engineer",
-    bio: data.bio ?? "",
+    headline: data.headline ?? BRAND_TAGLINE,
+    bio: data.bio ?? BRAND_DESCRIPTION,
     location: data.location ?? "",
     email: data.email ?? "",
     resumeUrl: data.resumeUrl ?? "",
@@ -50,9 +51,8 @@ export async function getSeoDefaults(): Promise<SeoDefaults> {
   const data = snap.data() ?? {};
 
   return {
-    titleTemplate: data.titleTemplate ?? "Saleh Abbaas | Software Engineer",
-    defaultDescription: data.defaultDescription ??
-      "Saleh Abbaas is a software engineer, Firebase architect, product designer, and growth engineer.",
+    titleTemplate: data.titleTemplate ?? BRAND_NAME,
+    defaultDescription: data.defaultDescription ?? BRAND_DESCRIPTION,
     defaultOgImage: data.defaultOgImage ?? ""
   };
 }

@@ -9,15 +9,65 @@ import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 import type { AnalyticsEventName } from "@/types/analytics";
 
+function normalizeEnvValue(value: string | undefined) {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  // Providers sometimes persist env values with quotes, and it's easy to end up with
+  // a stray leading/trailing quote. Strip any wrapping quotes rather than requiring
+  // a perfectly balanced pair.
+  const unquoted = trimmed.replace(/^["']+/, "").replace(/["']+$/, "").trim();
+  return unquoted || undefined;
+}
+
+function normalizeAuthDomain(value: string | undefined) {
+  const normalized = normalizeEnvValue(value);
+  if (!normalized) return undefined;
+
+  // Firebase expects `authDomain` to be a bare host name (no scheme/path/query).
+  // People often paste full URLs like `https://<host>/__/auth/handler`.
+  const withoutScheme = normalized.replace(/^https?:\/\//i, "").replace(/^\/\//, "");
+  const hostWithMaybePort = withoutScheme.split(/[/?#]/)[0]?.trim();
+  if (!hostWithMaybePort) return undefined;
+
+  // Ports are not valid in `authDomain` and can cause subtle runtime errors.
+  return hostWithMaybePort.replace(/:\d+$/, "");
+}
+
+function getFirebaseDefaultsConfig() {
+  const defaultsRaw = typeof process !== "undefined" ? process.env.__FIREBASE_DEFAULTS__ : undefined;
+  if (!defaultsRaw) return undefined;
+  try {
+    const parsed = JSON.parse(defaultsRaw);
+    return parsed?.config as Partial<Record<string, string>> | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const firebaseDefaults = getFirebaseDefaultsConfig();
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL
+  apiKey: normalizeEnvValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY) ?? normalizeEnvValue(firebaseDefaults?.apiKey),
+  authDomain:
+    normalizeAuthDomain(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) ??
+    normalizeAuthDomain(firebaseDefaults?.authDomain),
+  projectId:
+    normalizeEnvValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) ?? normalizeEnvValue(firebaseDefaults?.projectId),
+  storageBucket:
+    normalizeEnvValue(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) ??
+    normalizeEnvValue(firebaseDefaults?.storageBucket),
+  messagingSenderId:
+    normalizeEnvValue(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID) ??
+    normalizeEnvValue(firebaseDefaults?.messagingSenderId),
+  appId: normalizeEnvValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID) ?? normalizeEnvValue(firebaseDefaults?.appId),
+  measurementId:
+    normalizeEnvValue(process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) ??
+    normalizeEnvValue(firebaseDefaults?.measurementId),
+  databaseURL:
+    normalizeEnvValue(process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL) ??
+    normalizeEnvValue(firebaseDefaults?.databaseURL)
 };
 
 const isBrowser = typeof window !== "undefined";

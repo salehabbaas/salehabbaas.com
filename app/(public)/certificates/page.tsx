@@ -5,9 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { safeCertificates } from "@/lib/firestore/site-public";
 import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
 
+const CERTIFICATES_DESCRIPTION =
+  "Professional certificates earned by Saleh Abbaas (Saleh Abbas) across cloud, data, healthcare technology, and software engineering.";
+
 export const metadata: Metadata = buildPageMetadata({
   title: "Certificates",
-  description: "Professional certificates earned by Saleh Abbaas.",
+  description: CERTIFICATES_DESCRIPTION,
   path: "/certificates"
 });
 
@@ -17,7 +20,7 @@ export default async function CertificatesPage() {
   const certificates = await safeCertificates();
   const webPageJsonLd = pageSchema({
     title: "Certificates",
-    description: "Professional certificates earned by Saleh Abbaas.",
+    description: CERTIFICATES_DESCRIPTION,
     path: "/certificates"
   });
 
@@ -26,10 +29,10 @@ export default async function CertificatesPage() {
       <div className="grid gap-4 md:grid-cols-3">
         {certificates.length ? (
           certificates.map((certificate) => (
-            <Card key={certificate.id} className="bg-card/85">
+            <Card key={certificate.id} className="bg-card/75">
               <CardContent className="space-y-1 pt-6">
-                <h3 className="font-semibold">{certificate.title}</h3>
-                <p className="text-sm text-muted-foreground">{certificate.issuer}</p>
+                <h3 className="font-semibold text-foreground">{certificate.title}</h3>
+                <p className="text-sm text-foreground/75">{certificate.issuer}</p>
                 <p className="text-sm text-muted-foreground">{certificate.year}</p>
               </CardContent>
             </Card>

@@ -14,6 +14,31 @@ interface HeroStat {
   value: string;
 }
 
+const DEFAULT_AVATAR = "/SalehAbbaas.jpeg";
+const ALLOWED_REMOTE_HOSTS = new Set([
+  "i.ytimg.com",
+  "images.unsplash.com",
+  "media.licdn.com",
+  "firebasestorage.googleapis.com"
+]);
+
+function resolveAvatarUrl(avatarUrl?: string) {
+  const trimmed = avatarUrl?.trim();
+  if (!trimmed) return DEFAULT_AVATAR;
+  if (trimmed.startsWith("/")) return trimmed;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (ALLOWED_REMOTE_HOSTS.has(parsed.hostname)) {
+      return parsed.toString();
+    }
+  } catch {
+    // Fall back to local if the URL is malformed or not allowed.
+  }
+
+  return DEFAULT_AVATAR;
+}
+
 export function HomeHero({
   name,
   headline,
@@ -35,6 +60,9 @@ export function HomeHero({
   stats: HeroStat[];
   keywords: string[];
 }) {
+  const resolvedAvatarUrl = resolveAvatarUrl(avatarUrl);
+  const shouldSkipOptimization = resolvedAvatarUrl.startsWith("/");
+
   return (
     <section className="relative overflow-hidden border-b border-border/60 bg-gradient-to-b from-white via-slate-50 to-white py-16 dark:from-slate-950 dark:via-slate-900/40 dark:to-slate-950">
       <div className="absolute -top-32 left-1/2 h-72 w-[38rem] -translate-x-1/2 rounded-full bg-cyan-200/35 blur-3xl dark:bg-cyan-500/15" />
@@ -94,11 +122,12 @@ export function HomeHero({
           <div className="relative mx-auto max-w-sm overflow-hidden rounded-[2.5rem] border border-border/70 bg-white/80 p-4 shadow-lg dark:bg-slate-900/70">
             <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem]">
               <Image
-                src={avatarUrl || "/SalehAbbaas.jpeg"}
+                src={resolvedAvatarUrl}
                 alt={name}
                 fill
                 priority
                 sizes="(max-width: 768px) 80vw, 35vw"
+                unoptimized={shouldSkipOptimization}
                 className="object-cover"
               />
             </div>

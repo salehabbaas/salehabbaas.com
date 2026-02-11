@@ -10,7 +10,7 @@ import { ShareActions } from "@/components/creator/share-actions";
 import { Badge } from "@/components/ui/badge";
 import { safeGetCreatorBySlug, safeGetRelatedContent } from "@/lib/firestore/public";
 import { breadcrumbSchema, creatorArticleSchema } from "@/lib/seo/schema";
-import { pageSchema } from "@/lib/seo/metadata";
+import { buildPageMetadata, normalizePageTitle, pageSchema } from "@/lib/seo/metadata";
 import { formatDate, resolveAbsoluteUrl } from "@/lib/utils";
 
 export const revalidate = 300;
@@ -24,36 +24,32 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const item = await safeGetCreatorBySlug(slug);
 
   if (!item) {
-    return {
-      title: "Creator content not found | Saleh Abbaas"
-    };
+    return buildPageMetadata({
+      title: "Creator Content Not Found",
+      path: `/creator/${slug}`
+    });
   }
 
-  const title = item.seoTitle || `${item.contentTitle} | Creator | Saleh Abbaas`;
+  const title = normalizePageTitle(item.seoTitle || `${item.contentTitle} | Creator`);
   const description = item.seoDesc || item.hook || item.body.slice(0, 150);
-  const canonical = resolveAbsoluteUrl(`/creator/${item.slug}`);
   const ogImage = item.ogImage || resolveAbsoluteUrl(`/api/og/creator?title=${encodeURIComponent(item.contentTitle)}&platform=${item.platform}`);
-
-  return {
+  const metadata = buildPageMetadata({
     title,
     description,
-    alternates: {
-      canonical
-    },
+    path: `/creator/${item.slug}`,
+    image: ogImage,
+    type: "article",
+    keywords: item.tags
+  });
+
+  return {
+    ...metadata,
     robots: item.visibility === "unlisted" ? { index: false, follow: false } : undefined,
     openGraph: {
+      ...(metadata.openGraph ?? {}),
       type: "article",
-      title,
-      description,
-      url: canonical,
       publishedTime: item.publishedAt || undefined,
-      images: [{ url: ogImage, width: 1200, height: 630, alt: item.contentTitle }]
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [ogImage]
+      images: [{ url: ogImage, width: 1200, height: 630, alt: title }]
     }
   };
 }
@@ -105,7 +101,7 @@ export default async function CreatorItemPage({ params }: Props) {
             <Badge variant="secondary">{item.pillar}</Badge>
             <Badge variant="outline">{item.contentType}</Badge>
           </div>
-          <h1 className="font-serif text-4xl tracking-tight md:text-5xl">{item.contentTitle}</h1>
+          <h1 className="font-serif text-4xl tracking-tight text-foreground md:text-5xl">{item.contentTitle}</h1>
           <p className="text-sm text-muted-foreground">Published {formatDate(item.publishedAt)}</p>
           <ShareActions url={canonical} title={item.contentTitle} />
         </div>
@@ -113,7 +109,7 @@ export default async function CreatorItemPage({ params }: Props) {
         <CreatorMediaEmbed externalUrl={item.externalUrl} media={item.media} />
 
         {item.visibility === "public" ? (
-          <section className="prose-custom space-y-6 rounded-3xl border border-border/70 bg-card/85 p-6">
+          <section className="prose-custom space-y-6 rounded-3xl border border-border/70 bg-card/75 p-6 text-foreground/90">
             {item.hook ? (
               <div>
                 <h2>Hook</h2>
@@ -137,7 +133,7 @@ export default async function CreatorItemPage({ params }: Props) {
             ) : null}
           </section>
         ) : (
-          <section className="rounded-3xl border border-border/70 bg-card/85 p-6">
+          <section className="rounded-3xl border border-border/70 bg-card/75 p-6">
             <p className="text-sm text-muted-foreground">
               This content is unlisted. Full script content is hidden from public listings.
             </p>
@@ -147,7 +143,7 @@ export default async function CreatorItemPage({ params }: Props) {
         {item.externalUrl ? <ExternalPostLink url={item.externalUrl} platform={item.platform} /> : null}
 
         <section className="space-y-4">
-          <h2 className="font-serif text-3xl">Related Content</h2>
+          <h2 className="font-serif text-3xl text-foreground">Related Content</h2>
           <div className="grid gap-4 md:grid-cols-3">
             {related.length ? (
               related.map((entry) => <CreatorContentCard key={entry.id} item={entry} />)
@@ -157,7 +153,7 @@ export default async function CreatorItemPage({ params }: Props) {
           </div>
         </section>
 
-        <Link href="/creator" className="inline-flex text-sm font-medium text-primary hover:underline">
+        <Link href="/creator" className="inline-flex text-sm font-medium text-[hsl(var(--accent-strong))] hover:underline">
           Back to creator feed
         </Link>
       </div>

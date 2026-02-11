@@ -5,7 +5,9 @@ export function personSchema() {
     "@context": "https://schema.org",
     "@type": "Person",
     name: "Saleh Abbaas",
+    alternateName: ["Saleh Abbas", "Saleh"],
     url: resolveAbsoluteUrl("/"),
+    image: resolveAbsoluteUrl("/SA-Logo.png"),
     jobTitle: "Software Engineer (Healthcare Interoperability)",
     sameAs: [
       "https://linkedin.com/in/salehabbaas",
@@ -35,9 +37,15 @@ export function websiteSchema() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "Saleh Abbaas",
+    alternateName: ["Saleh Abbas", "Saleh Ottawa"],
     url: resolveAbsoluteUrl("/"),
     description:
       "Personal website of Saleh Abbaas with healthcare interoperability engineering, clinical data platform work, and professional services.",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${resolveAbsoluteUrl("/")}?q={search_term_string}`,
+      "query-input": "required name=search_term_string"
+    },
     publisher: {
       "@type": "Person",
       name: "Saleh Abbaas"

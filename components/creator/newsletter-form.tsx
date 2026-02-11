@@ -41,9 +41,9 @@ export function NewsletterForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-3xl border border-border/70 bg-card/90 p-6">
-      <h3 className="font-serif text-2xl">Email subscribe</h3>
-      <p className="mt-2 text-sm text-muted-foreground">Get concise strategy breakdowns and new content alerts.</p>
+    <form onSubmit={handleSubmit} className="rounded-3xl border border-border/70 bg-card/75 p-6 shadow-elev2 backdrop-blur">
+      <h3 className="font-serif text-2xl text-foreground">Email subscribe</h3>
+      <p className="mt-2 text-sm text-foreground/75">Get concise strategy breakdowns and new content alerts.</p>
       <div className="mt-4 flex flex-col gap-3 md:flex-row">
         <Input
           type="email"

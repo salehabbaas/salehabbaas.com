@@ -6,7 +6,7 @@ import { adminAuth } from "@/lib/firebase/admin";
 
 export async function verifyAdminSessionFromCookie() {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("admin_session")?.value;
+  const sessionCookie = cookieStore.get("__session")?.value ?? cookieStore.get("admin_session")?.value;
   if (!sessionCookie) return null;
 
   try {

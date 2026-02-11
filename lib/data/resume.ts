@@ -1,11 +1,11 @@
 import { CertificateEntry, ExperienceEntry, ProjectEntry, ServiceEntry } from "@/types/resume";
 import { ProfileContent, SeoDefaults } from "@/types/cms";
+import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 
 export const profileDefaults: ProfileContent = {
   name: "Saleh Abbaas",
-  headline: "Software Engineer · Healthcare Interoperability",
-  bio:
-    "Software engineer specializing in healthcare interoperability and clinical data systems. 5+ years delivering HL7/FHIR integrations, LIS/HIS connectivity, and analytics dashboards in regulated environments. Experienced across Rhapsody, Mirth, Epic EHR, DICOM/PACS, and secure API design. Based in Ottawa, Ontario.",
+  headline: BRAND_TAGLINE,
+  bio: BRAND_DESCRIPTION,
   location: "Ottawa, Ontario",
   email: "salehabbaas97@gmail.com",
   resumeUrl: "/resume/Resume_SalehAbbaas_SoftwareEngineer.pdf",
@@ -13,9 +13,8 @@ export const profileDefaults: ProfileContent = {
 };
 
 export const seoDefaults: SeoDefaults = {
-  titleTemplate: "Saleh Abbaas | Software Engineer",
-  defaultDescription:
-    "Software engineer specializing in healthcare interoperability, HL7/FHIR integrations, and clinical data platforms. Based in Ottawa, Ontario.",
+  titleTemplate: BRAND_NAME,
+  defaultDescription: BRAND_DESCRIPTION,
   defaultOgImage: ""
 };
 

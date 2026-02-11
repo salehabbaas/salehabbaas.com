@@ -4,16 +4,19 @@ import { ContactForm } from "@/components/site/contact-form";
 import { SectionShell } from "@/components/site/section-shell";
 import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
 
+const CONTACT_DESCRIPTION =
+  "Contact Saleh Abbaas (Saleh Abbas) for software engineering, healthcare interoperability, AI consulting, and project collaboration in Ottawa.";
+
 export const metadata: Metadata = buildPageMetadata({
   title: "Contact",
-  description: "Contact Saleh Abbaas for projects and collaborations.",
+  description: CONTACT_DESCRIPTION,
   path: "/contact"
 });
 
 export default function ContactPage() {
   const webPageJsonLd = pageSchema({
     title: "Contact",
-    description: "Contact Saleh Abbaas for projects and collaborations.",
+    description: CONTACT_DESCRIPTION,
     path: "/contact"
   });
 

@@ -47,9 +47,9 @@ export function CreatorMediaEmbed({ externalUrl, media }: { externalUrl?: string
 
   if (type === "linkedin") {
     return (
-      <div className="rounded-3xl border border-border/70 bg-card p-5">
+      <div className="rounded-3xl border border-border/70 bg-card/75 p-5">
         <p className="text-sm font-semibold text-foreground">LinkedIn Post</p>
-        <p className="mt-2 text-sm text-muted-foreground">View the full post on LinkedIn for comments and engagement.</p>
+        <p className="mt-2 text-sm text-foreground/75">View the full post on LinkedIn for comments and engagement.</p>
         {thumbnail ? (
           <img
             src={thumbnail}
@@ -58,7 +58,7 @@ export function CreatorMediaEmbed({ externalUrl, media }: { externalUrl?: string
             loading="lazy"
           />
         ) : null}
-        <Link href={mediaUrl} target="_blank" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+        <Link href={mediaUrl} target="_blank" className="mt-4 inline-block text-sm font-medium text-[hsl(var(--accent-strong))] hover:underline">
           Open LinkedIn Post
         </Link>
       </div>
@@ -67,9 +67,9 @@ export function CreatorMediaEmbed({ externalUrl, media }: { externalUrl?: string
 
   if (type === "instagram" || type === "tiktok") {
     return (
-      <div className="rounded-3xl border border-border/70 bg-card p-5">
+      <div className="rounded-3xl border border-border/70 bg-card/75 p-5">
         <p className="text-sm font-semibold text-foreground">{type === "instagram" ? "Instagram" : "TikTok"} Content</p>
-        <p className="mt-2 text-sm text-muted-foreground">Native embed support can vary by browser and privacy settings.</p>
+        <p className="mt-2 text-sm text-foreground/75">Native embed support can vary by browser and privacy settings.</p>
         {thumbnail ? (
           <img
             src={thumbnail}
@@ -78,7 +78,7 @@ export function CreatorMediaEmbed({ externalUrl, media }: { externalUrl?: string
             loading="lazy"
           />
         ) : null}
-        <Link href={mediaUrl} target="_blank" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+        <Link href={mediaUrl} target="_blank" className="mt-4 inline-block text-sm font-medium text-[hsl(var(--accent-strong))] hover:underline">
           Open Original Post
         </Link>
       </div>
@@ -86,8 +86,8 @@ export function CreatorMediaEmbed({ externalUrl, media }: { externalUrl?: string
   }
 
   return (
-    <div className="rounded-3xl border border-border/70 bg-card p-5">
-      <p className="text-sm text-muted-foreground">Open media in a new tab.</p>
+    <div className="rounded-3xl border border-border/70 bg-card/75 p-5">
+      <p className="text-sm text-foreground/75">Open media in a new tab.</p>
       {thumbnail ? (
         <img
           src={thumbnail}
@@ -96,7 +96,7 @@ export function CreatorMediaEmbed({ externalUrl, media }: { externalUrl?: string
           loading="lazy"
         />
       ) : null}
-      <Link href={mediaUrl} target="_blank" className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
+      <Link href={mediaUrl} target="_blank" className="mt-3 inline-block text-sm font-medium text-[hsl(var(--accent-strong))] hover:underline">
         View Media
       </Link>
     </div>

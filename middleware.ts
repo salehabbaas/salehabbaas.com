@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const canonicalUrl = process.env.NEXT_PUBLIC_SITE_URL;
+const canonicalRedirectEnabled =
+  process.env.NEXT_PUBLIC_CANONICAL_REDIRECT === "true" || process.env.CANONICAL_REDIRECT === "true";
 
 export function middleware(request: NextRequest) {
-  if (!canonicalUrl || process.env.NODE_ENV !== "production") {
+  if (!canonicalUrl || !canonicalRedirectEnabled || process.env.NODE_ENV !== "production") {
     return NextResponse.next();
   }
 

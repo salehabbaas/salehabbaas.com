@@ -1,249 +1,422 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { Metadata } from "next";
+import { ArrowRight, Award, Globe, GraduationCap, Languages, ShieldCheck, Sparkles, Stethoscope } from "lucide-react";
 
-import { CreatorFromHome } from "@/components/creator/creator-from-home";
-import { HomeHero } from "@/components/site/home-hero";
+import { HomeIntroShell } from "@/components/site/home/home-intro-shell";
+import { HomeSectionsShowcase } from "@/components/site/home/home-sections-showcase";
+import { SiteFooterClient } from "@/components/site/site-footer-client";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { highlights, keywords } from "@/lib/data/resume";
-import { safeGetPublicTop } from "@/lib/firestore/public";
-import { safeCertificates, safeExperiences, safeProfile, safeProjects, safeServices } from "@/lib/firestore/site-public";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { keywords as resumeKeywords } from "@/lib/data/resume";
+import { safeExperiences, safeProfile, safeSocialLinks } from "@/lib/firestore/site-public";
 import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
 
 export const revalidate = 300;
 
+const HOME_DESCRIPTION =
+  "Saleh Abbaas (Saleh Abbas) is an Ottawa-based software engineer specializing in AI agents, healthcare interoperability (HL7/FHIR), cybersecurity, and AI news content creation.";
+const HOME_KEYWORDS = [
+  "Saleh Abbaas",
+  "Saleh Abbas",
+  "Saleh Ottawa",
+  "Saleh Abbaas Ottawa",
+  "Saleh Abbaas software engineer",
+  "Applied AI engineer Canada",
+  "Healthcare interoperability HL7 FHIR DICOM",
+  "Ottawa healthcare software engineer",
+  "AI news content creator",
+  "Cloud healthcare systems",
+  ...resumeKeywords
+];
+
 const homeMetadata = buildPageMetadata({
   title: "Home",
-  description:
-    "Software engineer specializing in healthcare interoperability, HL7/FHIR integrations, and clinical data platforms.",
-  path: "/"
+  description: HOME_DESCRIPTION,
+  path: "/",
+  keywords: HOME_KEYWORDS
 });
 
-export const metadata: Metadata = {
-  ...homeMetadata,
-  title: { absolute: "Saleh Abbaas | Software Engineer" }
-};
+export const metadata: Metadata = homeMetadata;
 
 export default async function HomePage() {
-  const [latestCreator, projects, profile, services, experiences, certificates] = await Promise.all([
-    safeGetPublicTop(3),
-    safeProjects({ publishedOnly: true }),
-    safeProfile(),
-    safeServices(),
-    safeExperiences(),
-    safeCertificates()
-  ]);
+  const [profile, experiences, socialLinks] = await Promise.all([safeProfile(), safeExperiences(), safeSocialLinks()]);
+
+  const companies = [...new Set(experiences.map((entry) => entry.company).filter(Boolean))].slice(0, 4);
+  const slideSocialLinks = socialLinks.map((link) => ({ label: link.label, url: link.url }));
 
   const webPageJsonLd = pageSchema({
-    title: "Saleh Abbaas | Software Engineer",
-    description:
-      "Official personal website of Saleh Abbaas with healthcare interoperability, clinical data platforms, and professional services.",
-    path: "/"
+    title: "Home",
+    description: HOME_DESCRIPTION,
+    path: "/",
+    keywords: HOME_KEYWORDS
   });
-
-  const stats = [
-    { label: "Experience", value: "5+ years" },
-    { label: "Healthcare focus", value: "4+ years" },
-    { label: "Accuracy gains", value: "98%" },
-    { label: "Users supported", value: "3,000+" }
-  ];
 
   return (
     <>
-      <HomeHero
-        name={profile.name || "Saleh Abbaas"}
-        headline={profile.headline || "Software Engineer"}
-        bio={profile.bio || "I design and build secure healthcare integrations and data platforms."}
-        location={profile.location}
-        resumeUrl={profile.resumeUrl}
-        avatarUrl={profile.avatarUrl}
-        highlights={highlights}
-        stats={stats}
-        keywords={keywords}
-      />
+      <HomeSectionsShowcase>
+        <HomeIntroShell profileLocation={profile?.location} companies={companies} socialLinks={slideSocialLinks} />
+        <MissionSection />
+        <ExperienceSection />
+        <SkillsAndCertsSection />
+        <ServicesSection />
+        <ContactSection socialLinks={socialLinks} />
+        <HomeFooterSection socialLinks={socialLinks} />
+      </HomeSectionsShowcase>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+    </>
+  );
+}
 
-      <section className="container py-14">
-        <div className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
-          <div className="space-y-4">
-            <p className="text-sm uppercase tracking-[0.3em] text-primary/80">About</p>
-            <h2 className="font-serif text-3xl">Healthcare interoperability with product-grade execution</h2>
-            <p className="text-base leading-relaxed text-muted-foreground">
-              {profile.bio ||
-                "I help healthcare teams connect data across clinical systems, automate laboratory workflows, and ship analytics that improve decision-making and patient outcomes."}
-            </p>
+function MissionSection() {
+  const pillars = [
+    {
+      label: "Mission",
+      value: "AI-driven cloud systems with real impact",
+      detail: "Build systems that improve decisions, collaboration, and operational outcomes in healthcare and enterprise settings.",
+      icon: Sparkles
+    },
+    {
+      label: "Focus",
+      value: "Healthcare + Public-Sector Technology",
+      detail: "Interoperability, analytics, and secure delivery in clinically and operationally complex environments.",
+      icon: Stethoscope
+    },
+    {
+      label: "Approach",
+      value: "Clarity, Reliability, and Scale",
+      detail: "Start from people and constraints, then design production-ready systems that teams can trust.",
+      icon: ShieldCheck
+    }
+  ];
+
+  return (
+    <section className="container space-y-6">
+      <div className="space-y-3">
+        <p className="text-xs uppercase tracking-[0.22em] text-primary">Mission</p>
+        <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">Building systems that matter</h2>
+        <p className="max-w-4xl text-sm text-foreground/75 md:text-base">
+          I connect technology, data, and people to turn complexity into reliable software. My work combines applied AI, healthcare integration,
+          cloud engineering, and pragmatic delivery.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {pillars.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Card key={item.label} className="border-border/70 bg-card/85 shadow-elev1 backdrop-blur">
+              <CardContent className="space-y-3 p-5">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/80 bg-card/80">
+                  <Icon className="h-5 w-5 text-foreground" />
+                </div>
+                <p className="text-xs uppercase tracking-[0.2em] text-primary">{item.label}</p>
+                <p className="text-xl font-semibold text-foreground">{item.value}</p>
+                <p className="text-sm text-foreground/70">{item.detail}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ExperienceSection() {
+  const timeline = [
+    {
+      period: "Dec 2024 - Sep 2025",
+      company: "The Ottawa Hospital",
+      role: "Programmer Analyst",
+      points: [
+        "Designed and maintained Rhapsody/Epic integrations using HL7 standards.",
+        "Improved incident and change operations with ServiceNow workflows.",
+        "Built Power BI dashboards for integration health and KPIs."
+      ]
+    },
+    {
+      period: "Jul 2024 - Dec 2024",
+      company: "Arab Hospitals Group",
+      role: "Senior Software Engineer",
+      points: [
+        "Led AI-enabled cloud healthcare system delivery.",
+        "Implemented HL7/FHIR/DICOM APIs for HIS and external platforms.",
+        "Advanced clinical workflow reliability and interoperability."
+      ]
+    },
+    {
+      period: "Jul 2023 - Jun 2024",
+      company: "Arab Hospitals Group",
+      role: "Software Engineer",
+      points: [
+        "Delivered production backend APIs for HIS integrations.",
+        "Built AI speech-to-text for clinical note transcription.",
+        "Enhanced PACS accessibility and cross-facility collaboration."
+      ]
+    },
+    {
+      period: "Jul 2022 - Dec 2023",
+      company: "World Health Organization",
+      role: "Information Technology Programmer",
+      points: [
+        "Built digital health data collection systems for reporting quality.",
+        "Integrated health platforms and databases for unified analytics.",
+        "Resolved DHIS2 issues and delivered Power BI decision dashboards."
+      ]
+    }
+  ];
+
+  return (
+    <section className="container space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.22em] text-primary">Experience</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">Career timeline and delivery record</h2>
+          <p className="text-sm text-foreground/70">From support operations to senior healthcare engineering and AI-driven system delivery.</p>
+        </div>
+        <Button asChild variant="outline" className="border-border/80 bg-card/75 text-foreground hover:bg-card/80">
+          <Link href="/experience">
+            View full experience
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {timeline.map((item) => (
+          <Card key={`${item.company}-${item.role}-${item.period}`} className="border-border/70 bg-card/80 shadow-elev1 backdrop-blur">
+            <CardContent className="space-y-3 p-5">
+              <Badge variant="secondary" className="border-border/70 bg-card/80 text-foreground">
+                {item.period}
+              </Badge>
+              <h3 className="text-xl font-semibold text-foreground">{item.role}</h3>
+              <p className="text-sm font-medium text-primary">{item.company}</p>
+              <ul className="space-y-2 text-sm text-foreground/75">
+                {item.points.map((point) => (
+                  <li key={point}>- {point}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SkillsAndCertsSection() {
+  const skills = [
+    "Computer Information Systems",
+    "IT Development",
+    "Cybersecurity",
+    "HL7 / FHIR / DICOM",
+    "Rhapsody Integration Engine",
+    "Epic Health System",
+    "Power BI",
+    "Cloud-Based Architectures",
+    "DHIS2",
+    "ServiceNow"
+  ];
+
+  const certifications = [
+    "DHIS2 Events Fundamentals",
+    "Health-Tech and AI",
+    "DHIS2_101: DHIS Fundamentals",
+    "Applied Multidisciplinary Learning Journey in Data Science - Python"
+  ];
+
+  return (
+    <section className="container space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.22em] text-primary">Capabilities</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">Skills, languages, certifications, education</h2>
+          <p className="text-sm text-foreground/70">A blend of engineering depth, interoperability expertise, and practical AI delivery.</p>
+        </div>
+        <Button asChild variant="ghost" className="text-foreground hover:bg-card/80">
+          <Link href="/certificates">
+            View certificates
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="border-border/70 bg-card/85 shadow-elev1 backdrop-blur lg:col-span-2">
+          <CardContent className="space-y-4 p-5">
+            <div className="inline-flex items-center gap-2 text-foreground">
+              <WrenchIcon />
+              <h3 className="text-xl font-semibold">Top Skills</h3>
+            </div>
             <div className="flex flex-wrap gap-2">
-              {keywords.slice(0, 8).map((keyword) => (
-                <Badge key={keyword} variant="secondary" className="rounded-full px-3 py-1 text-xs">
-                  {keyword}
+              {skills.map((skill) => (
+                <Badge key={skill} variant="outline" className="border-border/80 text-foreground/80">
+                  {skill}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/70 bg-card/85 shadow-elev1 backdrop-blur">
+          <CardContent className="space-y-4 p-5">
+            <div className="inline-flex items-center gap-2 text-foreground">
+              <Languages className="h-5 w-5" />
+              <h3 className="text-xl font-semibold">Languages</h3>
+            </div>
+            <ul className="space-y-2 text-sm text-foreground/75">
+              <li>English (Professional Working)</li>
+              <li>Arabic (Native/Bilingual)</li>
+              <li>French (Elementary)</li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/70 bg-card/85 shadow-elev1 backdrop-blur lg:col-span-2">
+          <CardContent className="space-y-4 p-5">
+            <div className="inline-flex items-center gap-2 text-foreground">
+              <Award className="h-5 w-5" />
+              <h3 className="text-xl font-semibold">Certifications</h3>
+            </div>
+            <ul className="space-y-2 text-sm text-foreground/75">
+              {certifications.map((item) => (
+                <li key={item}>- {item}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/70 bg-card/85 shadow-elev1 backdrop-blur">
+          <CardContent className="space-y-4 p-5">
+            <div className="inline-flex items-center gap-2 text-foreground">
+              <GraduationCap className="h-5 w-5" />
+              <h3 className="text-xl font-semibold">Education</h3>
+            </div>
+            <p className="text-sm text-foreground/75">Bachelor&apos;s degree, Management Information Systems</p>
+            <p className="text-sm text-primary">An Najah National University (2014 - 2018)</p>
+          </CardContent>
+        </Card>
+      </div>
+    </section>
+  );
+}
+
+function ServicesSection() {
+  const services = [
+    {
+      title: "AI Agent Engineering",
+      detail: "Design, build, and deploy practical AI agents for workflow automation, decision support, and team productivity."
+    },
+    {
+      title: "Healthcare Systems Integration",
+      detail: "HL7/FHIR/DICOM interoperability, HIS/EHR integration, and secure clinical data exchange architecture."
+    },
+    {
+      title: "Cloud Software Engineering",
+      detail: "End-to-end product engineering from architecture to deployment with reliability, observability, and security."
+    }
+  ];
+
+  return (
+    <section className="container space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.22em] text-primary">Services</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">Services available in Canada</h2>
+          <p className="text-sm text-foreground/70">Partner with Saleh Abbaas for AI, healthcare systems, and software engineering execution.</p>
+        </div>
+        <Button asChild variant="outline" className="border-border/80 bg-card/75 text-foreground hover:bg-card/80">
+          <Link href="/services">Explore services</Link>
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {services.map((service) => (
+          <Card key={service.title} className="border-border/70 bg-card/85 shadow-elev1 backdrop-blur">
+            <CardContent className="space-y-3 p-5">
+              <h3 className="text-xl font-semibold text-foreground">{service.title}</h3>
+              <p className="text-sm text-foreground/75">{service.detail}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ContactSection({
+  socialLinks
+}: {
+  socialLinks: Array<{
+    label: string;
+    url: string;
+  }>;
+}) {
+  const topLinks = socialLinks.slice(0, 5);
+
+  return (
+    <section className="container">
+      <div className="rounded-3xl border border-primary/30 bg-primary/15 px-6 py-10 shadow-elev2 backdrop-blur md:px-10 md:py-12">
+        <div className="grid gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+          <div className="space-y-3">
+            <p className="text-xs uppercase tracking-[0.22em] text-primary">Connect</p>
+            <h3 className="text-3xl font-semibold tracking-tight text-foreground">Build with Saleh Abbaas</h3>
+            <p className="text-sm text-foreground/75">
+              Available for AI agent development, healthcare integration architecture, and full software delivery in Canada.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {topLinks.map((link) => (
+                <Badge key={`${link.label}-${link.url}`} variant="outline" className="border-border/80 text-foreground/85">
+                  {link.label}
                 </Badge>
               ))}
             </div>
           </div>
-          <div className="rounded-[2rem] border border-border/70 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-6 text-white">
-            <p className="text-xs uppercase tracking-[0.3em] text-cyan-100/70">Core impact</p>
-            <p className="mt-4 text-lg leading-relaxed text-cyan-50/90">
-              From HL7/FHIR interfaces to clinical analytics, I translate regulated requirements into resilient systems that ship and scale.
-            </p>
-            <div className="mt-6 grid gap-3">
-              {highlights.map((highlight) => (
-                <div key={highlight} className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm">
-                  {highlight}
-                </div>
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-3 md:justify-end">
+            <Button asChild size="lg">
+              <Link href="/book-meeting">
+                Book a meeting
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg" className="border-border/80 bg-card/75 text-foreground hover:bg-card/80">
+              <Link href="/contact">Send a message</Link>
+            </Button>
+            <Button asChild variant="ghost" size="lg" className="text-foreground hover:bg-card/80">
+              <Link href="/about">
+                <Globe className="mr-2 h-4 w-4" />
+                About Saleh
+              </Link>
+            </Button>
           </div>
         </div>
-      </section>
-
-      <section className="container pb-16">
-        <div className="mb-8 flex items-end justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.22em] text-primary/80">Experience</p>
-            <h2 className="mt-2 font-serif text-3xl">Clinical systems, public health, and interoperability</h2>
-          </div>
-          <Link href="/experience" className="inline-flex items-center text-sm font-medium text-primary hover:underline">
-            Full timeline <ArrowRight className="ml-1 h-4 w-4" />
-          </Link>
-        </div>
-        <div className="space-y-4">
-          {experiences.map((experience) => (
-            <Card key={experience.id} className="rounded-3xl border-border/70 bg-card/85">
-              <CardHeader>
-                <CardTitle className="text-xl">
-                  {experience.role} · {experience.company}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {experience.startDate || ""} {experience.endDate ? `- ${experience.endDate}` : ""}
-                </p>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-foreground/85">{experience.summary}</p>
-                {!!experience.achievements.length && (
-                  <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-                    {experience.achievements.slice(0, 4).map((achievement) => (
-                      <li key={achievement}>{achievement}</li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section className="container pb-16">
-        <div className="mb-8 flex items-end justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.22em] text-primary/80">Featured Projects</p>
-            <h2 className="mt-2 font-serif text-3xl">Platforms built for accuracy and scale</h2>
-          </div>
-          <Link href="/projects" className="inline-flex items-center text-sm font-medium text-primary hover:underline">
-            View all <ArrowRight className="ml-1 h-4 w-4" />
-          </Link>
-        </div>
-
-        <div className="grid gap-5 md:grid-cols-2">
-          {projects.slice(0, 4).map((project) => (
-            <Card
-              key={project.id}
-              className="group rounded-3xl border-border/70 bg-gradient-to-b from-card/95 to-card/70 transition hover:-translate-y-1 hover:border-primary/40"
-            >
-              <CardHeader className="space-y-3">
-                <CardTitle className="text-xl">{project.title}</CardTitle>
-                <div className="flex flex-wrap gap-2">
-                  {(project.tags || []).slice(0, 3).map((tag) => (
-                    <Badge key={`${project.id}-${tag}`} variant="secondary" className="rounded-full px-2.5 py-0.5 text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{project.description}</p>
-                <Link
-                  href={`/projects/${project.slug}`}
-                  className="mt-5 inline-flex items-center text-sm font-medium text-primary transition group-hover:translate-x-0.5"
-                >
-                  View project
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {services.length ? (
-        <section className="container pb-16">
-          <div className="mb-8 flex items-end justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.22em] text-primary/80">Core Services</p>
-              <h2 className="mt-2 font-serif text-3xl">Engineering that meets clinical-grade reliability</h2>
-            </div>
-            <Link href="/services" className="inline-flex items-center text-sm font-medium text-primary hover:underline">
-              All services <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {services.slice(0, 4).map((service) => (
-              <Card key={service.id} className="rounded-3xl border-border/70 bg-card/85">
-                <CardHeader>
-                  <CardTitle className="text-xl">{service.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">{service.detail}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {certificates.length ? (
-        <section className="container pb-16">
-          <div className="mb-8">
-            <p className="text-sm uppercase tracking-[0.22em] text-primary/80">Credentials</p>
-            <h2 className="mt-2 font-serif text-3xl">Certifications and training</h2>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {certificates.slice(0, 4).map((certificate) => (
-              <Card key={certificate.id} className="rounded-3xl border-border/70 bg-card/85">
-                <CardHeader>
-                  <CardTitle className="text-lg">{certificate.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p>{certificate.issuer}</p>
-                  {certificate.year ? <p className="mt-1">{certificate.year}</p> : null}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {latestCreator.length ? <CreatorFromHome items={latestCreator} /> : null}
-
-      <section className="container pb-20">
-        <div className="rounded-[2rem] border border-border/70 bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950 p-8 text-white md:p-10">
-          <h2 className="font-serif text-3xl">Let&apos;s build your next clinical-grade system.</h2>
-          <p className="mt-3 max-w-2xl text-sm text-slate-200">
-            I help healthcare teams move data securely, automate workflows, and ship analytics that drive measurable outcomes.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/contact" className="inline-flex items-center rounded-full bg-white px-5 py-2 text-sm font-semibold text-slate-900">
-              Start now
-            </Link>
-            <Link
-              href="/services"
-              className="inline-flex items-center rounded-full border border-white/40 px-5 py-2 text-sm font-semibold text-white"
-            >
-              View services
-            </Link>
-          </div>
-        </div>
-      </section>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
-    </>
+      </div>
+    </section>
   );
+}
+
+function HomeFooterSection({
+  socialLinks
+}: {
+  socialLinks: Array<{
+    id: string;
+    label: string;
+    url: string;
+  }>;
+}) {
+  return (
+    <section className="w-full px-4 md:px-8 lg:px-10">
+      <SiteFooterClient
+        embedded
+        socialLinks={socialLinks.map((link) => ({
+          label: link.label,
+          url: link.url
+        }))}
+      />
+    </section>
+  );
+}
+
+function WrenchIcon() {
+  return <Sparkles className="h-5 w-5" />;
 }

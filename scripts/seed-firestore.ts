@@ -37,14 +37,20 @@ function isDatabaseNotFoundError(error: unknown) {
   return code === "5" || /not[_\s-]?found/i.test(combined);
 }
 
+function getConfiguredFirestoreDatabaseId() {
+  return process.env.FIRESTORE_DATABASE_ID || process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID || "(default)";
+}
+
 function databaseNotFoundGuidance() {
+  const firestoreDatabaseId = getConfiguredFirestoreDatabaseId();
+
   return [
     "Seed failed because the configured Firestore database ID was not found.",
     "Set FIRESTORE_DATABASE_ID and NEXT_PUBLIC_FIRESTORE_DATABASE_ID to an existing Native Firestore database.",
     "",
     "Current repo configuration:",
-    "- firebase.json firestore.database: salehabbaas",
-    "- .env.local should include FIRESTORE_DATABASE_ID=salehabbaas",
+    `- firebase.json firestore.database: ${firestoreDatabaseId}`,
+    `- .env.local should include FIRESTORE_DATABASE_ID=${firestoreDatabaseId}`,
     "",
     "Then re-run: npm run seed"
   ].join("\n");
@@ -99,7 +105,7 @@ async function replaceCollection(
 
 async function seed() {
   const app = initAdminForScripts();
-  const firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID;
+  const firestoreDatabaseId = getConfiguredFirestoreDatabaseId();
   const db = firestoreDatabaseId ? getFirestore(app, firestoreDatabaseId) : getFirestore(app);
 
   await db.collection("siteContent").doc("profile").set(

@@ -12,10 +12,12 @@ import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
 
 export const revalidate = 300;
 
+const CREATOR_DESCRIPTION =
+  "Creator hub for Saleh Abbaas (Saleh Abbas): engineering insights, AI content, and platform-native growth systems.";
+
 export const metadata: Metadata = buildPageMetadata({
   title: "Creator",
-  description:
-    "Saleh Abbaas content creator hub: engineering insights, growth systems, and platform content optimized for discovery.",
+  description: CREATOR_DESCRIPTION,
   path: "/creator"
 });
 
@@ -61,7 +63,7 @@ export default async function CreatorPage({
 
   const webPageJsonLd = pageSchema({
     title: "Creator",
-    description: "Creator content by Saleh Abbaas.",
+    description: CREATOR_DESCRIPTION,
     path: "/creator"
   });
 
@@ -73,8 +75,8 @@ export default async function CreatorPage({
       <div className="space-y-8">
         <section className="space-y-4">
           <div>
-            <h2 className="font-serif text-2xl">Featured Content</h2>
-            <p className="text-sm text-muted-foreground">Pinned highlights from across platforms.</p>
+            <h2 className="font-serif text-2xl text-foreground">Featured Content</h2>
+            <p className="text-sm text-foreground/75">Pinned highlights from across platforms.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {featured.length ? (
@@ -87,8 +89,8 @@ export default async function CreatorPage({
 
         <section className="space-y-4">
           <div>
-            <h2 className="font-serif text-2xl">Latest Content</h2>
-            <p className="text-sm text-muted-foreground">Filter by pillar, platform, and content type.</p>
+            <h2 className="font-serif text-2xl text-foreground">Latest Content</h2>
+            <p className="text-sm text-foreground/75">Filter by pillar, platform, and content type.</p>
           </div>
           <CreatorFilters
             activePillar={pillar}
