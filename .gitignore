@@ -19,3 +19,5 @@ functions/lib
 functions/node_modules
 .DS_Store
 *firebase-adminsdk*.json
+
+.firebase/
