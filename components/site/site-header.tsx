@@ -103,8 +103,8 @@ export function SiteHeader() {
       >
         <div className="flex items-center gap-2 sm:gap-3">
           <Link href="/" className="group inline-flex shrink-0 items-center gap-2 rounded-full px-1.5 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <span className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-border/80 bg-card/85 shadow-elev1">
-              <Image src="/SA-Logo.png" alt={`${BRAND_NAME} logo`} fill sizes="36px" className="object-contain p-0.5" priority />
+            <span className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-card/85 shadow-elev1">
+              <Image src="/SA-Logo.svg" alt={`${BRAND_NAME} logo`} fill sizes="36px" className="object-contain" priority />
             </span>
             <span className="hidden bg-gradient-to-r from-cyan-400 via-blue-500 to-emerald-400 bg-clip-text font-mono text-[11px] font-black uppercase tracking-[0.18em] text-transparent sm:inline">
               SalehAbbaas.com
@@ -152,8 +152,8 @@ export function SiteHeader() {
               <SheetContent side="right" className="p-0">
                 <SheetHeader className="px-6 pt-6">
                   <SheetTitle className="inline-flex items-center gap-2 font-display text-base font-bold tracking-tight">
-                    <span className="relative inline-flex h-8 w-8 overflow-hidden rounded-lg border border-border/70 bg-card/80">
-                      <Image src="/SA-Logo.png" alt={`${BRAND_NAME} logo`} fill sizes="32px" className="object-contain p-0.5" />
+                    <span className="relative inline-flex h-8 w-8 overflow-hidden rounded-lg bg-card/80">
+                      <Image src="/SA-Logo.svg" alt={`${BRAND_NAME} logo`} fill sizes="32px" className="object-contain" />
                     </span>
                     {BRAND_NAME}
                   </SheetTitle>

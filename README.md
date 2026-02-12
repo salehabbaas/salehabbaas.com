@@ -1,63 +1,67 @@
-# SalehAbbaas.com
+# Saleh Abbaas
 
-Personal website and portfolio for **Saleh Abbaas** — a software engineer focused on healthcare interoperability, clinical data platforms, and reliable systems that operate in regulated environments.
+**Official website and professional profile of Saleh Abbaas (also searched as Saleh Abbas).**
 
-## Why This Site Exists
+Software Engineer based in **Ottawa, Ontario**, focused on healthcare interoperability, clinical data quality, and reliable digital systems for hospitals and health organizations.
 
-This site is built to clearly communicate my work, expertise, and impact. It highlights:
-
-- Healthcare interoperability expertise (HL7, FHIR, clinical integrations)
-- Product-ready engineering and systems thinking
-- Proven results in clinical data accuracy, operational visibility, and platform reliability
-- A professional home for my experience, services, and credentials
+---
 
 ## About Saleh Abbaas
 
-I’m a software engineer with 5+ years of experience, including 4+ years building healthcare interoperability and data exchange systems. My work spans HL7/FHIR integrations, LIS/HIS connectivity, clinical analytics, and secure platform delivery. I’ve supported systems used by 3,000+ users and delivered integrations that improved data accuracy by up to 98%.
+Saleh Abbaas is a healthcare-focused software engineer with 5+ years of experience, including 4+ years in healthcare interoperability and clinical integrations.  
+His work connects clinical systems, laboratory platforms, and healthcare teams so data moves accurately, securely, and in real time.
 
-Based in Ottawa, Ontario.
+He has helped organizations improve integration quality by up to **98%** and supported platforms used by **3,000+ users**.
 
-## Technology
+---
 
-This project is built with:
+## What Saleh Abbaas Does
 
-- **Next.js 15 (App Router)**
-- **React 19** + **TypeScript**
-- **Tailwind CSS** + **shadcn/ui**
-- **Framer Motion** (transitions/reveals) + **GSAP ScrollTrigger** (scroll stories)
-- **Firebase**
-- **Gemini (Google Gen AI SDK)** powering *Saleh-OS 2.0* (`/api/saleh-os`)
+- Healthcare interoperability and clinical integration delivery
+- HL7 and FHIR implementation for hospital and laboratory workflows
+- LIS/HIS integration and lab automation enablement
+- Secure API and data workflow design for regulated healthcare environments
+- Clinical analytics and operational reporting for better decision-making
 
-## Saleh-OS 2.0 (AI Assistant)
+---
 
-The site includes a terminal-style assistant that can answer recruiter-style questions about my work in HL7/FHIR, clinical integrations, and shipped projects.
+## Career Highlights
 
-- UI: `components/site/saleh-os.tsx` (persistent chat with local history)
-- API: `app/api/saleh-os/route.ts` (server-side Gemini call via `@google/genai`)
-- System prompt: built from the same resume/CMS data the site renders (`lib/firestore/site-public.ts` with fallback to `lib/data/resume.ts`)
+- **The Ottawa Hospital**: Clinical integration engineering for hospital and laboratory data exchange  
+- **Arab Hospitals Group**: Senior software engineering for healthcare systems and automation  
+- **World Health Organization (WHO)**: Public health platform support and large-scale analytics workflows
 
-Required env vars:
+---
 
-- `GEMINI_API_KEY`
-- `GEMINI_MODEL` (optional, defaults to `gemini-2.5-flash`)
+## Professional Services
 
-## Keywords
+- Healthcare Interoperability Consulting
+- Integration and API Engineering
+- Clinical Data Platforms and Reporting
+- Cloud and Infrastructure Foundations for secure healthcare operations
 
-Healthcare Interoperability, HL7, FHIR, Rhapsody, Mirth Connect, Epic EHR, HIPAA, PHIPA, DICOM, PACS, Power BI, Clinical Data Platforms, Integration Engineering, Data Pipelines, Analytics.
+---
 
-## SEO, Indexing, and Tracking
+## Why Teams Work With Saleh Abbaas
 
-- Sitemap: `/sitemap.xml` (static + dynamic project/blog/creator URLs)
-- Robots: `/robots.txt` (public pages allowed, admin/api blocked)
-- AI crawler index file: `/llms.txt`
-- Structured data: Person, WebSite, BreadcrumbList, and per-page WebPage/Article JSON-LD
+- Strong communication between technical and clinical stakeholders
+- Practical delivery in high-accountability and regulated settings
+- Consistent focus on reliability, security, and measurable outcomes
+- Multilingual collaboration: Arabic, English, and basic French
 
-Environment variables for Google and webmaster tools:
+---
 
-- `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` (Search Console token)
-- `NEXT_PUBLIC_BING_SITE_VERIFICATION` (Bing Webmaster token)
-- `NEXT_PUBLIC_GA_MEASUREMENT_ID` (GA4, preferred)
-- `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` (optional GA fallback)
-- `NEXT_PUBLIC_GTM_ID` (Google Tag Manager container)
-- `NEXT_PUBLIC_GOOGLE_ADS_ID` (Google Ads global site tag id)
-- `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL` (optional conversion label used by `gtagSendEvent`)
+## Connect With Saleh Abbaas
+
+- Website: [salehabbaas.com](https://salehabbaas.com)
+- LinkedIn: [linkedin.com/in/salehabbaas](https://www.linkedin.com/in/salehabbaas)
+- YouTube: [youtube.com/@salehabbaas](https://youtube.com/@salehabbaas)
+- Instagram: [instagram.com/salehabbaas](https://instagram.com/salehabbaas)
+- TikTok: [tiktok.com/@salehabbaas](https://tiktok.com/@salehabbaas)
+- X: [x.com/salehabbaas](https://x.com/salehabbaas)
+
+---
+
+## Search Keywords
+
+Saleh Abbaas, Saleh Abbas, Saleh Abbaas Ottawa, healthcare software engineer, healthcare interoperability engineer, HL7 integration, FHIR integration, clinical data platform, laboratory systems integration, LIS HIS integration, healthcare API engineering, health IT consultant.

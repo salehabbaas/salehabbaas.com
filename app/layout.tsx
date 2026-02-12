@@ -7,7 +7,7 @@ import "./globals.css";
 import { safeSeoDefaults } from "@/lib/firestore/site-public";
 import { personSchema, websiteSchema } from "@/lib/seo/schema";
 import { resolveAbsoluteUrl } from "@/lib/utils";
-import { DEFAULT_DESCRIPTION } from "@/lib/seo/metadata";
+import { DEFAULT_DESCRIPTION, DEFAULT_SOCIAL_IMAGE } from "@/lib/seo/metadata";
 import { BRAND_NAME } from "@/lib/brand";
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "";
@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const seoDefaults = await safeSeoDefaults();
   const title = BRAND_NAME;
   const description = seoDefaults.defaultDescription || DEFAULT_DESCRIPTION;
-  const defaultOgImage = seoDefaults.defaultOgImage || resolveAbsoluteUrl("/api/og/page?title=Saleh%20Abbaas");
+  const defaultOgImage = resolveAbsoluteUrl(DEFAULT_SOCIAL_IMAGE);
   const verification: Metadata["verification"] = {};
 
   if (GOOGLE_SITE_VERIFICATION) {
@@ -84,9 +84,14 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     verification: Object.keys(verification).length ? verification : undefined,
     icons: {
-      icon: [{ url: "/SA-Logo.png", type: "image/png" }],
-      shortcut: ["/SA-Logo.png"],
-      apple: [{ url: "/SA-Logo.png" }]
+      icon: [
+        { url: "/favicon.ico", type: "image/x-icon", sizes: "any" },
+        { url: "/SA-Logo.svg", type: "image/svg+xml" },
+        { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+        { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" }
+      ],
+      shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
     },
     alternates: {
       canonical: resolveAbsoluteUrl("/")
@@ -100,8 +105,6 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [
         {
           url: defaultOgImage,
-          width: 1200,
-          height: 630,
           alt: "Saleh Abbaas"
         }
       ]

@@ -1,0 +1,27 @@
+diff --git a/node_modules/framer-motion/dist/es/context/DeprecatedLayoutGroupContext.mjs b/node_modules/framer-motion/dist/es/context/DeprecatedLayoutGroupContext.mjs
+index 999cda1..4a80c88 100644
+--- a/node_modules/framer-motion/dist/es/context/DeprecatedLayoutGroupContext.mjs
++++ b/node_modules/framer-motion/dist/es/context/DeprecatedLayoutGroupContext.mjs
+@@ -9,4 +9,3 @@ import { createContext } from 'react';
+ const DeprecatedLayoutGroupContext = createContext(null);
+ 
+ export { DeprecatedLayoutGroupContext };
+-//# sourceMappingURL=DeprecatedLayoutGroupContext.mjs.map
+diff --git a/node_modules/framer-motion/dist/es/context/LayoutGroupContext.mjs b/node_modules/framer-motion/dist/es/context/LayoutGroupContext.mjs
+index cd82e0b..0148bac 100644
+--- a/node_modules/framer-motion/dist/es/context/LayoutGroupContext.mjs
++++ b/node_modules/framer-motion/dist/es/context/LayoutGroupContext.mjs
+@@ -4,4 +4,3 @@ import { createContext } from 'react';
+ const LayoutGroupContext = createContext({});
+ 
+ export { LayoutGroupContext };
+-//# sourceMappingURL=LayoutGroupContext.mjs.map
+diff --git a/node_modules/framer-motion/dist/es/context/SwitchLayoutGroupContext.mjs b/node_modules/framer-motion/dist/es/context/SwitchLayoutGroupContext.mjs
+index 08aaa76..f206251 100644
+--- a/node_modules/framer-motion/dist/es/context/SwitchLayoutGroupContext.mjs
++++ b/node_modules/framer-motion/dist/es/context/SwitchLayoutGroupContext.mjs
+@@ -7,4 +7,3 @@ import { createContext } from 'react';
+ const SwitchLayoutGroupContext = createContext({});
+ 
+ export { SwitchLayoutGroupContext };
+-//# sourceMappingURL=SwitchLayoutGroupContext.mjs.map

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc" shape-rendering="geometricPrecision" text-rendering="geometricPrecision">
+  <title id="title">SA Logo</title>
+  <desc id="desc">Hexagon SA monogram logo with a blue gradient palette.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06173a"/>
+      <stop offset="100%" stop-color="#0b2e63"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="14%" y1="8%" x2="88%" y2="92%">
+      <stop offset="0%" stop-color="#1e79ff"/>
+      <stop offset="52%" stop-color="#2d5fda"/>
+      <stop offset="100%" stop-color="#2aa8d8"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#canvas)"/>
+  <polygon points="512,86 850,281 850,743 512,938 174,743 174,281" fill="url(#badge)"/>
+
+  <text
+    x="512"
+    y="728"
+    text-anchor="middle"
+    font-family="'Avenir Next', Montserrat, 'SF Pro Display', 'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+    font-size="590"
+    font-weight="900"
+    letter-spacing="-36"
+    fill="#ffffff"
+  >SA</text>
+</svg>

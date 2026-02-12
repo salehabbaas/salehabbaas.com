@@ -6,6 +6,7 @@ import { keywords as resumeKeywords } from "@/lib/data/resume";
 
 export const DEFAULT_TITLE = BRAND_NAME;
 export const DEFAULT_DESCRIPTION = BRAND_DESCRIPTION;
+export const DEFAULT_SOCIAL_IMAGE = "/SalehAbbaas-Logo-One.jpeg";
 
 const BASE_KEYWORDS = [
   BRAND_NAME,
@@ -135,7 +136,7 @@ export function buildPageMetadata(input: {
   const title = normalizePageTitle(input.title || DEFAULT_TITLE) || "Home";
   const description = input.description || DEFAULT_DESCRIPTION;
   const canonical = resolveAbsoluteUrl(input.path);
-  const image = input.image || resolveAbsoluteUrl(`/api/og/page?title=${encodeURIComponent(title)}`);
+  const image = input.image || resolveAbsoluteUrl(DEFAULT_SOCIAL_IMAGE);
   const keywords = dedupeKeywords([...BASE_KEYWORDS, ...pathKeywords(input.path), ...(input.keywords ?? [])]);
 
   return {
@@ -150,7 +151,7 @@ export function buildPageMetadata(input: {
       title,
       description,
       url: canonical,
-      images: [{ url: image, width: 1200, height: 630, alt: title }]
+      images: [{ url: image, alt: title }]
     },
     twitter: {
       card: "summary_large_image",

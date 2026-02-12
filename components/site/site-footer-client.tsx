@@ -2,8 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { cn } from "@/lib/utils";
@@ -26,44 +24,11 @@ type SiteFooterClientProps = {
 };
 
 export function SiteFooterClient({ socialLinks, embedded = false }: SiteFooterClientProps) {
-  const pathname = usePathname();
-  const [hiddenOnScrollUp, setHiddenOnScrollUp] = useState(false);
-  const lastScrollYRef = useRef(0);
-
-  useEffect(() => {
-    if (embedded) return;
-    lastScrollYRef.current = window.scrollY;
-
-    const onScroll = () => {
-      const nextScrollY = window.scrollY;
-      const delta = nextScrollY - lastScrollYRef.current;
-
-      // Ignore tiny jitter from trackpads and momentum.
-      if (Math.abs(delta) < 6) return;
-
-      if (delta < 0 && nextScrollY > 140) {
-        setHiddenOnScrollUp(true);
-      } else {
-        setHiddenOnScrollUp(false);
-      }
-
-      lastScrollYRef.current = nextScrollY;
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [embedded]);
-
-  if (!embedded && pathname === "/") {
-    return null;
-  }
-
   return (
     <footer
       className={cn(
         "relative border-t border-border/70 bg-[hsla(var(--surface-950),0.94)] text-foreground backdrop-blur-lg transition-all duration-300",
-        embedded ? "mt-0 overflow-hidden rounded-[2rem] border border-border/70" : "mt-24",
-        hiddenOnScrollUp ? "pointer-events-none translate-y-8 opacity-0" : "translate-y-0 opacity-100"
+        embedded ? "mt-0 overflow-hidden rounded-[2rem] border border-border/70" : "mt-24"
       )}
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(168,85,247,0.12),transparent_45%),radial-gradient(circle_at_80%_20%,rgba(99,102,241,0.12),transparent_50%)]" />
@@ -71,8 +36,8 @@ export function SiteFooterClient({ socialLinks, embedded = false }: SiteFooterCl
       <div className="container relative grid gap-10 py-12 md:grid-cols-[1.1fr_0.9fr_1fr]">
         <div className="space-y-4">
           <div className="inline-flex items-center gap-3">
-            <span className="relative inline-flex h-10 w-10 overflow-hidden rounded-xl border border-border/80 bg-card/80">
-              <Image src="/SA-Logo.png" alt={`${BRAND_NAME} logo`} fill sizes="40px" className="object-contain p-0.5" />
+            <span className="relative inline-flex h-10 w-10 overflow-hidden rounded-xl bg-card/80">
+              <Image src="/SA-Logo.svg" alt={`${BRAND_NAME} logo`} fill sizes="40px" className="object-contain" />
             </span>
             <p className="font-display text-xl font-bold tracking-tight text-foreground">{BRAND_NAME}</p>
           </div>
