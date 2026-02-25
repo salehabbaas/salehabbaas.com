@@ -62,6 +62,7 @@ export default async function BlogPage({
 
   return (
     <SectionShell
+      path="/blog"
       title="Blog by Saleh Abbaas"
       description="Technical writing on software engineering, AI systems, and healthcare interoperability from Ottawa, Ontario, Canada."
     >

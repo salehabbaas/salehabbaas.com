@@ -75,6 +75,28 @@ export async function POST(request: Request) {
   }
 }
 
+export async function GET() {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("__session")?.value ?? cookieStore.get("admin_session")?.value;
+  if (!sessionCookie) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
+    if (decoded.admin !== true) {
+      return NextResponse.json({ error: "Admin claim required" }, { status: 403 });
+    }
+
+    const customToken = await adminAuth.createCustomToken(decoded.uid, { admin: true });
+    const response = NextResponse.json({ customToken });
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+}
+
 export async function DELETE(request: Request) {
   const requestContext = getAdminRequestContext(request);
   const cookieStore = await cookies();

@@ -60,10 +60,11 @@ export default async function ProjectsPage({
   });
 
   return (
-    <section className="container py-16 md:py-20">
+    <section className="container pb-16 pt-20 md:pb-20 md:pt-24">
       <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
         <div className="space-y-5">
-          <p className="w-fit rounded-full border border-border/70 bg-card/80 px-4 py-1.5 text-xs uppercase tracking-[0.24em] text-foreground/75">
+          <p className="inline-flex w-fit items-center gap-2 rounded-full border border-border/70 bg-card/80 px-4 py-1.5 text-xs uppercase tracking-[0.24em] text-foreground/90">
+            <FolderKanban className="h-3.5 w-3.5" aria-hidden />
             Projects
           </p>
           <h1 className="text-balance text-4xl font-semibold tracking-tight text-foreground md:text-5xl">

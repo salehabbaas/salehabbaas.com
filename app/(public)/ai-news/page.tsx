@@ -71,6 +71,7 @@ export default async function AINewsPage({
 
   return (
     <SectionShell
+      path="/ai-news"
       title="AI News"
       description="Short, high-signal AI updates republished from my creator workflow. Each post links back to the full creator entry."
     >

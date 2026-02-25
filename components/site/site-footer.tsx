@@ -1,14 +1,14 @@
 import { safeSocialLinks } from "@/lib/firestore/site-public";
-import type { PublicPagePath } from "@/types/site-settings";
+import type { PublicPageSettings } from "@/types/site-settings";
 
 import { SiteFooterClient } from "@/components/site/site-footer-client";
 
-export async function SiteFooter({ visibleRoutes }: { visibleRoutes: PublicPagePath[] }) {
+export async function SiteFooter({ pageSettings }: { pageSettings: PublicPageSettings }) {
   const socialLinks = await safeSocialLinks();
 
   return (
     <SiteFooterClient
-      visibleRoutes={visibleRoutes}
+      pageSettings={pageSettings}
       socialLinks={socialLinks.map((link) => ({
         label: link.label,
         url: link.url

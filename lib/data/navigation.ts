@@ -33,6 +33,8 @@ export type AdminNavSectionId = "overview" | "content" | "operations" | "setting
 
 export type AdminNavIcon =
   | "overview"
+  | "dashboard-stats"
+  | "dashboard-systems"
   | "cms"
   | "cms-profile"
   | "cms-projects"
@@ -54,7 +56,6 @@ export type AdminNavIcon =
 export type AdminNavigationItem = {
   href: string;
   label: string;
-  description: string;
   icon: AdminNavIcon;
   section: AdminNavSectionId;
 };
@@ -62,142 +63,133 @@ export type AdminNavigationItem = {
 export type AdminNavigationSection = {
   id: AdminNavSectionId;
   label: string;
-  hint: string;
 };
 
 export const adminNavigationSections: AdminNavigationSection[] = [
   {
     id: "overview",
-    label: "Overview",
-    hint: "System inbox and global health"
+    label: "Dashboards"
   },
   {
     id: "content",
-    label: "Content",
-    hint: "CMS, creator workflow, and publishing"
+    label: "Content"
   },
   {
     id: "operations",
-    label: "Operations",
-    hint: "Pipeline workflows and transactional systems"
+    label: "Operations"
   },
   {
     id: "settings",
-    label: "Settings",
-    hint: "Integrations, visibility, and feature health"
+    label: "Settings"
   }
 ];
 
 export const adminNavigation: AdminNavigationItem[] = [
   {
     href: "/admin",
-    label: "System Inbox",
-    description: "Global status and unresolved issues",
+    label: "Stats",
+    icon: "dashboard-stats",
+    section: "overview"
+  },
+  {
+    href: "/admin/systems-dashboard",
+    label: "Systems",
+    icon: "dashboard-systems",
+    section: "overview"
+  },
+  {
+    href: "/admin/system-inbox",
+    label: "Inbox",
     icon: "overview",
     section: "overview"
   },
   {
     href: "/admin/cms/profile",
-    label: "CMS Profile",
-    description: "Identity details and profile assets",
+    label: "Profile",
     icon: "cms-profile",
     section: "content"
   },
   {
     href: "/admin/cms/projects",
-    label: "CMS Projects",
-    description: "Projects list, publish/hide, and media",
+    label: "Projects",
     icon: "cms-projects",
     section: "content"
   },
   {
     href: "/admin/cms/blog",
-    label: "CMS Blog",
-    description: "Blog posts, SEO fields, and publish/hide",
+    label: "Blog",
     icon: "cms-blog",
     section: "content"
   },
   {
     href: "/admin/cms/experience",
-    label: "CMS Experience",
-    description: "Career timeline entries",
+    label: "Experience",
     icon: "cms-experience",
     section: "content"
   },
   {
     href: "/admin/cms/services",
-    label: "CMS Services",
-    description: "Service offerings and ordering",
+    label: "Services",
     icon: "cms-services",
     section: "content"
   },
   {
     href: "/admin/cms/certificates",
-    label: "CMS Certificates",
-    description: "Certificate records and images",
+    label: "Certificates",
     icon: "cms-certificates",
     section: "content"
   },
   {
     href: "/admin/cms/social",
-    label: "CMS Social",
-    description: "Social links and ordering",
+    label: "Social",
     icon: "cms-social",
     section: "content"
   },
   {
     href: "/admin/cms/media",
-    label: "CMS Media",
-    description: "Upload and reuse media assets",
+    label: "Media",
     icon: "cms-media",
     section: "content"
   },
   {
     href: "/admin/creator",
-    label: "Creator OS",
-    description: "Multi-platform content lifecycle and performance",
+    label: "Creator",
     icon: "creator",
     section: "content"
   },
   {
     href: "/admin/linkedin-studio",
-    label: "LinkedIn Studio",
-    description: "AI post generation, versioning, and publishing",
+    label: "LinkedIn",
     icon: "linkedin",
     section: "content"
   },
   {
     href: "/admin/job-tracker",
-    label: "Job Tracker",
-    description: "Applications, interviews, offers, and reporting",
+    label: "Jobs",
     icon: "job-tracker",
     section: "operations"
   },
   {
     href: "/admin/bookings",
     label: "Bookings",
-    description: "Availability, meeting types, slots, and confirmations",
     icon: "bookings",
     section: "operations"
   },
   {
     href: "/admin/settings/integrations",
     label: "Integrations",
-    description: "Provider config and secret keys",
     icon: "settings-integrations",
     section: "settings"
   },
   {
     href: "/admin/settings/visibility",
     label: "Visibility",
-    description: "Publish/hide pages and content",
     icon: "settings-visibility",
     section: "settings"
   },
   {
     href: "/admin/settings/health",
     label: "Health",
-    description: "Feature readiness and missing dependencies",
     icon: "settings-health",
     section: "settings"
   }

@@ -82,7 +82,7 @@ export default async function ExperiencePage() {
   ]);
 
   return (
-    <section className="relative isolate overflow-hidden py-14 md:py-20">
+    <section className="relative isolate overflow-hidden pb-14 pt-20 md:pb-20 md:pt-24">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_8%,rgba(56,189,248,0.14),transparent_40%),radial-gradient(circle_at_88%_0%,rgba(16,185,129,0.12),transparent_36%),radial-gradient(circle_at_45%_100%,rgba(99,102,241,0.1),transparent_52%)]" />
       <div className="pointer-events-none absolute inset-0 bg-grid opacity-[0.16]" />
 

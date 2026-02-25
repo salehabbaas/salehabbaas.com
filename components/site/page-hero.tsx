@@ -21,7 +21,7 @@ export function PageHero({
   resumeUrl?: string;
 }) {
   return (
-    <section className="container py-12 md:py-20">
+    <section className="container pb-12 pt-16 md:pb-20 md:pt-24">
       <motion.div
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}

@@ -30,7 +30,7 @@ export default async function ContactPage() {
   ]);
 
   return (
-    <SectionShell title="Contact" description="Tell me what you are building and where you need support.">
+    <SectionShell path="/contact" title="Contact" description="Tell me what you are building and where you need support.">
       <div className="max-w-2xl">
         <ContactForm />
       </div>

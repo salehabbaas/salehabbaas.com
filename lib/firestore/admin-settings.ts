@@ -1,9 +1,12 @@
 import "server-only";
 
 import { adminDb } from "@/lib/firebase/admin";
+import { publicNavigation } from "@/lib/data/navigation";
 import type {
   AdminIntegrationSettings,
   AdminSecretSettings,
+  PublicPageSettings,
+  PublicPageSettingsItem,
   PageVisibilitySettings,
   PublicPagePath,
   SecretPresence
@@ -39,6 +42,24 @@ const DEFAULT_PAGE_VISIBILITY: PageVisibilitySettings = {
   "/contact": true
 };
 
+const DEFAULT_PUBLIC_PAGE_SETTINGS: PublicPageSettings = PUBLIC_PAGE_PATHS.map((path, index) => {
+  const navigationItem = publicNavigation.find((item) => item.href === path);
+  const defaultName = navigationItem?.label ?? path;
+  const defaultDescription = navigationItem?.description ?? "";
+  return {
+    path,
+    enabled: DEFAULT_PAGE_VISIBILITY[path],
+    name: defaultName,
+    description: defaultDescription,
+    link: navigationItem?.href ?? path,
+    menuOrder: index,
+    seoTitle: defaultName,
+    seoDescription: defaultDescription,
+    seoKeywords: "",
+    seoImage: ""
+  };
+});
+
 const DEFAULT_ADMIN_INTEGRATIONS: AdminIntegrationSettings = {
   emailProvider: "resend",
   senderEmail: "",
@@ -69,39 +90,195 @@ function asString(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizePublicLink(value: unknown, fallback: string) {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  if (trimmed.startsWith("/") || /^https?:\/\//i.test(trimmed)) return trimmed;
+  return `/${trimmed.replace(/^\/+/, "")}`;
+}
+
+function normalizeMenuOrder(value: unknown, fallback: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.floor(value));
+}
+
+function normalizeOptionalText(value: unknown, fallback = "") {
+  if (typeof value !== "string") return fallback;
+  return value.trim();
+}
+
+function sortPublicPageSettings(settings: PublicPageSettings) {
+  return [...settings].sort(
+    (a, b) => a.menuOrder - b.menuOrder || a.name.localeCompare(b.name) || a.path.localeCompare(b.path)
+  );
+}
+
 export function getDefaultPageVisibility(): PageVisibilitySettings {
   return { ...DEFAULT_PAGE_VISIBILITY };
 }
 
-function normalizePageVisibility(input: Record<string, unknown> | undefined): PageVisibilitySettings {
-  const base = getDefaultPageVisibility();
-  if (!input) return base;
+export function getDefaultPublicPageSettings(): PublicPageSettings {
+  return sortPublicPageSettings(DEFAULT_PUBLIC_PAGE_SETTINGS.map((item) => ({ ...item })));
+}
 
-  for (const path of PUBLIC_PAGE_PATHS) {
-    const value = input[path];
-    if (typeof value === "boolean") {
-      base[path] = value;
+function normalizePublicPageSettings(input: Record<string, unknown> | undefined): PublicPageSettings {
+  const defaults = getDefaultPublicPageSettings();
+  if (!input) return defaults;
+
+  const fallbackByPath = new Map(defaults.map((item) => [item.path, item] as const));
+  const nestedPages = isObjectRecord(input.pages) ? input.pages : undefined;
+
+  const normalized = PUBLIC_PAGE_PATHS.map((path) => {
+    const fallback = fallbackByPath.get(path);
+    if (!fallback) {
+      return {
+        path,
+        enabled: DEFAULT_PAGE_VISIBILITY[path],
+        name: path,
+        description: "",
+        link: path,
+        menuOrder: Number.MAX_SAFE_INTEGER,
+        seoTitle: path,
+        seoDescription: "",
+        seoKeywords: "",
+        seoImage: ""
+      } satisfies PublicPageSettingsItem;
     }
+
+    const rawPage = nestedPages && isObjectRecord(nestedPages[path]) ? nestedPages[path] : undefined;
+    const enabled =
+      typeof rawPage?.enabled === "boolean"
+        ? rawPage.enabled
+        : typeof input[path] === "boolean"
+          ? (input[path] as boolean)
+          : fallback.enabled;
+    const name =
+      typeof rawPage?.name === "string" && rawPage.name.trim().length
+        ? rawPage.name.trim()
+        : fallback.name;
+    const description = typeof rawPage?.description === "string" ? rawPage.description.trim() : fallback.description;
+    const link = normalizePublicLink(rawPage?.link, fallback.link);
+    const menuOrder = normalizeMenuOrder(rawPage?.menuOrder, fallback.menuOrder);
+    const seoTitle = normalizeOptionalText(rawPage?.seoTitle, fallback.seoTitle || name);
+    const seoDescription = normalizeOptionalText(rawPage?.seoDescription, fallback.seoDescription || description);
+    const seoKeywords = normalizeOptionalText(rawPage?.seoKeywords, fallback.seoKeywords);
+    const seoImage = normalizeOptionalText(rawPage?.seoImage, fallback.seoImage);
+
+    return {
+      path,
+      enabled,
+      name,
+      description,
+      link,
+      menuOrder,
+      seoTitle,
+      seoDescription,
+      seoKeywords,
+      seoImage
+    } satisfies PublicPageSettingsItem;
+  });
+
+  return sortPublicPageSettings(normalized);
+}
+
+function toPageVisibilityMap(settings: PublicPageSettings): PageVisibilitySettings {
+  const visibility = getDefaultPageVisibility();
+  for (const setting of settings) {
+    visibility[setting.path] = setting.enabled;
   }
-  return base;
+  return visibility;
+}
+
+function normalizePageSettingsPatch(input: PublicPageSettings): PublicPageSettings {
+  const defaultsByPath = new Map(getDefaultPublicPageSettings().map((item) => [item.path, item] as const));
+  const inputByPath = new Map(input.map((item) => [item.path, item] as const));
+
+  const merged = PUBLIC_PAGE_PATHS.map((path) => {
+    const fallback = defaultsByPath.get(path);
+    const candidate = inputByPath.get(path);
+    if (!fallback) {
+      return {
+        path,
+        enabled: true,
+        name: path,
+        description: "",
+        link: path,
+        menuOrder: Number.MAX_SAFE_INTEGER,
+        seoTitle: path,
+        seoDescription: "",
+        seoKeywords: "",
+        seoImage: ""
+      } satisfies PublicPageSettingsItem;
+    }
+
+    if (!candidate) return fallback;
+
+    return {
+      path,
+      enabled: candidate.enabled === false ? false : true,
+      name: candidate.name.trim() || fallback.name,
+      description: candidate.description.trim(),
+      link: normalizePublicLink(candidate.link, fallback.link),
+      menuOrder: normalizeMenuOrder(candidate.menuOrder, fallback.menuOrder),
+      seoTitle: normalizeOptionalText(candidate.seoTitle, fallback.seoTitle || fallback.name),
+      seoDescription: normalizeOptionalText(candidate.seoDescription, fallback.seoDescription || fallback.description),
+      seoKeywords: normalizeOptionalText(candidate.seoKeywords, fallback.seoKeywords),
+      seoImage: normalizeOptionalText(candidate.seoImage, fallback.seoImage)
+    } satisfies PublicPageSettingsItem;
+  });
+
+  return sortPublicPageSettings(merged);
+}
+
+export async function getPublicPageSettings(): Promise<PublicPageSettings> {
+  const snap = await adminDb.collection(PAGE_VISIBILITY_PATH.collection).doc(PAGE_VISIBILITY_PATH.doc).get();
+  return normalizePublicPageSettings((snap.data() as Record<string, unknown> | undefined) ?? undefined);
 }
 
 export async function getPageVisibilitySettings(): Promise<PageVisibilitySettings> {
-  const snap = await adminDb.collection(PAGE_VISIBILITY_PATH.collection).doc(PAGE_VISIBILITY_PATH.doc).get();
-  return normalizePageVisibility((snap.data() as Record<string, unknown> | undefined) ?? undefined);
+  const settings = await getPublicPageSettings();
+  return toPageVisibilityMap(settings);
 }
 
 export async function savePageVisibilitySettings(patch: Partial<PageVisibilitySettings>) {
-  const payload: Partial<PageVisibilitySettings> = {};
-  for (const path of PUBLIC_PAGE_PATHS) {
-    if (typeof patch[path] === "boolean") {
-      payload[path] = patch[path];
-    }
+  const existing = await getPublicPageSettings();
+  const merged = existing.map((item) => ({
+    ...item,
+    enabled: typeof patch[item.path] === "boolean" ? (patch[item.path] as boolean) : item.enabled
+  }));
+
+  await savePublicPageSettings(merged);
+}
+
+export async function savePublicPageSettings(input: PublicPageSettings) {
+  const settings = normalizePageSettingsPatch(input);
+  const visibilityPayload: Partial<PageVisibilitySettings> = {};
+  const pagesPayload: Record<string, Omit<PublicPageSettingsItem, "path">> = {};
+
+  for (const page of settings) {
+    visibilityPayload[page.path] = page.enabled;
+    pagesPayload[page.path] = {
+      enabled: page.enabled,
+      name: page.name,
+      description: page.description,
+      link: page.link,
+      menuOrder: page.menuOrder,
+      seoTitle: page.seoTitle,
+      seoDescription: page.seoDescription,
+      seoKeywords: page.seoKeywords,
+      seoImage: page.seoImage
+    };
   }
 
   await adminDb.collection(PAGE_VISIBILITY_PATH.collection).doc(PAGE_VISIBILITY_PATH.doc).set(
     {
-      ...payload,
+      ...visibilityPayload,
+      pages: pagesPayload,
       updatedAt: new Date()
     },
     { merge: true }

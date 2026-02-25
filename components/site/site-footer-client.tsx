@@ -3,13 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { publicNavigation } from "@/lib/data/navigation";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { cn } from "@/lib/utils";
-import type { PublicPagePath } from "@/types/site-settings";
+import type { PublicPageSettings } from "@/types/site-settings";
 
 type SiteFooterClientProps = {
-  visibleRoutes: PublicPagePath[];
+  pageSettings: PublicPageSettings;
   socialLinks: Array<{
     label: string;
     url: string;
@@ -17,12 +16,16 @@ type SiteFooterClientProps = {
   embedded?: boolean;
 };
 
-export function SiteFooterClient({ visibleRoutes, socialLinks, embedded = false }: SiteFooterClientProps) {
-  const quickLinks = publicNavigation
-    .filter((item) => item.href !== "/" && item.section !== "support")
-    .filter((item) => visibleRoutes.includes(item.href))
-    .slice(0, 9)
-    .map((item) => ({ href: item.href, label: item.label }));
+export function SiteFooterClient({ pageSettings, socialLinks, embedded = false }: SiteFooterClientProps) {
+  const enabledPages = pageSettings
+    .filter((item) => item.enabled)
+    .sort((a, b) => a.menuOrder - b.menuOrder || a.name.localeCompare(b.name) || a.path.localeCompare(b.path));
+  const quickLinks = enabledPages
+    .filter((item) => item.path !== "/book-meeting")
+    .map((item) => ({ href: item.link, label: item.name, description: item.description }));
+  const homePage = enabledPages.find((item) => item.path === "/");
+  const contactPage = enabledPages.find((item) => item.path === "/contact");
+  const bookMeetingPage = enabledPages.find((item) => item.path === "/book-meeting");
 
   return (
     <footer
@@ -48,8 +51,9 @@ export function SiteFooterClient({ visibleRoutes, socialLinks, embedded = false 
         <div className="grid gap-2 sm:grid-cols-2">
           {quickLinks.map((link) => (
             <Link
-              key={link.href}
+              key={`${link.href}-${link.label}`}
               href={link.href}
+              title={link.description || undefined}
               className="inline-flex items-center justify-between rounded-2xl border border-border/70 bg-card/75 px-4 py-3 text-sm text-foreground/85 shadow-elev1 transition hover:border-primary/30 hover:text-foreground"
             >
               <span>{link.label}</span>
@@ -72,11 +76,11 @@ export function SiteFooterClient({ visibleRoutes, socialLinks, embedded = false 
               </Link>
             ))}
           </div>
-          {visibleRoutes.includes("/book-meeting") ? (
+          {bookMeetingPage ? (
             <div className="rounded-2xl border border-border/70 bg-card/75 p-4 text-sm text-foreground/70 shadow-elev1">
               <p className="font-semibold text-foreground">Book a build</p>
               <p className="mt-1 text-foreground/70">Need the Prism look on your product? Let’s scope a sprint.</p>
-              <Link href="/book-meeting" className="mt-3 inline-flex items-center text-sm font-medium text-primary hover:text-primary/80">
+              <Link href={bookMeetingPage.link} className="mt-3 inline-flex items-center text-sm font-medium text-primary hover:text-primary/80">
                 Book a meeting →
               </Link>
             </div>
@@ -88,14 +92,19 @@ export function SiteFooterClient({ visibleRoutes, socialLinks, embedded = false 
         <div className="container flex flex-wrap items-center justify-between gap-3 py-4 text-xs text-foreground/60">
           <span>© {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.</span>
           <div className="flex gap-3">
-            {visibleRoutes.includes("/contact") ? (
-              <Link href="/contact" className="hover:text-foreground">
-                Contact
+            {homePage ? (
+              <Link href={homePage.link} className="hover:text-foreground">
+                {homePage.name}
               </Link>
             ) : null}
-            {visibleRoutes.includes("/book-meeting") ? (
-              <Link href="/book-meeting" className="hover:text-foreground">
-                Book a meeting
+            {contactPage ? (
+              <Link href={contactPage.link} className="hover:text-foreground">
+                {contactPage.name}
+              </Link>
+            ) : null}
+            {bookMeetingPage ? (
+              <Link href={bookMeetingPage.link} className="hover:text-foreground">
+                {bookMeetingPage.name}
               </Link>
             ) : null}
           </div>

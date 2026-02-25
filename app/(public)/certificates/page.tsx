@@ -34,7 +34,7 @@ export default async function CertificatesPage() {
   ]);
 
   return (
-    <SectionShell title="Certificates" description="Industry credentials that support execution quality and technical depth.">
+    <SectionShell path="/certificates" title="Certificates" description="Industry credentials that support execution quality and technical depth.">
       <div className="grid gap-4 md:grid-cols-3">
         {certificates.length ? (
           certificates.map((certificate) => (

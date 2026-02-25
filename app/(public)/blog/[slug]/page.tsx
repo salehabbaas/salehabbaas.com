@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { BookOpenText } from "lucide-react";
 
 import { JsonLd } from "@/components/seo/json-ld";
 import { getBlogPostBySlug, getBlogPosts } from "@/lib/firestore/cms";
@@ -75,9 +76,13 @@ export default async function BlogPostPage({ params }: Props) {
   ]);
 
   return (
-    <article className="container py-16 md:py-20">
+    <article className="container pb-16 pt-20 md:pb-20 md:pt-24">
       <div className="mx-auto max-w-3xl space-y-6">
-        <h1 className="font-serif text-balance text-4xl font-semibold leading-tight tracking-tight text-foreground md:text-5xl">
+        <p className="inline-flex w-fit items-center gap-2 rounded-full border border-border/70 bg-card/80 px-4 py-1.5 text-xs uppercase tracking-[0.24em] text-foreground/90">
+          <BookOpenText className="h-3.5 w-3.5" aria-hidden />
+          Blog
+        </p>
+        <h1 className="text-balance text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
           {post.title}
         </h1>
         <p className="text-sm text-muted-foreground">{formatDate(post.publishedAt)}</p>

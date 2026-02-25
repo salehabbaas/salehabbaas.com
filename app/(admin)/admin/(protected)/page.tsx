@@ -1,8 +1,8 @@
-import { SystemInboxDashboard } from "@/components/admin/system-inbox-dashboard";
-import { getSystemInboxSummary } from "@/lib/firestore/system-inbox";
+import { ControlCenterDashboard } from "@/components/admin/control-center-dashboard";
+import { getControlCenterSummary } from "@/lib/firestore/control-center";
 
 export default async function AdminOverviewPage() {
-  const summary = await getSystemInboxSummary();
+  const summary = await getControlCenterSummary();
 
-  return <SystemInboxDashboard summary={summary} />;
+  return <ControlCenterDashboard summary={summary} />;
 }

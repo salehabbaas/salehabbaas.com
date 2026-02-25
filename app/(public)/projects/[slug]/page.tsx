@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowUpRight, CalendarDays } from "lucide-react";
+import { ArrowUpRight, CalendarDays, FolderKanban } from "lucide-react";
 
 import { JsonLd } from "@/components/seo/json-ld";
 import { CreatorContentCard } from "@/components/creator/content-card";
@@ -86,7 +86,11 @@ export default async function ProjectDetailsPage({ params }: Props) {
   ]);
 
   return (
-    <section className="container py-16 md:py-20">
+    <section className="container pb-16 pt-20 md:pb-20 md:pt-24">
+      <p className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-border/70 bg-card/80 px-4 py-1.5 text-xs uppercase tracking-[0.24em] text-foreground/90">
+        <FolderKanban className="h-3.5 w-3.5" aria-hidden />
+        Project
+      </p>
       <ProjectHero project={project} />
 
       <div className="mt-10 grid gap-10 lg:grid-cols-[2fr_1fr]">

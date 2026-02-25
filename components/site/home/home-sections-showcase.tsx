@@ -13,6 +13,15 @@ export function HomeSectionsShowcase({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     const root = scrollRootRef.current;
+    if (!root) return;
+
+    // Ensure the Home route always starts at the intro section.
+    root.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    setActiveIndex(0);
+  }, [sections.length]);
+
+  useEffect(() => {
+    const root = scrollRootRef.current;
     if (!root || !sections.length) return;
 
     const observer = new IntersectionObserver(
@@ -78,7 +87,7 @@ export function HomeSectionsShowcase({ children }: { children: React.ReactNode }
             }}
             data-home-section-index={index}
             className="snap-start"
-            initial={{ opacity: 0, y: 64, scale: 0.985 }}
+            initial={index === 0 ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 64, scale: 0.985 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
             viewport={{ root: scrollRootRef, once: false, amount: 0.28 }}
             transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   AlertTriangle,
-  ArrowUpRight,
   CheckCircle2,
   Clock3,
   Globe2,
@@ -14,9 +13,9 @@ import {
   Users
 } from "lucide-react";
 
-import { VersioningPanel } from "@/components/admin/versioning-panel";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ControlCenterTrendChart } from "@/components/admin/control-center-trend-chart";
 import type { ControlCenterSummary } from "@/lib/firestore/control-center";
 import { formatDate } from "@/lib/utils";
 
@@ -24,97 +23,86 @@ function formatCount(value: number) {
   return new Intl.NumberFormat().format(value);
 }
 
+type StatTone = "primary" | "accent" | "success" | "warning" | "danger";
+
+function getToneStyles(tone: StatTone) {
+  switch (tone) {
+    case "accent":
+      return {
+        metricSurface: "border-accent/40 bg-accent/10",
+        metricValue: "text-accent",
+        dot: "bg-accent",
+        bar: "bg-[linear-gradient(135deg,hsl(var(--accent)),hsl(var(--accent)/0.55))]"
+      };
+    case "success":
+      return {
+        metricSurface: "border-success/40 bg-success/10",
+        metricValue: "text-success",
+        dot: "bg-success",
+        bar: "bg-[linear-gradient(135deg,hsl(var(--success)),hsl(var(--success)/0.55))]"
+      };
+    case "warning":
+      return {
+        metricSurface: "border-warning/40 bg-warning/10",
+        metricValue: "text-warning",
+        dot: "bg-warning",
+        bar: "bg-[linear-gradient(135deg,hsl(var(--warning)),hsl(var(--warning)/0.55))]"
+      };
+    case "danger":
+      return {
+        metricSurface: "border-destructive/40 bg-destructive/10",
+        metricValue: "text-destructive",
+        dot: "bg-destructive",
+        bar: "bg-[linear-gradient(135deg,hsl(var(--destructive)),hsl(var(--destructive)/0.55))]"
+      };
+    default:
+      return {
+        metricSurface: "border-primary/40 bg-primary/10",
+        metricValue: "text-primary",
+        dot: "bg-primary",
+        bar: "bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--primary)/0.55))]"
+      };
+  }
+}
+
 function TrendChart({
   rows
 }: {
   rows: Array<{ day: string; events: number; pageViews: number }>;
 }) {
-  const width = 700;
-  const height = 200;
-  const padding = 20;
-  const maxValue = Math.max(
-    1,
-    ...rows.map((item) => Math.max(item.events, item.pageViews))
-  );
-
-  function buildPoints(values: number[]) {
-    if (!values.length) return "";
-    return values
-      .map((value, index) => {
-        const x =
-          rows.length === 1
-            ? width / 2
-            : padding + (index / (rows.length - 1)) * (width - padding * 2);
-        const y = height - padding - (value / maxValue) * (height - padding * 2);
-        return `${x},${y}`;
-      })
-      .join(" ");
-  }
-
-  const eventPoints = buildPoints(rows.map((row) => row.events));
-  const pageViewPoints = buildPoints(rows.map((row) => row.pageViews));
-  const firstLabel = rows[0]?.day ?? "";
-  const midLabel = rows[Math.floor(rows.length / 2)]?.day ?? "";
-  const lastLabel = rows[rows.length - 1]?.day ?? "";
-
-  return (
-    <div className="space-y-3">
-      <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/60 p-2">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-44 w-full">
-          <polyline points={eventPoints} fill="none" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" />
-          <polyline
-            points={pageViewPoints}
-            fill="none"
-            stroke="hsl(var(--accent))"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeDasharray="5 5"
-          />
-        </svg>
-      </div>
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{firstLabel}</span>
-        <span>{midLabel}</span>
-        <span>{lastLabel}</span>
-      </div>
-      <div className="flex flex-wrap gap-3 text-xs">
-        <span className="inline-flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-          Events
-        </span>
-        <span className="inline-flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-accent" />
-          Page views
-        </span>
-      </div>
-    </div>
-  );
+  return <ControlCenterTrendChart rows={rows} />;
 }
 
 function DistributionList({
   title,
   rows,
-  emptyLabel = "No data yet."
+  emptyLabel = "No data yet.",
+  tone = "primary"
 }: {
   title: string;
   rows: Array<{ label: string; count: number }>;
   emptyLabel?: string;
+  tone?: StatTone;
 }) {
   const max = Math.max(1, ...rows.map((row) => row.count));
+  const toneStyles = getToneStyles(tone);
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
+      <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        <span className={`h-2.5 w-2.5 rounded-full ${toneStyles.dot}`} />
+        {title}
+      </p>
       <div className="space-y-2">
         {rows.map((row) => (
-          <div key={`${title}-${row.label}`} className="space-y-1">
+          <div key={`${title}-${row.label}`} className="group cursor-pointer space-y-1 rounded-lg px-1 py-1 transition-colors hover:bg-card/75" title={`${row.label}: ${formatCount(row.count)}`}>
             <div className="flex items-center justify-between text-xs">
               <span className="text-foreground/85">{row.label}</span>
               <span className="font-medium">{formatCount(row.count)}</span>
             </div>
             <div className="h-2 rounded-full bg-muted/50">
               <div
-                className="h-2 rounded-full bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--accent)))]"
+                className={`h-2 rounded-full transition-all duration-300 group-hover:brightness-110 ${toneStyles.bar}`}
                 style={{ width: `${Math.max(6, Math.round((row.count / max) * 100))}%` }}
               />
             </div>
@@ -130,18 +118,25 @@ function MetricCard({
   label,
   value,
   helper,
+  tone = "primary",
   alert
 }: {
   label: string;
   value: string | number;
   helper: string;
+  tone?: StatTone;
   alert?: boolean;
 }) {
+  const toneStyles = getToneStyles(alert ? "danger" : tone);
+
   return (
-    <Card className={alert ? "border-warning/50 bg-warning/10" : "bg-card/75"}>
+    <Card className={`overflow-hidden border ${toneStyles.metricSurface}`}>
       <CardContent className="pt-6">
-        <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
-        <p className="mt-2 text-3xl font-semibold tracking-tight">{value}</p>
+        <p className="flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-muted-foreground">
+          <span className={`h-2.5 w-2.5 rounded-full ${toneStyles.dot}`} />
+          {label}
+        </p>
+        <p className={`mt-2 text-3xl font-semibold tracking-tight ${toneStyles.metricValue}`}>{value}</p>
         <p className="mt-1 text-xs text-muted-foreground">{helper}</p>
       </CardContent>
     </Card>
@@ -159,7 +154,7 @@ export function ControlCenterDashboard({ summary }: { summary: ControlCenterSumm
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Radar className="h-5 w-5 text-primary" />
-                Executive Control Dashboard
+                Website Statistics Dashboard
               </CardTitle>
               <CardDescription>
                 Live visitor intelligence, cross-module operations, auditing, security access logs, and release versioning.
@@ -179,28 +174,59 @@ export function ControlCenterDashboard({ summary }: { summary: ControlCenterSumm
           label="Events (30d)"
           value={formatCount(summary.traffic.events30d)}
           helper="All tracked analytics events"
+          tone="primary"
         />
         <MetricCard
           label="Page Views (30d)"
           value={formatCount(summary.traffic.pageViews30d)}
           helper="Page view traffic volume"
+          tone="accent"
         />
         <MetricCard
           label="Unique Sessions"
           value={formatCount(summary.traffic.uniqueSessions30d)}
           helper="Approximate visitor sessions"
+          tone="success"
         />
         <MetricCard
           label="Returning Sessions"
           value={formatCount(summary.traffic.returningSessions30d)}
           helper="Sessions with multiple tracked actions"
+          tone="warning"
         />
         <MetricCard
           label="SEO Issues"
           value={formatCount(summary.seo.issuesCount)}
           helper="Content metadata gaps"
+          tone="danger"
           alert={summary.seo.issuesCount > 0}
         />
+      </div>
+
+      <div className="rounded-2xl border border-border/70 bg-card/65 p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Color Key</p>
+        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+          <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-primary">
+            <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+            Events
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-accent">
+            <span className="h-2.5 w-2.5 rounded-full bg-accent" />
+            Page Views
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-success/30 bg-success/10 px-3 py-1.5 text-success">
+            <span className="h-2.5 w-2.5 rounded-full bg-success" />
+            Healthy Growth
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-warning/30 bg-warning/10 px-3 py-1.5 text-warning">
+            <span className="h-2.5 w-2.5 rounded-full bg-warning" />
+            Attention Needed
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-destructive">
+            <span className="h-2.5 w-2.5 rounded-full bg-destructive" />
+            Critical / Issues
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
@@ -229,18 +255,22 @@ export function ControlCenterDashboard({ summary }: { summary: ControlCenterSumm
             <DistributionList
               title="Top Browsers"
               rows={summary.traffic.byBrowser.map((item) => ({ label: item.browser, count: item.count }))}
+              tone="accent"
             />
             <DistributionList
               title="Devices"
               rows={summary.traffic.byDevice.map((item) => ({ label: item.device, count: item.count }))}
+              tone="primary"
             />
             <DistributionList
               title="Traffic Sources"
               rows={summary.traffic.bySource.map((item) => ({ label: item.source, count: item.count }))}
+              tone="success"
             />
             <DistributionList
               title="Countries"
               rows={summary.traffic.byCountry.map((item) => ({ label: item.country, count: item.count }))}
+              tone="warning"
             />
           </CardContent>
         </Card>
@@ -482,14 +512,17 @@ export function ControlCenterDashboard({ summary }: { summary: ControlCenterSumm
               <DistributionList
                 title="Access Devices"
                 rows={summary.adminAccess.byDevice.map((item) => ({ label: item.device, count: item.count }))}
+                tone="primary"
               />
               <DistributionList
                 title="Access Browsers"
                 rows={summary.adminAccess.byBrowser.map((item) => ({ label: item.browser, count: item.count }))}
+                tone="accent"
               />
               <DistributionList
                 title="Access Countries"
                 rows={summary.adminAccess.byCountry.map((item) => ({ label: item.country, count: item.count }))}
+                tone="danger"
               />
             </div>
 
@@ -514,33 +547,6 @@ export function ControlCenterDashboard({ summary }: { summary: ControlCenterSumm
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Fast Navigation</CardTitle>
-          <CardDescription>Jump directly to any operational module.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-2 text-sm md:grid-cols-3">
-          {[
-            { href: "/admin/cms", label: "Website CMS" },
-            { href: "/admin/creator", label: "Creator OS" },
-            { href: "/admin/linkedin-studio", label: "LinkedIn Studio" },
-            { href: "/admin/job-tracker", label: "Job Tracker" },
-            { href: "/admin/bookings", label: "Bookings" },
-            { href: "/admin/control-center", label: "Control Center Deep View" }
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center justify-between rounded-xl border border-border/70 bg-card/70 px-3 py-2 hover:border-primary"
-            >
-              <span>{item.label}</span>
-              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
-            </Link>
-          ))}
-        </CardContent>
-      </Card>
-
-      <VersioningPanel initialSnapshots={summary.versioning.snapshots} />
     </div>
   );
 }

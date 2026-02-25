@@ -14,6 +14,21 @@ export type PublicPagePath =
 
 export type PageVisibilitySettings = Record<PublicPagePath, boolean>;
 
+export type PublicPageSettingsItem = {
+  path: PublicPagePath;
+  enabled: boolean;
+  name: string;
+  description: string;
+  link: string;
+  menuOrder: number;
+  seoTitle: string;
+  seoDescription: string;
+  seoKeywords: string;
+  seoImage: string;
+};
+
+export type PublicPageSettings = PublicPageSettingsItem[];
+
 export type ManagedEmailProvider = "sendgrid" | "resend" | "mailgun" | "zoho";
 
 export type AdminIntegrationSettings = {

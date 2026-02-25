@@ -1,7 +1,12 @@
 import "server-only";
 
-import type { PageVisibilitySettings, PublicPagePath } from "@/types/site-settings";
-import { getDefaultPageVisibility, getPageVisibilitySettings } from "@/lib/firestore/admin-settings";
+import type { PageVisibilitySettings, PublicPagePath, PublicPageSettings } from "@/types/site-settings";
+import {
+  getDefaultPageVisibility,
+  getDefaultPublicPageSettings,
+  getPageVisibilitySettings,
+  getPublicPageSettings
+} from "@/lib/firestore/admin-settings";
 
 export async function safePageVisibility(): Promise<PageVisibilitySettings> {
   try {
@@ -14,4 +19,12 @@ export async function safePageVisibility(): Promise<PageVisibilitySettings> {
 export async function isPublicPageVisible(path: PublicPagePath) {
   const visibility = await safePageVisibility();
   return visibility[path] !== false;
+}
+
+export async function safePublicPageSettings(): Promise<PublicPageSettings> {
+  try {
+    return await getPublicPageSettings();
+  } catch {
+    return getDefaultPublicPageSettings();
+  }
 }

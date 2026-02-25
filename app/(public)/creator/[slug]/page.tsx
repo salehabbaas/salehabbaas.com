@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Clapperboard } from "lucide-react";
 
 import { JsonLd } from "@/components/seo/json-ld";
 import { CreatorItemAnalytics } from "@/components/creator/creator-item-analytics";
@@ -96,16 +97,20 @@ export default async function CreatorItemPage({ params }: Props) {
   });
 
   return (
-    <article className="container py-16 md:py-20">
+    <article className="container pb-16 pt-20 md:pb-20 md:pt-24">
       <CreatorItemAnalytics slug={item.slug} platform={item.platform} />
       <div className="max-w-4xl space-y-8">
         <div className="space-y-4">
+          <p className="inline-flex w-fit items-center gap-2 rounded-full border border-border/70 bg-card/80 px-4 py-1.5 text-xs uppercase tracking-[0.24em] text-foreground/90">
+            <Clapperboard className="h-3.5 w-3.5" aria-hidden />
+            Creator
+          </p>
           <div className="flex flex-wrap gap-2">
             <Badge>{item.platform}</Badge>
             <Badge variant="secondary">{item.pillar}</Badge>
             <Badge variant="outline">{item.contentType}</Badge>
           </div>
-          <h1 className="font-serif text-4xl tracking-tight text-foreground md:text-5xl">{item.contentTitle}</h1>
+          <h1 className="text-balance text-4xl font-semibold tracking-tight text-foreground md:text-5xl">{item.contentTitle}</h1>
           <p className="text-sm text-muted-foreground">Published {formatDate(item.publishedAt)}</p>
           <ShareActions url={canonical} title={item.contentTitle} />
         </div>

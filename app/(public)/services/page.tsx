@@ -61,6 +61,7 @@ export default async function ServicesPage() {
 
   return (
     <SectionShell
+      path="/services"
       title="Software Engineering Services"
       description="Product engineering and growth systems delivered with a pragmatic, production-first mindset."
     >

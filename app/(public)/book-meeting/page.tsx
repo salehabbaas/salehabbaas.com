@@ -30,7 +30,7 @@ export default async function BookMeetingPage() {
   ]);
 
   return (
-    <SectionShell title="Book Meeting" description="Choose an available time and meeting type.">
+    <SectionShell path="/book-meeting" title="Book Meeting" description="Choose an available time and meeting type.">
       <div className="max-w-3xl">
         <MeetingBooker />
       </div>

@@ -20,7 +20,6 @@ export default function AdminLoginPage() {
             <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Admin Login</p>
           </div>
         </div>
-        <p className="mt-3 text-sm text-muted-foreground">Sign in with your Firebase admin account.</p>
         <div className="mt-6">
           <AdminLoginForm />
         </div>

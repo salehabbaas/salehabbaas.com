@@ -57,6 +57,7 @@ export default async function PublicStatementPage() {
 
   return (
     <SectionShell
+      path="/public-statement"
       title="Public Statement"
       description="A factual identity and professional context statement for public reference."
     >

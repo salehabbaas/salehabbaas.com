@@ -83,6 +83,7 @@ export default async function CreatorPage({
 
   return (
     <SectionShell
+      path="/creator"
       title="Creator"
       description="Saleh Abbaas content creator system: practical breakdowns on full-stack execution, Firebase architecture, and growth loops."
     >

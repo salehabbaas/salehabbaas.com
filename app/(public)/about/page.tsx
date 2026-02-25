@@ -67,7 +67,7 @@ export default async function AboutPage() {
   });
 
   return (
-    <SectionShell title="About Saleh Abbaas" description={profile.headline || "I design and engineer product systems for measurable growth."}>
+    <SectionShell path="/about" title="About Saleh Abbaas" description={profile.headline || "I design and engineer product systems for measurable growth."}>
       <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
         <Card className="bg-card/75">
           <CardContent className="space-y-4 pt-6">

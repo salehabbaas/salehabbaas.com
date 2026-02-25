@@ -18,19 +18,20 @@ import {
   User,
   Wrench
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { publicNavigation } from "@/lib/data/navigation";
 import { BRAND_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
-import type { PublicPagePath } from "@/types/site-settings";
+import type { PublicPagePath, PublicPageSettings } from "@/types/site-settings";
 
 type NavItem = {
+  path: PublicPagePath;
   href: string;
   label: string;
+  description: string;
   icon: React.ComponentType<{ className?: string }>;
 };
 
@@ -49,53 +50,38 @@ const routeIconMap: Record<PublicPagePath, React.ComponentType<{ className?: str
   "/contact": Mail
 };
 
-function isActive(pathname: string, href: string) {
-  if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
+function isActive(pathname: string, path: string) {
+  if (path === "/") return pathname === "/";
+  return pathname === path || pathname.startsWith(`${path}/`);
 }
 
-export function SiteHeader({ visibleRoutes }: { visibleRoutes: PublicPagePath[] }) {
+export function SiteHeader({ pageSettings }: { pageSettings: PublicPageSettings }) {
   const pathname = usePathname();
-  const isHome = pathname === "/";
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [introHeaderVisible, setIntroHeaderVisible] = useState(!isHome);
-
-  const primary = useMemo<NavItem[]>(
+  const enabledPages = useMemo(
     () =>
-      publicNavigation
-        .filter((item) => item.section === "primary" && visibleRoutes.includes(item.href))
-        .map((item) => ({ href: item.href, label: item.shortLabel, icon: routeIconMap[item.href] })),
-    [visibleRoutes]
+      pageSettings
+        .filter((item) => item.enabled)
+        .sort((a, b) => a.menuOrder - b.menuOrder || a.name.localeCompare(b.name) || a.path.localeCompare(b.path)),
+    [pageSettings]
   );
 
-  const secondary = useMemo<NavItem[]>(
+  const homePage = useMemo(() => enabledPages.find((item) => item.path === "/"), [enabledPages]);
+  const bookMeetingPage = useMemo(() => enabledPages.find((item) => item.path === "/book-meeting"), [enabledPages]);
+
+  const menuLinks = useMemo<NavItem[]>(
     () =>
-      publicNavigation
-        .filter((item) => item.section !== "primary" && item.href !== "/book-meeting" && visibleRoutes.includes(item.href))
-        .map((item) => ({ href: item.href, label: item.shortLabel, icon: routeIconMap[item.href] })),
-    [visibleRoutes]
+      enabledPages
+        .filter((item) => item.path !== "/book-meeting")
+        .map((item) => ({
+          path: item.path,
+          href: item.link,
+          label: item.name,
+          description: item.description,
+          icon: routeIconMap[item.path]
+        })),
+    [enabledPages]
   );
-
-  const desktopLinks = useMemo(() => [...primary.slice(1), ...secondary], [primary, secondary]);
-
-  useEffect(() => {
-    if (!isHome) {
-      setIntroHeaderVisible(true);
-      return;
-    }
-
-    setIntroHeaderVisible(false);
-    const showHeader = () => setIntroHeaderVisible(true);
-    const timeout = window.setTimeout(showHeader, 7000);
-
-    return () => {
-      window.clearTimeout(timeout);
-    };
-  }, [isHome]);
-
-  if (isHome && !introHeaderVisible) {
-    return null;
-  }
 
   return (
     <>
@@ -113,7 +99,10 @@ export function SiteHeader({ visibleRoutes }: { visibleRoutes: PublicPagePath[] 
         className="glass fixed left-3 top-4 z-[60] w-auto max-w-[calc(100vw-1.25rem)] rounded-[1.8rem] px-3 py-2 shadow-elev2 sm:left-5 sm:top-5 sm:px-4"
       >
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link href="/" className="group inline-flex shrink-0 items-center gap-2 rounded-full px-1.5 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Link
+            href={homePage?.link || "/"}
+            className="group inline-flex shrink-0 items-center gap-2 rounded-full px-1.5 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <span className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-card/85 shadow-elev1">
               <Image src="/SA-Logo.svg" alt={`${BRAND_NAME} logo`} fill sizes="36px" className="object-contain" priority />
             </span>
@@ -123,12 +112,13 @@ export function SiteHeader({ visibleRoutes }: { visibleRoutes: PublicPagePath[] 
           </Link>
 
           <nav className="no-scrollbar hidden max-w-[56vw] items-center gap-1 overflow-x-auto whitespace-nowrap lg:flex">
-            {desktopLinks.map((item) => {
-              const active = isActive(pathname, item.href);
+            {menuLinks.map((item) => {
+              const active = isActive(pathname, item.path);
               return (
                 <Link
-                  key={item.href}
+                  key={item.path}
                   href={item.href}
+                  title={item.description || undefined}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "relative rounded-full px-3 py-2 font-mono text-[10px] font-black uppercase tracking-[0.2em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -146,9 +136,9 @@ export function SiteHeader({ visibleRoutes }: { visibleRoutes: PublicPagePath[] 
 
           <div className="hidden items-center gap-1 lg:flex">
             <ThemeToggle />
-            {visibleRoutes.includes("/book-meeting") ? (
+            {bookMeetingPage ? (
               <Button asChild size="sm" className="h-9 rounded-full px-4 font-mono text-[10px] font-black uppercase tracking-[0.2em]">
-                <Link href="/book-meeting">Let&apos;s Build</Link>
+                <Link href={bookMeetingPage.link}>Let&apos;s Build</Link>
               </Button>
             ) : null}
           </div>
@@ -173,13 +163,14 @@ export function SiteHeader({ visibleRoutes }: { visibleRoutes: PublicPagePath[] 
                 </SheetHeader>
 
                 <div className="grid gap-2 px-6 pb-6 pt-4">
-                  {[...primary, ...secondary].map((item) => {
-                    const active = isActive(pathname, item.href);
+                  {menuLinks.map((item) => {
+                    const active = isActive(pathname, item.path);
                     const Icon = item.icon;
                     return (
                       <Link
-                        key={`${item.href}-${item.label}`}
+                        key={`${item.path}-${item.label}`}
                         href={item.href}
+                        title={item.description || undefined}
                         onClick={() => setMobileOpen(false)}
                         className={cn(
                           "flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm shadow-elev1 transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -198,10 +189,10 @@ export function SiteHeader({ visibleRoutes }: { visibleRoutes: PublicPagePath[] 
                   })}
                 </div>
 
-                {visibleRoutes.includes("/book-meeting") ? (
+                {bookMeetingPage ? (
                   <div className="px-6 pb-6">
                     <Button asChild variant="cta" className="w-full">
-                      <Link href="/book-meeting" onClick={() => setMobileOpen(false)}>
+                      <Link href={bookMeetingPage.link} onClick={() => setMobileOpen(false)}>
                         <CalendarDays className="h-4 w-4" />
                         Let&apos;s Build
                       </Link>
