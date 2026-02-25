@@ -12,8 +12,12 @@
     "postinstall": "patch-package",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "check:admin": "tsx scripts/check-admin-ownership.ts",
+    "seo:check": "npm run lint && npm run typecheck && npm run check:admin && node scripts/seo-check.js",
     "seed": "tsx scripts/seed-firestore.ts",
+    "backfill:cms": "tsx scripts/backfill-cms-lifecycle.ts",
     "import-resume": "tsx scripts/import-resume.ts",
+    "import-linkedin-studio": "tsx scripts/import-linkedin-studio.ts",
     "set-admin": "tsx scripts/set-admin-claim.ts",
     "create-admin": "tsx scripts/create-admin-user.ts"
   },

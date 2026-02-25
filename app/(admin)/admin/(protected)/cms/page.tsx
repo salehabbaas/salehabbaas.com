@@ -1,11 +1,5 @@
-import { Metadata } from "next";
-
-import { CmsManager } from "@/components/admin/cms-manager";
-
-export const metadata: Metadata = {
-  title: "CMS"
-};
+import { redirect } from "next/navigation";
 
 export default function AdminCmsPage() {
-  return <CmsManager />;
+  redirect("/admin/cms/profile");
 }

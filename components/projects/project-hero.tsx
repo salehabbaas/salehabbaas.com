@@ -24,6 +24,7 @@ function deriveFocus(tags: string[]) {
 export function ProjectHero({ project, className }: { project: ProjectContent; className?: string }) {
   const reducedMotion = useReducedMotion();
   const focus = deriveFocus(project.tags);
+  const shouldSkipOptimization = Boolean(project.coverImage && !project.coverImage.startsWith("/"));
 
   return (
     <motion.section
@@ -91,9 +92,10 @@ export function ProjectHero({ project, className }: { project: ProjectContent; c
             <div className="relative aspect-[4/3]">
               <Image
                 src={project.coverImage}
-                alt=""
+                alt={`${project.title} project cover`}
                 fill
                 sizes="(max-width: 1024px) 100vw, 45vw"
+                unoptimized={shouldSkipOptimization}
                 className="object-cover"
                 priority
               />

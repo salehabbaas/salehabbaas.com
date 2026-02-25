@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { writeAdminAuditLog } from "@/lib/admin/audit";
+import { getAdminRequestContext } from "@/lib/admin/request-context";
 import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
 import { getRemoteFeatureFlags, setRemoteFeatureFlags } from "@/lib/firebase/remote-config";
 import { adminDb } from "@/lib/firebase/admin";
@@ -50,6 +52,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await verifyAdminSessionFromCookie();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const requestContext = getAdminRequestContext(request);
 
   try {
     const body = await request.json();
@@ -85,6 +88,19 @@ export async function POST(request: Request) {
           { merge: true }
         )
     ]);
+
+    await writeAdminAuditLog(
+      {
+        module: "feature-flags",
+        action: "update",
+        targetType: "remoteConfig",
+        targetId: "siteFeatureFlags/default",
+        summary: "Updated admin feature flags",
+        metadata: input
+      },
+      user,
+      requestContext
+    );
 
     return NextResponse.json({ success: true, ...input });
   } catch (error) {

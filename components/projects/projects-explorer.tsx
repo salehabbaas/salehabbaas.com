@@ -3,17 +3,15 @@
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LayoutGrid, Rows3, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 import type { ProjectContent } from "@/types/cms";
 import { SharedElementCard } from "@/components/motion/SharedElementCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { useReducedMotion } from "@/lib/motion/useReducedMotion";
 
-type ViewMode = "bento" | "grid";
 type SortMode = "featured" | "title";
 
 function normalize(input: string) {
@@ -24,7 +22,6 @@ export function ProjectsExplorer({ projects, initialQuery }: { projects: Project
   const reducedMotion = useReducedMotion();
   const [query, setQuery] = useState(initialQuery ?? "");
   const [activeTag, setActiveTag] = useState<string | null>(null);
-  const [view, setView] = useState<ViewMode>("bento");
   const [sort, setSort] = useState<SortMode>("featured");
 
   const tags = useMemo(() => {
@@ -54,7 +51,7 @@ export function ProjectsExplorer({ projects, initialQuery }: { projects: Project
   }, [activeTag, projects, query, sort]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       <div className="grid gap-4 rounded-[2rem] border border-border/70 bg-card/75 p-5 shadow-elev2 backdrop-blur md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex w-full items-center gap-3 md:w-auto">
@@ -76,13 +73,6 @@ export function ProjectsExplorer({ projects, initialQuery }: { projects: Project
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant={view === "bento" ? "secondary" : "outline"} size="icon" onClick={() => setView("bento")} aria-label="Bento view">
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button variant={view === "grid" ? "secondary" : "outline"} size="icon" onClick={() => setView("grid")} aria-label="Grid view">
-              <Rows3 className="h-4 w-4" />
-            </Button>
-
             <Button variant={sort === "featured" ? "secondary" : "outline"} size="sm" onClick={() => setSort("featured")}>
               Featured
             </Button>
@@ -121,23 +111,11 @@ export function ProjectsExplorer({ projects, initialQuery }: { projects: Project
 
       <motion.div
         layout
-        className={cn(
-          "grid gap-4",
-          view === "bento" ? "md:grid-cols-6 md:auto-rows-[18rem]" : "md:grid-cols-2 lg:grid-cols-3"
-        )}
+        className="grid gap-4"
         transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 42 }}
       >
         <AnimatePresence initial={false}>
-          {filtered.map((project, index) => {
-            const cardSpan =
-              view === "bento"
-                ? index === 0
-                  ? "md:col-span-4 md:row-span-2"
-                  : index === 1
-                    ? "md:col-span-2 md:row-span-2"
-                    : "md:col-span-2"
-                : "";
-
+          {filtered.map((project) => {
             return (
               <motion.div
                 key={project.id}
@@ -146,31 +124,24 @@ export function ProjectsExplorer({ projects, initialQuery }: { projects: Project
                 animate={reducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                 exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
                 transition={reducedMotion ? { duration: 0 } : { duration: 0.25, ease: "easeOut" }}
-                className={cn(cardSpan)}
               >
                 <SharedElementCard
                   href={`/projects/${project.slug}`}
                   layoutId={`project-card-${project.slug}`}
-                  className={cn(
-                    "h-full",
-                    view === "bento" ? "p-0" : "p-0",
-                    "hover:border-border/80 hover:bg-card/90"
-                  )}
+                  className="h-full p-0 hover:border-border/80 hover:bg-card/90"
                 >
-                  <div className={cn("relative h-full", view === "bento" ? "grid md:grid-cols-[1.1fr_0.9fr]" : "grid")}>
+                  <div className="relative h-full grid md:grid-cols-[1.1fr_0.9fr]">
                     <motion.div
                       layoutId={`project-cover-${project.slug}`}
-                      className={cn(
-                        "relative overflow-hidden",
-                        view === "bento" ? "h-56 rounded-b-none md:h-full md:rounded-l-3xl md:rounded-r-none" : "h-48 rounded-t-3xl"
-                      )}
+                      className="relative h-56 overflow-hidden rounded-b-none md:h-full md:rounded-l-3xl md:rounded-r-none"
                     >
                       {project.coverImage ? (
                         <Image
                           src={project.coverImage}
-                          alt=""
+                          alt={`${project.title} thumbnail`}
                           fill
                           sizes="(max-width: 768px) 100vw, 50vw"
+                          unoptimized={!project.coverImage.startsWith("/")}
                           className="object-cover"
                         />
                       ) : (
@@ -180,7 +151,7 @@ export function ProjectsExplorer({ projects, initialQuery }: { projects: Project
                       <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/55 to-transparent" />
                     </motion.div>
 
-                    <div className={cn("flex h-full flex-col p-6", view === "bento" ? "" : "")}>
+                    <div className="flex h-full flex-col p-6">
                       <motion.h3
                         layoutId={`project-title-${project.slug}`}
                         className="text-balance text-xl font-semibold tracking-tight text-foreground md:text-2xl"

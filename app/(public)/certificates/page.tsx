@@ -1,12 +1,16 @@
 import { Metadata } from "next";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { SectionShell } from "@/components/site/section-shell";
 import { Card, CardContent } from "@/components/ui/card";
+import { ensurePublicPageVisible } from "@/lib/firestore/public-page-guard";
 import { safeCertificates } from "@/lib/firestore/site-public";
 import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
+import { breadcrumbSchema } from "@/lib/seo/schema";
+import { resolveAbsoluteUrl } from "@/lib/utils";
 
 const CERTIFICATES_DESCRIPTION =
-  "Professional certificates earned by Saleh Abbaas (Saleh Abbas) across cloud, data, healthcare technology, and software engineering.";
+  "Professional certificates earned by Saleh Abbaas across cloud, data, healthcare technology, and software engineering.";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Certificates",
@@ -17,12 +21,17 @@ export const metadata: Metadata = buildPageMetadata({
 export const revalidate = 300;
 
 export default async function CertificatesPage() {
+  await ensurePublicPageVisible("/certificates");
   const certificates = await safeCertificates();
   const webPageJsonLd = pageSchema({
     title: "Certificates",
     description: CERTIFICATES_DESCRIPTION,
     path: "/certificates"
   });
+  const breadcrumbJsonLd = breadcrumbSchema([
+    { name: "Home", url: resolveAbsoluteUrl("/") },
+    { name: "Certificates", url: resolveAbsoluteUrl("/certificates") }
+  ]);
 
   return (
     <SectionShell title="Certificates" description="Industry credentials that support execution quality and technical depth.">
@@ -41,7 +50,8 @@ export default async function CertificatesPage() {
           <p className="text-sm text-muted-foreground">Add certificates from admin CMS.</p>
         )}
       </div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+      <JsonLd id="schema-certificates-page" data={webPageJsonLd} />
+      <JsonLd id="schema-certificates-breadcrumb" data={breadcrumbJsonLd} />
     </SectionShell>
   );
 }

@@ -50,13 +50,6 @@ function timestampToIso(value: unknown): string {
   return "";
 }
 
-function toInputDateTime(iso: string) {
-  if (!iso) return "";
-  const date = new Date(iso);
-  const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return adjusted.toISOString().slice(0, 16);
-}
-
 export function BookingsManager() {
   const [settings, setSettings] = useState<BookingSettings>(defaultSettings);
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
@@ -246,11 +239,14 @@ export function BookingsManager() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-workspace space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Booking Management</CardTitle>
           <CardDescription>Manage availability, blocked times, and upcoming meetings.</CardDescription>
+          <p className="admin-hint">
+            Hint: use timezone + work days carefully; all public slot generation follows these values immediately.
+          </p>
           {status ? <p className="text-sm text-primary">{status}</p> : null}
         </CardHeader>
       </Card>
@@ -297,6 +293,7 @@ export function BookingsManager() {
                 <div className="space-y-2">
                   <Label>Timezone</Label>
                   <Input value={settings.timezone} onChange={(event) => setSettings((prev) => ({ ...prev, timezone: event.target.value }))} />
+                  <p className="admin-field-hint">Use IANA timezone, e.g. America/Toronto.</p>
                 </div>
               </div>
 
@@ -305,6 +302,7 @@ export function BookingsManager() {
                 <Input type="number" value={settings.maxDaysAhead} onChange={(event) => setSettings((prev) => ({ ...prev, maxDaysAhead: Number(event.target.value || 30) }))} placeholder="Days ahead" />
                 <Input value={settings.workDays.join(",")} onChange={(event) => setSettings((prev) => ({ ...prev, workDays: event.target.value.split(",").map((value) => Number(value.trim())).filter((value) => Number.isFinite(value)) }))} placeholder="Work days (0-6)" />
               </div>
+              <p className="admin-field-hint">Work days map to 0=Sun, 1=Mon ... 6=Sat.</p>
 
               <div className="grid gap-3 md:grid-cols-2">
                 <Input type="number" value={settings.dayStartHour} onChange={(event) => setSettings((prev) => ({ ...prev, dayStartHour: Number(event.target.value || 9) }))} placeholder="Start hour" />
@@ -355,6 +353,7 @@ export function BookingsManager() {
               <Input type="datetime-local" value={blockedForm.startAt} onChange={(event) => setBlockedForm((prev) => ({ ...prev, startAt: event.target.value }))} required />
               <Input type="datetime-local" value={blockedForm.endAt} onChange={(event) => setBlockedForm((prev) => ({ ...prev, endAt: event.target.value }))} required />
               <Input placeholder="Reason" value={blockedForm.reason} onChange={(event) => setBlockedForm((prev) => ({ ...prev, reason: event.target.value }))} />
+              <p className="admin-field-hint">Reason appears in internal admin logs for auditing.</p>
               <Button type="submit">Block Slot</Button>
             </form>
 

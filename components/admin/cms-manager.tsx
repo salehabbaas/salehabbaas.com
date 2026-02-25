@@ -351,11 +351,14 @@ export function CmsManager() {
   }, [blogPosts]);
 
   return (
-    <div className="space-y-6">
+    <div className="admin-workspace space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>CMS & Integrations</CardTitle>
           <CardDescription>Manage public website content, SEO defaults, media, and future integration toggles.</CardDescription>
+          <p className="admin-hint">
+            Hint: keep Profile here aligned with LinkedIn Studio profile to avoid duplicate identity drift across systems.
+          </p>
           {status ? <p className="text-sm text-primary">{status}</p> : null}
         </CardHeader>
       </Card>

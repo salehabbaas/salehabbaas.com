@@ -13,6 +13,10 @@ service cloud.firestore {
       return (visibility == 'public' || visibility == 'unlisted') && publishedAt != null;
     }
 
+    function isPublishedAndNotDeleted(status, isDeleted) {
+      return (status == null || status == 'published') && isDeleted != true;
+    }
+
     match /contentItems/{contentItemId} {
       allow read, write: if isAdmin();
 
@@ -79,33 +83,37 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /adminSettings/{docId} {
+      allow read, write: if isAdmin();
+    }
+
     match /experiences/{docId} {
-      allow read: if true;
+      allow read: if isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
       allow write: if isAdmin();
     }
 
     match /services/{docId} {
-      allow read: if true;
+      allow read: if isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
       allow write: if isAdmin();
     }
 
     match /certificates/{docId} {
-      allow read: if true;
+      allow read: if isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
       allow write: if isAdmin();
     }
 
     match /socialLinks/{docId} {
-      allow read: if true;
+      allow read: if isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
       allow write: if isAdmin();
     }
 
     match /projects/{docId} {
-      allow read: if isAdmin() || resource.data.status == 'published';
+      allow read: if isAdmin() || (resource.data.status == 'published' && resource.data.isDeleted != true);
       allow write: if isAdmin();
     }
 
     match /blogPosts/{docId} {
-      allow read: if isAdmin() || resource.data.status == 'published';
+      allow read: if isAdmin() || (resource.data.status == 'published' && resource.data.isDeleted != true);
       allow write: if isAdmin();
     }
 
@@ -132,6 +140,30 @@ service cloud.firestore {
     }
 
     match /creatorReminders/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /linkedinStudioProfiles/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /linkedinStudioPosts/{docId} {
+      allow read, write: if isAdmin();
+
+      match /versions/{versionId} {
+        allow read, write: if isAdmin();
+      }
+    }
+
+    match /auditLogs/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /adminAccessLogs/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /siteVersionSnapshots/{docId} {
       allow read, write: if isAdmin();
     }
   }

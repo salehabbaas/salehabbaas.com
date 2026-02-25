@@ -95,6 +95,7 @@ export const db = app
 export const storage = app ? getStorage(app) : (null as unknown as ReturnType<typeof getStorage>);
 
 let analyticsPromise: Promise<ReturnType<typeof getAnalytics> | null> | null = null;
+const ANALYTICS_SESSION_KEY = "saleh_analytics_session";
 
 export async function getClientAnalytics() {
   if (!app) {
@@ -106,11 +107,76 @@ export async function getClientAnalytics() {
   return analyticsPromise;
 }
 
+function getSessionId() {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const existing = window.localStorage.getItem(ANALYTICS_SESSION_KEY);
+    if (existing) return existing;
+
+    const next =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+    window.localStorage.setItem(ANALYTICS_SESSION_KEY, next);
+    return next;
+  } catch {
+    return "";
+  }
+}
+
+function deriveDeviceType(userAgent: string): "mobile" | "desktop" | "tablet" | "bot" | "unknown" {
+  const ua = userAgent.toLowerCase();
+  if (!ua) return "unknown";
+  if (/bot|crawler|spider|headless/i.test(ua)) return "bot";
+  if (/ipad|tablet|kindle/i.test(ua)) return "tablet";
+  if (/iphone|android.+mobile|mobile/i.test(ua)) return "mobile";
+  return "desktop";
+}
+
+function deriveTrafficSource() {
+  if (typeof window === "undefined") return "direct";
+
+  try {
+    const url = new URL(window.location.href);
+    const utm = url.searchParams.get("utm_source");
+    if (utm) return `utm:${utm}`;
+  } catch {
+    // Ignore malformed URL edge cases.
+  }
+
+  if (typeof document !== "undefined" && document.referrer) {
+    try {
+      const ref = new URL(document.referrer);
+      return ref.hostname.replace(/^www\./, "") || "referral";
+    } catch {
+      return "referral";
+    }
+  }
+
+  return "direct";
+}
+
 export async function trackEvent(name: AnalyticsEventName, params?: Record<string, string | number | boolean>) {
   if (!app) return;
+  const contextParams =
+    typeof window !== "undefined"
+      ? {
+          path: window.location.pathname,
+          referrer: document.referrer || "",
+          source: deriveTrafficSource(),
+          sessionId: getSessionId(),
+          deviceType: deriveDeviceType(navigator.userAgent),
+          userAgent: navigator.userAgent.slice(0, 280)
+        }
+      : {};
+
+  const mergedParams = { ...contextParams, ...(params ?? {}) };
+
   const analytics = await getClientAnalytics();
   if (analytics) {
-    logEvent(analytics, name as string, params);
+    logEvent(analytics, name as string, mergedParams);
   }
 
   // Mirror analytics events to Firestore for admin-side growth dashboards.
@@ -118,7 +184,7 @@ export async function trackEvent(name: AnalyticsEventName, params?: Record<strin
     fetch("/api/analytics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, ...params })
+      body: JSON.stringify({ name, ...mergedParams })
     }).catch(() => {
       // Non-blocking analytics side effect.
     });

@@ -14,5 +14,13 @@ export interface AnalyticsEventRecord {
   path?: string;
   slug?: string;
   platform?: string;
+  source?: string;
+  referrer?: string;
+  sessionId?: string;
+  deviceType?: "mobile" | "desktop" | "tablet" | "bot" | "unknown";
+  userAgent?: string;
+  country?: string;
+  city?: string;
+  ipHash?: string;
   createdAt?: string;
 }

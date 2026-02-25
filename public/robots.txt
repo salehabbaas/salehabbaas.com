@@ -1,0 +1,8 @@
+# salehabbaas.com robots policy
+User-agent: *
+Allow: /
+Allow: /api/og/
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://salehabbaas.com/sitemap.xml

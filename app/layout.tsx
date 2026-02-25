@@ -4,10 +4,11 @@ import Script from "next/script";
 
 import "./globals.css";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { safeSeoDefaults } from "@/lib/firestore/site-public";
-import { personSchema, websiteSchema } from "@/lib/seo/schema";
-import { resolveAbsoluteUrl } from "@/lib/utils";
-import { DEFAULT_DESCRIPTION, DEFAULT_SOCIAL_IMAGE } from "@/lib/seo/metadata";
+import { siteGraphSchema } from "@/lib/seo/schema";
+import { resolveAbsoluteUrl, resolveSiteUrl } from "@/lib/utils";
+import { DEFAULT_DESCRIPTION, DEFAULT_SOCIAL_IMAGE, defaultRobotsMetadata } from "@/lib/seo/metadata";
 import { BRAND_NAME } from "@/lib/brand";
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "";
@@ -16,28 +17,32 @@ const GOOGLE_ADS_CONVERSION_LABEL = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSIO
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "";
 const GOOGLE_SITE_VERIFICATION = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "";
 const BING_SITE_VERIFICATION = process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION || "";
+const ICON_VERSION = "20260218-4";
 
 const display = Orbitron({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  display: "swap",
   variable: "--font-display"
 });
 
 const body = Exo_2({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
   variable: "--font-body"
 });
 
 const mono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
+  display: "swap",
   variable: "--font-mono"
 });
 
 export async function generateMetadata(): Promise<Metadata> {
   const seoDefaults = await safeSeoDefaults();
-  const title = BRAND_NAME;
+  const title = `${BRAND_NAME} | Software Engineer`;
   const description = seoDefaults.defaultDescription || DEFAULT_DESCRIPTION;
   const defaultOgImage = resolveAbsoluteUrl(DEFAULT_SOCIAL_IMAGE);
   const verification: Metadata["verification"] = {};
@@ -53,45 +58,36 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   return {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+    metadataBase: new URL(resolveSiteUrl()),
     applicationName: BRAND_NAME,
     title: {
       default: title,
-      template: `%s | ${title}`
+      template: `%s | ${BRAND_NAME}`
     },
     description,
     keywords: [
       "Saleh Abbaas",
-      "Saleh Abbas",
-      "Saleh",
-      "Abbas",
-      "Saleh Ottawa",
-      "Ottawa software engineer"
+      "Saleh Abbaas software engineer",
+      "Saleh Abbaas Ottawa",
+      "Ottawa software engineer",
+      "Software engineer Canada"
     ],
     creator: BRAND_NAME,
     publisher: BRAND_NAME,
     authors: [{ name: BRAND_NAME, url: resolveAbsoluteUrl("/") }],
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-        "max-image-preview": "large",
-        "max-snippet": -1,
-        "max-video-preview": -1
-      }
-    },
+    robots: defaultRobotsMetadata(),
     verification: Object.keys(verification).length ? verification : undefined,
+    manifest: "/site.webmanifest",
     icons: {
       icon: [
-        { url: "/favicon.ico", type: "image/x-icon", sizes: "any" },
-        { url: "/SA-Logo.svg", type: "image/svg+xml" },
-        { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-        { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" }
+        { url: `/favicon.ico?v=${ICON_VERSION}`, type: "image/x-icon", sizes: "any" },
+        { url: `/sa-icon.svg?v=${ICON_VERSION}`, type: "image/svg+xml" },
+        { url: `/favicon-48x48.png?v=${ICON_VERSION}`, sizes: "48x48", type: "image/png" },
+        { url: `/favicon-32x32.png?v=${ICON_VERSION}`, sizes: "32x32", type: "image/png" },
+        { url: `/favicon-16x16.png?v=${ICON_VERSION}`, sizes: "16x16", type: "image/png" }
       ],
-      shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
-      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
+      shortcut: [{ url: `/favicon.ico?v=${ICON_VERSION}`, type: "image/x-icon" }],
+      apple: [{ url: `/apple-touch-icon.png?v=${ICON_VERSION}`, sizes: "180x180", type: "image/png" }]
     },
     alternates: {
       canonical: resolveAbsoluteUrl("/")
@@ -121,18 +117,6 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const gtagIds = [GA_MEASUREMENT_ID, GOOGLE_ADS_ID].filter(Boolean);
   const primaryGtagId = gtagIds[0];
-  const breadcrumb = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Home",
-        item: resolveAbsoluteUrl("/")
-      }
-    ]
-  };
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -220,24 +204,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           }}
         />
         {children}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(personSchema())
-          }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(websiteSchema())
-          }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(breadcrumb)
-          }}
-        />
+        <JsonLd id="schema-site-graph" data={siteGraphSchema()} />
       </body>
     </html>
   );

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { GoogleGenAI, type Content } from "@google/genai";
 
 import { safeCertificates, safeExperiences, safeProfile, safeProjects, safeServices } from "@/lib/firestore/site-public";
+import { getRuntimeAdminSettings } from "@/lib/firestore/admin-settings";
 
 export const runtime = "nodejs";
 
@@ -87,7 +88,12 @@ function buildSystemInstruction(input: {
 }
 
 export async function POST(request: Request) {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const runtime = await getRuntimeAdminSettings();
+  const apiKey =
+    runtime.secrets.geminiApiKey ||
+    runtime.secrets.googleApiKey ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
       { error: "Saleh-OS is not configured. Missing GEMINI_API_KEY (or GOOGLE_API_KEY) server environment variable." },
@@ -95,7 +101,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const model = runtime.integrations.geminiModel || process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
   try {
     const body = await request.json();

@@ -2,24 +2,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Award, Globe, GraduationCap, Languages, ShieldCheck, Sparkles, Stethoscope } from "lucide-react";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { HomeIntroShell } from "@/components/site/home/home-intro-shell";
 import { HomeSectionsShowcase } from "@/components/site/home/home-sections-showcase";
-import { SiteFooterClient } from "@/components/site/site-footer-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { keywords as resumeKeywords } from "@/lib/data/resume";
+import { ensurePublicPageVisible } from "@/lib/firestore/public-page-guard";
 import { safeExperiences, safeProfile, safeSocialLinks } from "@/lib/firestore/site-public";
 import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
+import { breadcrumbSchema } from "@/lib/seo/schema";
+import { resolveAbsoluteUrl } from "@/lib/utils";
 
 export const revalidate = 300;
 
 const HOME_DESCRIPTION =
-  "Saleh Abbaas (Saleh Abbas) is an Ottawa-based software engineer specializing in AI agents, healthcare interoperability (HL7/FHIR), cybersecurity, and AI news content creation.";
+  "Saleh Abbaas is a Software Engineer in Ottawa, Canada specializing in AI systems, healthcare interoperability (HL7/FHIR), and secure production software delivery.";
 const HOME_KEYWORDS = [
   "Saleh Abbaas",
-  "Saleh Abbas",
-  "Saleh Ottawa",
   "Saleh Abbaas Ottawa",
   "Saleh Abbaas software engineer",
   "Applied AI engineer Canada",
@@ -31,7 +32,7 @@ const HOME_KEYWORDS = [
 ];
 
 const homeMetadata = buildPageMetadata({
-  title: "Home",
+  title: "Saleh Abbaas Software Engineer",
   description: HOME_DESCRIPTION,
   path: "/",
   keywords: HOME_KEYWORDS
@@ -40,31 +41,105 @@ const homeMetadata = buildPageMetadata({
 export const metadata: Metadata = homeMetadata;
 
 export default async function HomePage() {
+  await ensurePublicPageVisible("/");
   const [profile, experiences, socialLinks] = await Promise.all([safeProfile(), safeExperiences(), safeSocialLinks()]);
 
   const companies = [...new Set(experiences.map((entry) => entry.company).filter(Boolean))].slice(0, 4);
   const slideSocialLinks = socialLinks.map((link) => ({ label: link.label, url: link.url }));
 
   const webPageJsonLd = pageSchema({
-    title: "Home",
+    title: "Saleh Abbaas Software Engineer",
     description: HOME_DESCRIPTION,
     path: "/",
     keywords: HOME_KEYWORDS
   });
+  const breadcrumbJsonLd = breadcrumbSchema([{ name: "Home", url: resolveAbsoluteUrl("/") }]);
 
   return (
     <>
       <HomeSectionsShowcase>
         <HomeIntroShell profileLocation={profile?.location} companies={companies} socialLinks={slideSocialLinks} />
+        <StartHereSection />
+        <AboutSalehSection />
         <MissionSection />
         <ExperienceSection />
         <SkillsAndCertsSection />
         <ServicesSection />
         <ContactSection socialLinks={socialLinks} />
-        <HomeFooterSection socialLinks={socialLinks} />
       </HomeSectionsShowcase>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+      <JsonLd id="schema-home-page" data={webPageJsonLd} />
+      <JsonLd id="schema-home-breadcrumb" data={breadcrumbJsonLd} />
     </>
+  );
+}
+
+function StartHereSection() {
+  return (
+    <section className="container space-y-5">
+      <div className="space-y-2">
+        <p className="text-xs uppercase tracking-[0.22em] text-primary">Start Here</p>
+        <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">Navigate the core pages</h2>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-border/70 bg-card/85 shadow-elev1 backdrop-blur">
+          <CardContent className="space-y-3 p-5">
+            <h3 className="text-xl font-semibold text-foreground">About</h3>
+            <p className="text-sm text-foreground/75">Background, domain focus, and engineering approach.</p>
+            <Link href="/about" className="inline-flex items-center gap-1 text-sm text-primary hover:text-foreground">
+              Read About
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 bg-card/85 shadow-elev1 backdrop-blur">
+          <CardContent className="space-y-3 p-5">
+            <h3 className="text-xl font-semibold text-foreground">Projects</h3>
+            <p className="text-sm text-foreground/75">Case studies covering integrations, AI, and platform delivery.</p>
+            <Link href="/projects" className="inline-flex items-center gap-1 text-sm text-primary hover:text-foreground">
+              Explore Projects
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 bg-card/85 shadow-elev1 backdrop-blur">
+          <CardContent className="space-y-3 p-5">
+            <h3 className="text-xl font-semibold text-foreground">Services</h3>
+            <p className="text-sm text-foreground/75">Software engineering services for healthcare and AI products.</p>
+            <Link href="/services" className="inline-flex items-center gap-1 text-sm text-primary hover:text-foreground">
+              View Services
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+      <p className="text-sm text-foreground/70">
+        Need identity verification details? Read the{" "}
+        <Link href="/public-statement" className="text-primary hover:underline">
+          public statement
+        </Link>
+        .
+      </p>
+    </section>
+  );
+}
+
+function AboutSalehSection() {
+  return (
+    <section className="container space-y-4">
+      <p className="text-xs uppercase tracking-[0.22em] text-primary">About Saleh Abbaas</p>
+      <Card className="border-border/70 bg-card/85 shadow-elev1 backdrop-blur">
+        <CardContent className="space-y-4 p-6 md:p-8">
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">Who I am and what I build</h2>
+          <p className="max-w-4xl text-sm leading-8 text-foreground/80 md:text-base">
+            Saleh Abbaas is a Software Engineer based in Ottawa, Ontario, Canada. I design and ship production-ready systems that combine
+            practical AI, secure cloud architecture, and healthcare interoperability standards like HL7 and FHIR. My work focuses on
+            measurable delivery outcomes: reliability, traceability, and maintainable systems teams can operate confidently. If you have seen
+            my name written as Saleh Abbas, it is the same person. I share project case studies, technical blog posts, and service details
+            across this site to make collaboration decisions faster.
+          </p>
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
@@ -391,28 +466,6 @@ function ContactSection({
           </div>
         </div>
       </div>
-    </section>
-  );
-}
-
-function HomeFooterSection({
-  socialLinks
-}: {
-  socialLinks: Array<{
-    id: string;
-    label: string;
-    url: string;
-  }>;
-}) {
-  return (
-    <section className="w-full px-4 md:px-8 lg:px-10">
-      <SiteFooterClient
-        embedded
-        socialLinks={socialLinks.map((link) => ({
-          label: link.label,
-          url: link.url
-        }))}
-      />
     </section>
   );
 }

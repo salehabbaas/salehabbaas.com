@@ -6,6 +6,7 @@ import { writeFileSync, unlinkSync } from "node:fs";
 import cors from "cors";
 import * as logger from "firebase-functions/logger";
 import { setGlobalOptions } from "firebase-functions/v2";
+import { onDocumentWrittenWithAuthContext } from "firebase-functions/v2/firestore";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onObjectFinalized } from "firebase-functions/v2/storage";
@@ -29,6 +30,94 @@ async function sendEmailSafe(input: { to: string; subject: string; html: string;
   } catch (error) {
     logger.error("Email send failed", error);
   }
+}
+
+const TRACKED_COLLECTIONS = new Set([
+  "siteContent",
+  "projects",
+  "blogPosts",
+  "contentItems",
+  "experiences",
+  "services",
+  "certificates",
+  "socialLinks",
+  "mediaAssets",
+  "bookings",
+  "blockedSlots",
+  "bookingSettings",
+  "jobApplications",
+  "jobTrackerSettings",
+  "creatorSettings",
+  "creatorTemplates",
+  "hookLibrary",
+  "ctaLibrary",
+  "linkedinStudioProfiles",
+  "linkedinStudioPosts",
+  "siteFeatureFlags"
+]);
+const FIRESTORE_DATABASE_ID =
+  process.env.FIRESTORE_DATABASE_ID || process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID || "salehabbaas";
+
+function normalizeValue(value: unknown) {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "object") {
+    if ("toDate" in value && typeof (value as { toDate?: unknown }).toDate === "function") {
+      return (value as { toDate: () => Date }).toDate().toISOString();
+    }
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function detectChangedFields(before: Record<string, unknown>, after: Record<string, unknown>) {
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  const changed: string[] = [];
+
+  keys.forEach((key) => {
+    const beforeValue = normalizeValue(before[key]);
+    const afterValue = normalizeValue(after[key]);
+    if (beforeValue !== afterValue) {
+      changed.push(key);
+    }
+  });
+
+  return changed.sort().slice(0, 24);
+}
+
+function inferAction(beforeExists: boolean, afterExists: boolean) {
+  if (!beforeExists && afterExists) return "create";
+  if (beforeExists && !afterExists) return "delete";
+  return "update";
+}
+
+async function writeTriggerAuditLog(input: {
+  module: string;
+  action: "create" | "update" | "delete";
+  targetType: string;
+  targetId: string;
+  summary: string;
+  metadata: Record<string, unknown>;
+  authType: string;
+  authId?: string;
+}) {
+  const actorEmail = input.authId && input.authId.includes("@") ? input.authId : "";
+  await adminDb.collection("auditLogs").add({
+    module: input.module,
+    action: input.action,
+    targetType: input.targetType,
+    targetId: input.targetId,
+    summary: input.summary,
+    metadata: {
+      ...input.metadata,
+      source: "firestore-trigger",
+      authType: input.authType,
+      authId: input.authId ?? ""
+    },
+    actorUid: input.authId ?? `trigger:${input.authType}`,
+    actorEmail,
+    createdAt: new Date()
+  });
 }
 
 export const submitContact = onRequest(async (request, response) => {
@@ -200,6 +289,98 @@ export const sendCreatorScheduleReminders = onSchedule("every 24 hours", async (
   await batch.commit();
   logger.info(`Created ${dueDocs.length} creator reminder documents.`);
 });
+
+export const auditTrackedCollectionWrites = onDocumentWrittenWithAuthContext(
+  {
+    document: "{collectionId}/{docId}",
+    database: FIRESTORE_DATABASE_ID
+  },
+  async (event) => {
+    const collectionId = event.params.collectionId;
+    const docId = event.params.docId;
+
+    if (!collectionId || !docId || !TRACKED_COLLECTIONS.has(collectionId)) {
+      return;
+    }
+
+    const change = event.data;
+    if (!change) return;
+
+    const beforeExists = change.before.exists;
+    const afterExists = change.after.exists;
+    const action = inferAction(beforeExists, afterExists);
+    const beforeData = beforeExists ? ((change.before.data() ?? {}) as Record<string, unknown>) : {};
+    const afterData = afterExists ? ((change.after.data() ?? {}) as Record<string, unknown>) : {};
+
+    const changedFields =
+      beforeExists && afterExists
+        ? detectChangedFields(beforeData, afterData)
+        : Object.keys(afterExists ? afterData : beforeData).slice(0, 24);
+
+    if (action === "update" && changedFields.length === 1 && changedFields[0] === "updatedAt") {
+      return;
+    }
+
+    await writeTriggerAuditLog({
+      module: collectionId,
+      action,
+      targetType: collectionId,
+      targetId: docId,
+      summary: `${action.toUpperCase()} ${collectionId}/${docId}`,
+      metadata: {
+        path: event.document,
+        changedFields
+      },
+      authType: event.authType,
+      authId: event.authId
+    });
+  }
+);
+
+export const auditCreatorVariantWrites = onDocumentWrittenWithAuthContext(
+  {
+    document: "contentItems/{contentItemId}/variants/{variantId}",
+    database: FIRESTORE_DATABASE_ID
+  },
+  async (event) => {
+    const contentItemId = event.params.contentItemId;
+    const variantId = event.params.variantId;
+    if (!contentItemId || !variantId) return;
+
+    const change = event.data;
+    if (!change) return;
+
+    const beforeExists = change.before.exists;
+    const afterExists = change.after.exists;
+    const action = inferAction(beforeExists, afterExists);
+    const beforeData = beforeExists ? ((change.before.data() ?? {}) as Record<string, unknown>) : {};
+    const afterData = afterExists ? ((change.after.data() ?? {}) as Record<string, unknown>) : {};
+
+    const changedFields =
+      beforeExists && afterExists
+        ? detectChangedFields(beforeData, afterData)
+        : Object.keys(afterExists ? afterData : beforeData).slice(0, 24);
+
+    if (action === "update" && changedFields.length === 1 && changedFields[0] === "updatedAt") {
+      return;
+    }
+
+    await writeTriggerAuditLog({
+      module: "creator-variants",
+      action,
+      targetType: "contentVariant",
+      targetId: variantId,
+      summary: `${action.toUpperCase()} content variant ${variantId}`,
+      metadata: {
+        path: event.document,
+        contentItemId,
+        changedFields
+      },
+      authType: event.authType,
+      authId: event.authId
+    });
+  }
+);
 
 export const revalidateCreatorCache = onCall(async (request) => {
   if (!request.auth?.token?.admin) {

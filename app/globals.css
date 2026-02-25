@@ -280,4 +280,46 @@ body {
     background: radial-gradient(circle at 40% 35%, rgba(79, 70, 229, 0.85), rgba(168, 85, 247, 0.12) 60%, transparent 72%);
     animation: prism-float-3 26s ease-in-out infinite;
   }
+
+  .admin-workspace form input,
+  .admin-workspace form textarea,
+  .admin-workspace form select {
+    border-color: hsl(var(--border) / 0.82);
+    background: hsl(var(--card) / 0.86);
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.2s ease;
+  }
+
+  .admin-workspace form input:focus,
+  .admin-workspace form textarea:focus,
+  .admin-workspace form select:focus {
+    border-color: hsl(var(--primary) / 0.58);
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+    outline: none;
+  }
+
+  .admin-workspace form label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .admin-hint {
+    border: 1px solid hsl(var(--primary) / 0.28);
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--foreground) / 0.92);
+    border-radius: 0.9rem;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.78rem;
+    line-height: 1.3rem;
+  }
+
+  .admin-field-hint {
+    font-size: 0.74rem;
+    color: hsl(var(--muted-foreground));
+    margin-top: 0.2rem;
+  }
 }

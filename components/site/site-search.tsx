@@ -19,10 +19,10 @@ type Action = {
 
 const actions: Action[] = [
   {
-    id: "knowledge",
+    id: "blog",
     label: "Blog",
     icon: BookOpenText,
-    toHref: (query) => (query ? `/knowledge?q=${encodeURIComponent(query)}` : "/knowledge"),
+    toHref: (query) => (query ? `/blog?q=${encodeURIComponent(query)}` : "/blog"),
     hint: "Articles and technical notes"
   },
   {

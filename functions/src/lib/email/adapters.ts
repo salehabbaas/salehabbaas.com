@@ -91,22 +91,28 @@ export function createEmailAdapter(input: {
   provider: "sendgrid" | "resend" | "mailgun" | "zoho";
   senderEmail: string;
   senderName: string;
+  secrets?: {
+    resendApiKey?: string;
+    sendgridApiKey?: string;
+    mailgunApiKey?: string;
+    mailgunDomain?: string;
+  };
 }) {
   const sender = input.senderName ? `${input.senderName} <${input.senderEmail}>` : input.senderEmail;
 
   if (input.provider === "resend") {
-    const key = process.env.RESEND_API_KEY;
+    const key = input.secrets?.resendApiKey || process.env.RESEND_API_KEY;
     if (key) return new ResendAdapter(key, sender);
   }
 
   if (input.provider === "sendgrid") {
-    const key = process.env.SENDGRID_API_KEY;
+    const key = input.secrets?.sendgridApiKey || process.env.SENDGRID_API_KEY;
     if (key) return new SendGridAdapter(key, sender);
   }
 
   if (input.provider === "mailgun") {
-    const key = process.env.MAILGUN_API_KEY;
-    const domain = process.env.MAILGUN_DOMAIN;
+    const key = input.secrets?.mailgunApiKey || process.env.MAILGUN_API_KEY;
+    const domain = input.secrets?.mailgunDomain || process.env.MAILGUN_DOMAIN;
     if (key && domain) return new MailgunAdapter(key, domain, sender);
   }
 

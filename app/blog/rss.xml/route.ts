@@ -1,13 +1,19 @@
 import { getBlogPosts } from "@/lib/firestore/cms";
+import { isPublicPageVisible } from "@/lib/firestore/page-visibility";
 import { resolveAbsoluteUrl } from "@/lib/utils";
 
 export async function GET() {
+  const visible = await isPublicPageVisible("/blog");
+  if (!visible) {
+    return new Response("Not Found", { status: 404 });
+  }
+
   const posts = await getBlogPosts({ publishedOnly: true });
   const now = new Date().toUTCString();
 
   const items = posts
     .map((post) => {
-      const link = resolveAbsoluteUrl(`/knowledge/${post.slug}`);
+      const link = resolveAbsoluteUrl(`/blog/${post.slug}`);
       return `
       <item>
         <title><![CDATA[${post.title}]]></title>
@@ -23,7 +29,7 @@ export async function GET() {
 <rss version="2.0">
   <channel>
     <title>Saleh Abbaas Blog</title>
-    <link>${resolveAbsoluteUrl("/knowledge")}</link>
+    <link>${resolveAbsoluteUrl("/blog")}</link>
     <description>Knowledge and blog content by Saleh Abbaas.</description>
     <language>en-us</language>
     <lastBuildDate>${now}</lastBuildDate>
@@ -33,7 +39,8 @@ export async function GET() {
 
   return new Response(xml, {
     headers: {
-      "Content-Type": "application/rss+xml; charset=utf-8"
+      "Content-Type": "application/rss+xml; charset=utf-8",
+      "Cache-Control": "public, max-age=1800, s-maxage=1800"
     }
   });
 }

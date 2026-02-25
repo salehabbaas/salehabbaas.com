@@ -17,6 +17,10 @@ export interface ExperienceContent {
   summary: string;
   achievements: string[];
   sortOrder: number;
+  status?: "published" | "hidden";
+  isDeleted?: boolean;
+  deletedAt?: string | null;
+  deletedBy?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -30,8 +34,11 @@ export interface ProjectContent {
   tags: string[];
   coverImage?: string;
   projectUrl?: string;
-  status: "draft" | "published";
+  status: "draft" | "published" | "hidden";
   sortOrder: number;
+  isDeleted?: boolean;
+  deletedAt?: string | null;
+  deletedBy?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -41,6 +48,10 @@ export interface ServiceContent {
   title: string;
   detail: string;
   sortOrder: number;
+  status?: "published" | "hidden";
+  isDeleted?: boolean;
+  deletedAt?: string | null;
+  deletedBy?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -53,6 +64,10 @@ export interface CertificateContent {
   credentialUrl?: string;
   imageUrl?: string;
   sortOrder: number;
+  status?: "published" | "hidden";
+  isDeleted?: boolean;
+  deletedAt?: string | null;
+  deletedBy?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -62,11 +77,15 @@ export interface SocialLinkContent {
   label: string;
   url: string;
   sortOrder: number;
+  status?: "published" | "hidden";
+  isDeleted?: boolean;
+  deletedAt?: string | null;
+  deletedBy?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export type BlogStatus = "draft" | "published";
+export type BlogStatus = "draft" | "published" | "hidden";
 
 export interface BlogPostContent {
   id: string;
@@ -78,6 +97,9 @@ export interface BlogPostContent {
   coverImage?: string;
   status: BlogStatus;
   publishedAt?: string;
+  isDeleted?: boolean;
+  deletedAt?: string | null;
+  deletedBy?: string;
   createdAt?: string;
   updatedAt?: string;
   seoTitle?: string;

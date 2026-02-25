@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { adminDb } from "../admin";
 
 interface CalendarEventInput {
   summary: string;
@@ -9,29 +10,42 @@ interface CalendarEventInput {
   attendeeEmail: string;
 }
 
-function getAuthClient() {
-  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, "\n");
+async function getCalendarConfig() {
+  const [integrationSnap, secretSnap] = await Promise.all([
+    adminDb.collection("adminSettings").doc("integrations").get(),
+    adminDb.collection("adminSettings").doc("secrets").get()
+  ]);
 
-  if (!clientEmail || !privateKey) {
-    return null;
-  }
+  const integrations = integrationSnap.data() ?? {};
+  const secrets = secretSnap.data() ?? {};
 
-  return new google.auth.JWT({
-    email: clientEmail,
-    key: privateKey,
-    scopes: ["https://www.googleapis.com/auth/calendar"]
-  });
+  const clientEmail = (secrets.googleServiceAccountEmail as string | undefined) || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "";
+  const privateKeyRaw =
+    (secrets.googleServiceAccountPrivateKey as string | undefined) || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "";
+  const privateKey = privateKeyRaw ? privateKeyRaw.replace(/\\n/g, "\n") : "";
+  const calendarId = (integrations.googleCalendarId as string | undefined) || process.env.GOOGLE_CALENDAR_ID || "primary";
+
+  return { clientEmail, privateKey, calendarId };
 }
 
 export async function createCalendarEvent(input: CalendarEventInput) {
-  const auth = getAuthClient();
+  const config = await getCalendarConfig();
+  if (!config.clientEmail || !config.privateKey) {
+    return { eventId: "", meetLink: "" };
+  }
+
+  const auth = new google.auth.JWT({
+    email: config.clientEmail,
+    key: config.privateKey,
+    scopes: ["https://www.googleapis.com/auth/calendar"]
+  });
+
   if (!auth) {
     return { eventId: "", meetLink: "" };
   }
 
   const calendar = google.calendar({ version: "v3", auth });
-  const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
+  const calendarId = config.calendarId;
 
   const response = await calendar.events.insert({
     calendarId,

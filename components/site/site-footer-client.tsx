@@ -3,19 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { publicNavigation } from "@/lib/data/navigation";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { cn } from "@/lib/utils";
-
-const quickLinks = [
-  { href: "/ai-news", label: "AI News" },
-  { href: "/projects", label: "Projects" },
-  { href: "/services", label: "Services" },
-  { href: "/knowledge", label: "Blog" },
-  { href: "/creator", label: "Creator" },
-  { href: "/contact", label: "Contact" }
-];
+import type { PublicPagePath } from "@/types/site-settings";
 
 type SiteFooterClientProps = {
+  visibleRoutes: PublicPagePath[];
   socialLinks: Array<{
     label: string;
     url: string;
@@ -23,7 +17,13 @@ type SiteFooterClientProps = {
   embedded?: boolean;
 };
 
-export function SiteFooterClient({ socialLinks, embedded = false }: SiteFooterClientProps) {
+export function SiteFooterClient({ visibleRoutes, socialLinks, embedded = false }: SiteFooterClientProps) {
+  const quickLinks = publicNavigation
+    .filter((item) => item.href !== "/" && item.section !== "support")
+    .filter((item) => visibleRoutes.includes(item.href))
+    .slice(0, 9)
+    .map((item) => ({ href: item.href, label: item.label }));
+
   return (
     <footer
       className={cn(
@@ -72,13 +72,15 @@ export function SiteFooterClient({ socialLinks, embedded = false }: SiteFooterCl
               </Link>
             ))}
           </div>
-          <div className="rounded-2xl border border-border/70 bg-card/75 p-4 text-sm text-foreground/70 shadow-elev1">
-            <p className="font-semibold text-foreground">Book a build</p>
-            <p className="mt-1 text-foreground/70">Need the Prism look on your product? Let’s scope a sprint.</p>
-            <Link href="/book-meeting" className="mt-3 inline-flex items-center text-sm font-medium text-primary hover:text-primary/80">
-              Book a meeting →
-            </Link>
-          </div>
+          {visibleRoutes.includes("/book-meeting") ? (
+            <div className="rounded-2xl border border-border/70 bg-card/75 p-4 text-sm text-foreground/70 shadow-elev1">
+              <p className="font-semibold text-foreground">Book a build</p>
+              <p className="mt-1 text-foreground/70">Need the Prism look on your product? Let’s scope a sprint.</p>
+              <Link href="/book-meeting" className="mt-3 inline-flex items-center text-sm font-medium text-primary hover:text-primary/80">
+                Book a meeting →
+              </Link>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -86,12 +88,16 @@ export function SiteFooterClient({ socialLinks, embedded = false }: SiteFooterCl
         <div className="container flex flex-wrap items-center justify-between gap-3 py-4 text-xs text-foreground/60">
           <span>© {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.</span>
           <div className="flex gap-3">
-            <Link href="/contact" className="hover:text-foreground">
-              Contact
-            </Link>
-            <Link href="/book-meeting" className="hover:text-foreground">
-              Book a meeting
-            </Link>
+            {visibleRoutes.includes("/contact") ? (
+              <Link href="/contact" className="hover:text-foreground">
+                Contact
+              </Link>
+            ) : null}
+            {visibleRoutes.includes("/book-meeting") ? (
+              <Link href="/book-meeting" className="hover:text-foreground">
+                Book a meeting
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>

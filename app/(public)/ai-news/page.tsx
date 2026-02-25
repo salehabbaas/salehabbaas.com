@@ -1,16 +1,20 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { CreatorContentCard } from "@/components/creator/content-card";
 import { SectionShell } from "@/components/site/section-shell";
 import { Button } from "@/components/ui/button";
+import { ensurePublicPageVisible } from "@/lib/firestore/public-page-guard";
 import { safeGetCreatorFeed } from "@/lib/firestore/public";
 import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
+import { breadcrumbSchema, collectionPageSchema } from "@/lib/seo/schema";
+import { resolveAbsoluteUrl } from "@/lib/utils";
 
 export const revalidate = 300;
 
 const AI_NEWS_DESCRIPTION =
-  "AI news and explainers by Saleh Abbaas (Saleh Abbas), with short-form updates on AI tools, trends, and practical engineering takeaways.";
+  "AI news and explainers by Saleh Abbaas, with short-form updates on AI tools, trends, and practical engineering takeaways.";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "AI News",
@@ -37,6 +41,7 @@ export default async function AINewsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await ensurePublicPageVisible("/ai-news");
   const input = await searchParams;
   const page = Number(normalizeSearchParam(input.page) ?? "1");
 
@@ -53,6 +58,15 @@ export default async function AINewsPage({
     title: "AI News",
     description: AI_NEWS_DESCRIPTION,
     path: "/ai-news"
+  });
+  const breadcrumbJsonLd = breadcrumbSchema([
+    { name: "Home", url: resolveAbsoluteUrl("/") },
+    { name: "AI News", url: resolveAbsoluteUrl("/ai-news") }
+  ]);
+  const collectionJsonLd = collectionPageSchema({
+    path: "/ai-news",
+    name: "AI News by Saleh Abbaas",
+    description: AI_NEWS_DESCRIPTION
   });
 
   return (
@@ -104,7 +118,9 @@ export default async function AINewsPage({
         </div>
       </div>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+      <JsonLd id="schema-ai-news-page" data={webPageJsonLd} />
+      <JsonLd id="schema-ai-news-breadcrumb" data={breadcrumbJsonLd} />
+      <JsonLd id="schema-ai-news-collection" data={collectionJsonLd} />
     </SectionShell>
   );
 }

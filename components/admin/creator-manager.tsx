@@ -476,11 +476,14 @@ export function CreatorManager() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-workspace space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Creator OS</CardTitle>
           <CardDescription>Build, schedule, publish, and track platform-specific content variants.</CardDescription>
+          <p className="admin-hint">
+            Hint: create a Content Item first, then add platform variants so slug, SEO, scheduling, and metrics stay linked.
+          </p>
           {statusMessage ? <p className="text-sm text-primary">{statusMessage}</p> : null}
         </CardHeader>
       </Card>

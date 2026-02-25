@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { adminDb } from "@/lib/firebase/admin";
+import { getRuntimeAdminSettings } from "@/lib/firestore/admin-settings";
 
 const contactSchema = z.object({
   name: z.string().min(2),
@@ -14,9 +15,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const payload = contactSchema.parse(body);
+    const runtime = await getRuntimeAdminSettings();
+    const contactFunctionUrl = runtime.integrations.contactFunctionUrl || process.env.CONTACT_FUNCTION_URL || "";
 
-    if (process.env.CONTACT_FUNCTION_URL) {
-      const response = await fetch(process.env.CONTACT_FUNCTION_URL, {
+    if (contactFunctionUrl) {
+      const response = await fetch(contactFunctionUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

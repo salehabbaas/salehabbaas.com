@@ -3,14 +3,16 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowUpRight, CalendarDays } from "lucide-react";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { CreatorContentCard } from "@/components/creator/content-card";
 import { ProjectHero } from "@/components/projects/project-hero";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ensurePublicPageVisible } from "@/lib/firestore/public-page-guard";
 import { safeGetRelatedContent } from "@/lib/firestore/public";
 import { safeBlogPosts, safeProjectBySlug, safeProjects } from "@/lib/firestore/site-public";
-import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
+import { buildPageMetadata, defaultRobotsMetadata, pageSchema } from "@/lib/seo/metadata";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { formatDate, resolveAbsoluteUrl, truncate } from "@/lib/utils";
 
@@ -29,7 +31,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const project = await safeProjectBySlug(slug);
   if (!project) {
-    return buildPageMetadata({ title: "Project Not Found", path: `/projects/${slug}` });
+    return buildPageMetadata({
+      title: "Project Not Found",
+      path: `/projects/${slug}`,
+      robots: defaultRobotsMetadata(false)
+    });
   }
 
   return buildPageMetadata({
@@ -41,6 +47,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProjectDetailsPage({ params }: Props) {
+  await ensurePublicPageVisible("/projects");
   const { slug } = await params;
   const project = await safeProjectBySlug(slug);
   if (!project || project.status !== "published") {
@@ -167,14 +174,14 @@ export default async function ProjectDetailsPage({ params }: Props) {
           {relatedKnowledge.length ? (
             <Card className="bg-card/75">
               <CardHeader>
-                <CardTitle className="text-2xl text-foreground">Related Knowledge</CardTitle>
-                <p className="text-sm text-foreground/75">Articles connected by domain and tags.</p>
+                <CardTitle className="text-2xl text-foreground">Related Blog Posts</CardTitle>
+                <p className="text-sm text-foreground/75">Blog articles connected by domain and tags.</p>
               </CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-3">
                 {relatedKnowledge.map((post) => (
                   <Link
                     key={post.id}
-                    href={`/knowledge/${post.slug}`}
+                    href={`/blog/${post.slug}`}
                     className="rounded-2xl border border-border/70 bg-card/75 p-4 shadow-elev1 transition hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <p className="text-sm font-semibold tracking-tight text-foreground">{post.title}</p>
@@ -243,8 +250,8 @@ export default async function ProjectDetailsPage({ params }: Props) {
         </aside>
       </div>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <JsonLd id="schema-project-page" data={webPageJsonLd} />
+      <JsonLd id="schema-project-breadcrumb" data={breadcrumbJsonLd} />
     </section>
   );
 }

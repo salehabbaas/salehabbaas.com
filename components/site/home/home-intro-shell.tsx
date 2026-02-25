@@ -62,9 +62,9 @@ export function HomeIntroShell({ profileLocation, companies, socialLinks }: Home
     () => [
       {
         kicker: "Slide 1",
-        title: "Introduce Myself: Saleh Abbaas",
+        title: "Saleh Abbaas | Software Engineer",
         description:
-          "I am Saleh Abbaas, a Software Engineer focused on building practical, reliable, and production-ready systems.",
+          "I am Saleh Abbaas, a Software Engineer in Ottawa, Ontario, Canada focused on practical, reliable, production-ready systems.",
         bullets: ["Saleh Abbaas", "Software Engineer", "Production Delivery", "Applied AI"],
         icon: User,
         features: [

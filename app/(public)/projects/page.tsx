@@ -1,15 +1,20 @@
+import Link from "next/link";
 import { Metadata } from "next";
 import { FolderKanban, Sparkles, Tags, Workflow } from "lucide-react";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { ProjectsExplorer } from "@/components/projects/projects-explorer";
+import { ensurePublicPageVisible } from "@/lib/firestore/public-page-guard";
 import { safeProjects } from "@/lib/firestore/site-public";
 import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
+import { breadcrumbSchema, collectionPageSchema, itemListSchema } from "@/lib/seo/schema";
+import { resolveAbsoluteUrl } from "@/lib/utils";
 
 const PROJECTS_DESCRIPTION =
-  "View projects by Saleh Abbaas (Saleh Abbas), including healthcare integrations, AI workflows, and production cloud engineering case studies.";
+  "Projects by Saleh Abbaas, featuring software engineering case studies across healthcare interoperability, AI workflows, and cloud systems.";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Projects",
+  title: "Projects by Saleh Abbaas | Software Engineer Portfolio",
   description: PROJECTS_DESCRIPTION,
   path: "/projects"
 });
@@ -26,14 +31,32 @@ export default async function ProjectsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await ensurePublicPageVisible("/projects");
   const input = await searchParams;
   const initialQuery = normalizeSearchParam(input.q);
   const projects = await safeProjects({ publishedOnly: true });
 
   const webPageJsonLd = pageSchema({
-    title: "Projects",
+    title: "Projects by Saleh Abbaas",
     description: PROJECTS_DESCRIPTION,
     path: "/projects"
+  });
+  const breadcrumbJsonLd = breadcrumbSchema([
+    { name: "Home", url: resolveAbsoluteUrl("/") },
+    { name: "Projects", url: resolveAbsoluteUrl("/projects") }
+  ]);
+  const collectionJsonLd = collectionPageSchema({
+    path: "/projects",
+    name: "Projects by Saleh Abbaas",
+    description: PROJECTS_DESCRIPTION
+  });
+  const itemListJsonLd = itemListSchema({
+    name: "Published Projects",
+    path: "/projects",
+    items: projects.map((project) => ({
+      name: project.title,
+      url: resolveAbsoluteUrl(`/projects/${project.slug}`)
+    }))
   });
 
   return (
@@ -44,10 +67,14 @@ export default async function ProjectsPage({
             Projects
           </p>
           <h1 className="text-balance text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
-            Case studies for clinical platforms, integrations, and data systems.
+            Projects by Saleh Abbaas: case studies across clinical platforms, integrations, and data systems.
           </h1>
           <p className="max-w-2xl text-lg leading-8 text-foreground/75">
             Production-first work across HL7/FHIR interoperability, pipeline reliability, and measurable outcomes.
+          </p>
+          <p className="text-sm text-foreground/70">
+            Looking for implementation details? Review <Link href="/services" className="text-primary hover:underline">services</Link> or read
+            architectural notes on the <Link href="/blog" className="text-primary hover:underline">blog</Link>.
           </p>
         </div>
 
@@ -75,7 +102,7 @@ export default async function ProjectsPage({
         </div>
       </div>
 
-      <div className="mt-10">
+      <div className="mt-10 pb-4">
         {projects.length ? (
           <ProjectsExplorer projects={projects} initialQuery={initialQuery} />
         ) : (
@@ -85,7 +112,10 @@ export default async function ProjectsPage({
         )}
       </div>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+      <JsonLd id="schema-projects-page" data={webPageJsonLd} />
+      <JsonLd id="schema-projects-breadcrumb" data={breadcrumbJsonLd} />
+      <JsonLd id="schema-projects-collection" data={collectionJsonLd} />
+      <JsonLd id="schema-projects-itemlist" data={itemListJsonLd} />
     </section>
   );
 }

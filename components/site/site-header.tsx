@@ -23,8 +23,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { publicNavigation } from "@/lib/data/navigation";
 import { BRAND_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
+import type { PublicPagePath } from "@/types/site-settings";
 
 type NavItem = {
   href: string;
@@ -32,37 +34,46 @@ type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
+const routeIconMap: Record<PublicPagePath, React.ComponentType<{ className?: string }>> = {
+  "/": Home,
+  "/ai-news": Newspaper,
+  "/projects": FolderKanban,
+  "/services": Wrench,
+  "/experience": BriefcaseBusiness,
+  "/blog": BookOpenText,
+  "/creator": Clapperboard,
+  "/about": User,
+  "/certificates": Award,
+  "/public-statement": BookOpenText,
+  "/book-meeting": CalendarDays,
+  "/contact": Mail
+};
+
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function SiteHeader() {
+export function SiteHeader({ visibleRoutes }: { visibleRoutes: PublicPagePath[] }) {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [introHeaderVisible, setIntroHeaderVisible] = useState(!isHome);
 
   const primary = useMemo<NavItem[]>(
-    () => [
-      { href: "/", label: "Home", icon: Home },
-      { href: "/ai-news", label: "AI News", icon: Newspaper },
-      { href: "/projects", label: "Projects", icon: FolderKanban },
-      { href: "/services", label: "Services", icon: Wrench },
-      { href: "/experience", label: "Experience", icon: BriefcaseBusiness },
-      { href: "/knowledge", label: "Blog", icon: BookOpenText },
-      { href: "/creator", label: "Creator", icon: Clapperboard }
-    ],
-    []
+    () =>
+      publicNavigation
+        .filter((item) => item.section === "primary" && visibleRoutes.includes(item.href))
+        .map((item) => ({ href: item.href, label: item.shortLabel, icon: routeIconMap[item.href] })),
+    [visibleRoutes]
   );
 
   const secondary = useMemo<NavItem[]>(
-    () => [
-      { href: "/about", label: "About", icon: User },
-      { href: "/certificates", label: "Certificates", icon: Award },
-      { href: "/contact", label: "Contact", icon: Mail }
-    ],
-    []
+    () =>
+      publicNavigation
+        .filter((item) => item.section !== "primary" && item.href !== "/book-meeting" && visibleRoutes.includes(item.href))
+        .map((item) => ({ href: item.href, label: item.shortLabel, icon: routeIconMap[item.href] })),
+    [visibleRoutes]
   );
 
   const desktopLinks = useMemo(() => [...primary.slice(1), ...secondary], [primary, secondary]);
@@ -135,9 +146,11 @@ export function SiteHeader() {
 
           <div className="hidden items-center gap-1 lg:flex">
             <ThemeToggle />
-            <Button asChild size="sm" className="h-9 rounded-full px-4 font-mono text-[10px] font-black uppercase tracking-[0.2em]">
-              <Link href="/book-meeting">Let&apos;s Build</Link>
-            </Button>
+            {visibleRoutes.includes("/book-meeting") ? (
+              <Button asChild size="sm" className="h-9 rounded-full px-4 font-mono text-[10px] font-black uppercase tracking-[0.2em]">
+                <Link href="/book-meeting">Let&apos;s Build</Link>
+              </Button>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-1 lg:hidden">
@@ -185,14 +198,16 @@ export function SiteHeader() {
                   })}
                 </div>
 
-                <div className="px-6 pb-6">
-                  <Button asChild variant="cta" className="w-full">
-                    <Link href="/book-meeting" onClick={() => setMobileOpen(false)}>
-                      <CalendarDays className="h-4 w-4" />
-                      Let&apos;s Build
-                    </Link>
-                  </Button>
-                </div>
+                {visibleRoutes.includes("/book-meeting") ? (
+                  <div className="px-6 pb-6">
+                    <Button asChild variant="cta" className="w-full">
+                      <Link href="/book-meeting" onClick={() => setMobileOpen(false)}>
+                        <CalendarDays className="h-4 w-4" />
+                        Let&apos;s Build
+                      </Link>
+                    </Button>
+                  </div>
+                ) : null}
               </SheetContent>
             </Sheet>
           </div>

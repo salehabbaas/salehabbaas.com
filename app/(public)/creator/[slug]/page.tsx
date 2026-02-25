@@ -2,15 +2,17 @@ import Link from "next/link";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { CreatorItemAnalytics } from "@/components/creator/creator-item-analytics";
 import { CreatorMediaEmbed } from "@/components/creator/media-embed";
 import { CreatorContentCard } from "@/components/creator/content-card";
 import { ExternalPostLink } from "@/components/creator/external-post-link";
 import { ShareActions } from "@/components/creator/share-actions";
 import { Badge } from "@/components/ui/badge";
+import { ensurePublicPageVisible } from "@/lib/firestore/public-page-guard";
 import { safeGetCreatorBySlug, safeGetRelatedContent } from "@/lib/firestore/public";
 import { breadcrumbSchema, creatorArticleSchema } from "@/lib/seo/schema";
-import { buildPageMetadata, normalizePageTitle, pageSchema } from "@/lib/seo/metadata";
+import { buildPageMetadata, defaultRobotsMetadata, normalizePageTitle, pageSchema } from "@/lib/seo/metadata";
 import { formatDate, resolveAbsoluteUrl } from "@/lib/utils";
 
 export const revalidate = 300;
@@ -26,7 +28,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!item) {
     return buildPageMetadata({
       title: "Creator Content Not Found",
-      path: `/creator/${slug}`
+      path: `/creator/${slug}`,
+      robots: defaultRobotsMetadata(false)
     });
   }
 
@@ -55,6 +58,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CreatorItemPage({ params }: Props) {
+  await ensurePublicPageVisible("/creator");
   const { slug } = await params;
   const item = await safeGetCreatorBySlug(slug);
 
@@ -157,9 +161,9 @@ export default async function CreatorItemPage({ params }: Props) {
           Back to creator feed
         </Link>
       </div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <JsonLd id="schema-creator-item-page" data={webPageJsonLd} />
+      <JsonLd id="schema-creator-item-article" data={articleJsonLd} />
+      <JsonLd id="schema-creator-item-breadcrumb" data={breadcrumbJsonLd} />
     </article>
   );
 }

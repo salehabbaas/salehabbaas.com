@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -208,6 +209,16 @@ export function JobTracker() {
     setMessage("Dropdown settings saved.");
   }
 
+  async function removeJob(id: string) {
+    if (!window.confirm("Delete this application?")) return;
+    await deleteDoc(doc(db, "jobApplications", id));
+    if (editingId === id) {
+      setEditingId(null);
+      setForm(defaultForm);
+    }
+    setMessage("Application deleted.");
+  }
+
   async function exportToExcel() {
     const ExcelJs = await import("exceljs");
     const workbook = new ExcelJs.Workbook();
@@ -278,11 +289,14 @@ export function JobTracker() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-workspace space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Job Application Tracker</CardTitle>
           <CardDescription>Track applications, interviews, and offers with sortable reporting.</CardDescription>
+          <p className="admin-hint">
+            Hint: keep Response and Interview Stage updated weekly so funnel metrics and exports stay accurate.
+          </p>
           {message ? <p className="text-sm text-primary">{message}</p> : null}
         </CardHeader>
       </Card>
@@ -340,6 +354,7 @@ export function JobTracker() {
                 <div className="space-y-2">
                   <Label>Link to Job Advert</Label>
                   <Input value={form.jobAdvertUrl} onChange={(event) => setForm((prev) => ({ ...prev, jobAdvertUrl: event.target.value }))} />
+                  <p className="admin-field-hint">Paste the original posting URL for later audit and verification.</p>
                 </div>
               </div>
 
@@ -351,10 +366,12 @@ export function JobTracker() {
                     onChange={(event) => setForm((prev) => ({ ...prev, applicationDate: event.target.value }))}
                     placeholder="dd/mm/yy"
                   />
+                  <p className="admin-field-hint">Accepted formats: dd/mm/yy or dd/mm/yyyy.</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Contact</Label>
                   <Input value={form.contact} onChange={(event) => setForm((prev) => ({ ...prev, contact: event.target.value }))} />
+                  <p className="admin-field-hint">Recruiter or hiring manager name/email.</p>
                 </div>
               </div>
 
@@ -413,6 +430,7 @@ export function JobTracker() {
               <div className="space-y-2">
                 <Label>Notes</Label>
                 <Textarea value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
+                <p className="admin-field-hint">Use notes for follow-up actions, interview feedback, or salary constraints.</p>
               </div>
 
               <Button type="submit">{editingId ? "Update" : "Save"}</Button>
@@ -518,7 +536,7 @@ export function JobTracker() {
                   </TableCell>
                   <TableCell>{job.interviewStage}</TableCell>
                   <TableCell>{job.offer || "-"}</TableCell>
-                  <TableCell>
+                  <TableCell className="space-x-2">
                     <Button
                       size="sm"
                       variant="ghost"
@@ -542,6 +560,9 @@ export function JobTracker() {
                       }}
                     >
                       Edit
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => removeJob(job.id)}>
+                      Delete
                     </Button>
                   </TableCell>
                 </TableRow>

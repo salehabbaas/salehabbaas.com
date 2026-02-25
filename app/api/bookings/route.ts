@@ -4,6 +4,7 @@ import { z } from "zod";
 import { adminDb } from "@/lib/firebase/admin";
 import { getRemoteBookingFlag } from "@/lib/firebase/remote-config";
 import { slotLockIdFromIso, slotRangeIsoStarts } from "@/lib/booking/slot-locks";
+import { getRuntimeAdminSettings } from "@/lib/firestore/admin-settings";
 import { getAvailabilityDays, getBookingSettings } from "@/lib/firestore/booking";
 
 const schema = z.object({
@@ -115,7 +116,8 @@ export async function POST(request: Request) {
       throw transactionError;
     }
 
-    const functionUrl = process.env.BOOK_MEETING_FUNCTION_URL;
+    const runtime = await getRuntimeAdminSettings();
+    const functionUrl = runtime.integrations.bookingFunctionUrl || process.env.BOOK_MEETING_FUNCTION_URL || "";
     let functionError: string | undefined;
 
     if (functionUrl) {

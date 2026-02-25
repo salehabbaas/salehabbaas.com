@@ -11,14 +11,18 @@ import {
   Sparkles
 } from "lucide-react";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ensurePublicPageVisible } from "@/lib/firestore/public-page-guard";
 import { safeExperiences } from "@/lib/firestore/site-public";
 import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
+import { breadcrumbSchema } from "@/lib/seo/schema";
+import { resolveAbsoluteUrl } from "@/lib/utils";
 
 const EXPERIENCE_DESCRIPTION =
-  "Professional experience of Saleh Abbaas (Saleh Abbas), a software engineer delivering HL7/FHIR integrations, clinical platforms, and AI-driven systems in Ottawa.";
+  "Professional experience of Saleh Abbaas, a software engineer delivering HL7/FHIR integrations, clinical platforms, and AI-driven systems in Ottawa.";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Experience",
@@ -58,6 +62,7 @@ const domainItems: DomainItem[] = [
 ];
 
 export default async function ExperiencePage() {
+  await ensurePublicPageVisible("/experience");
   const experiences = await safeExperiences();
 
   const rolesCount = experiences.length;
@@ -71,6 +76,10 @@ export default async function ExperiencePage() {
     description: EXPERIENCE_DESCRIPTION,
     path: "/experience"
   });
+  const breadcrumbJsonLd = breadcrumbSchema([
+    { name: "Home", url: resolveAbsoluteUrl("/") },
+    { name: "Experience", url: resolveAbsoluteUrl("/experience") }
+  ]);
 
   return (
     <section className="relative isolate overflow-hidden py-14 md:py-20">
@@ -208,7 +217,8 @@ export default async function ExperiencePage() {
         </div>
       </div>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+      <JsonLd id="schema-experience-page" data={webPageJsonLd} />
+      <JsonLd id="schema-experience-breadcrumb" data={breadcrumbJsonLd} />
     </section>
   );
 }

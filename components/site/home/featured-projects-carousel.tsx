@@ -189,7 +189,14 @@ export function FeaturedProjectsCarousel({ projects, className }: { projects: Pr
                   </div>
                   {project.coverImage ? (
                     <div className="relative h-12 w-12 overflow-hidden rounded-2xl border border-border/70 bg-card/80">
-                      <Image src={project.coverImage} alt="" fill className="object-cover" sizes="48px" />
+                      <Image
+                        src={project.coverImage}
+                        alt={`${project.title} icon`}
+                        fill
+                        className="object-cover"
+                        sizes="48px"
+                        unoptimized={!project.coverImage.startsWith("/")}
+                      />
                     </div>
                   ) : null}
                 </div>

@@ -1,7 +1,13 @@
 import { safeGetSitemapEntries } from "@/lib/firestore/public";
+import { isPublicPageVisible } from "@/lib/firestore/page-visibility";
 import { resolveAbsoluteUrl } from "@/lib/utils";
 
 export async function GET() {
+  const visible = await isPublicPageVisible("/creator");
+  if (!visible) {
+    return new Response("Not Found", { status: 404 });
+  }
+
   const items = await safeGetSitemapEntries();
   const now = new Date().toUTCString();
 
@@ -37,7 +43,8 @@ export async function GET() {
 
   return new Response(xml, {
     headers: {
-      "Content-Type": "application/rss+xml; charset=utf-8"
+      "Content-Type": "application/rss+xml; charset=utf-8",
+      "Cache-Control": "public, max-age=1800, s-maxage=1800"
     }
   });
 }

@@ -61,7 +61,7 @@ export function HomeHero({
   keywords: string[];
 }) {
   const resolvedAvatarUrl = resolveAvatarUrl(avatarUrl);
-  const shouldSkipOptimization = resolvedAvatarUrl.startsWith("/");
+  const shouldSkipOptimization = !resolvedAvatarUrl.startsWith("/");
 
   return (
     <section className="relative overflow-hidden border-b border-border/60 bg-gradient-to-b from-white via-slate-50 to-white py-16 dark:from-slate-950 dark:via-slate-900/40 dark:to-slate-950">

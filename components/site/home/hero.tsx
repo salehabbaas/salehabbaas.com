@@ -101,7 +101,7 @@ export function Hero({ profile, keywords, stats }: HomeHeroProps) {
                 </span>
               </div>
               <div className="relative aspect-[4/5] overflow-hidden rounded-[1.75rem]">
-                <Image src={avatarUrl} alt={`${profile.name} portrait`} fill priority sizes="(max-width: 1024px) 85vw, 35vw" className="object-contain object-center" unoptimized />
+                <Image src={avatarUrl} alt={`${profile.name} portrait`} fill priority sizes="(max-width: 1024px) 85vw, 35vw" className="object-contain object-center" />
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {keywords.slice(0, 6).map((keyword) => (

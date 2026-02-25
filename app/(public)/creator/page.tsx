@@ -1,19 +1,23 @@
 import Link from "next/link";
 import { Metadata } from "next";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { CreatorContentCard } from "@/components/creator/content-card";
 import { CreatorFilters } from "@/components/creator/creator-filters";
 import { FollowBlock } from "@/components/creator/follow-block";
 import { NewsletterForm } from "@/components/creator/newsletter-form";
 import { SectionShell } from "@/components/site/section-shell";
 import { Button } from "@/components/ui/button";
+import { ensurePublicPageVisible } from "@/lib/firestore/public-page-guard";
 import { safeGetCreatorFeed, safeGetCreatorSettings, safeGetFeatured } from "@/lib/firestore/public";
 import { buildPageMetadata, pageSchema } from "@/lib/seo/metadata";
+import { breadcrumbSchema, collectionPageSchema } from "@/lib/seo/schema";
+import { resolveAbsoluteUrl } from "@/lib/utils";
 
 export const revalidate = 300;
 
 const CREATOR_DESCRIPTION =
-  "Creator hub for Saleh Abbaas (Saleh Abbas): engineering insights, AI content, and platform-native growth systems.";
+  "Creator hub for Saleh Abbaas: engineering insights, AI content, and platform-native growth systems.";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Creator",
@@ -40,6 +44,7 @@ export default async function CreatorPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await ensurePublicPageVisible("/creator");
   const input = await searchParams;
   const page = Number(normalizeSearchParam(input.page) ?? "1");
   const pillar = normalizeSearchParam(input.pillar);
@@ -65,6 +70,15 @@ export default async function CreatorPage({
     title: "Creator",
     description: CREATOR_DESCRIPTION,
     path: "/creator"
+  });
+  const breadcrumbJsonLd = breadcrumbSchema([
+    { name: "Home", url: resolveAbsoluteUrl("/") },
+    { name: "Creator", url: resolveAbsoluteUrl("/creator") }
+  ]);
+  const collectionJsonLd = collectionPageSchema({
+    path: "/creator",
+    name: "Creator Hub by Saleh Abbaas",
+    description: CREATOR_DESCRIPTION
   });
 
   return (
@@ -155,7 +169,9 @@ export default async function CreatorPage({
           <FollowBlock socialLinks={settings.socialLinks} />
         </section>
       </div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+      <JsonLd id="schema-creator-page" data={webPageJsonLd} />
+      <JsonLd id="schema-creator-breadcrumb" data={breadcrumbJsonLd} />
+      <JsonLd id="schema-creator-collection" data={collectionJsonLd} />
     </SectionShell>
   );
 }

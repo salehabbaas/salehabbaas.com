@@ -46,7 +46,7 @@ export function CreatorPreview({ creatorItems, knowledgeItems }: HomeCreatorPrev
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                   <Button asChild variant="outline" className="hidden sm:inline-flex">
-                    <Link href="/knowledge">View all</Link>
+                    <Link href="/blog">View all</Link>
                   </Button>
                 </div>
               </div>
@@ -76,7 +76,7 @@ export function CreatorPreview({ creatorItems, knowledgeItems }: HomeCreatorPrev
                           <span className="text-xs text-muted-foreground">{formatDate(post.publishedAt || post.updatedAt)}</span>
                         ) : null}
                       </div>
-                      <Link href={`/knowledge/${post.slug}`} className="mt-4 inline-flex items-center gap-1 text-sm text-primary transition hover:text-foreground">
+                      <Link href={`/blog/${post.slug}`} className="mt-4 inline-flex items-center gap-1 text-sm text-primary transition hover:text-foreground">
                         Read article
                         <ArrowRight className="h-4 w-4" />
                       </Link>
