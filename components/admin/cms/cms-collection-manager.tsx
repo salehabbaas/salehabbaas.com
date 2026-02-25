@@ -9,15 +9,16 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  updateDoc
+  updateDoc,
+  where
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
+import { AdminFieldLabel } from "@/components/admin/admin-field-label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,6 +55,11 @@ type CmsCollectionManagerProps = {
   statusField?: string;
   slugField?: string;
   getSiteHref?: (row: Record<string, unknown>) => string | null;
+  filters?: Array<{
+    field: string;
+    operator: "<" | "<=" | "==" | "!=" | ">=" | ">" | "array-contains" | "in" | "array-contains-any" | "not-in";
+    value: unknown;
+  }>;
 };
 
 function rowWithId(id: string, data: Record<string, unknown>) {
@@ -88,7 +94,8 @@ export function CmsCollectionManager({
   columns,
   statusField,
   slugField,
-  getSiteHref
+  getSiteHref,
+  filters = []
 }: CmsCollectionManagerProps) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [mediaAssets, setMediaAssets] = useState<Array<{ id: string; name: string; url: string }>>([]);
@@ -103,12 +110,13 @@ export function CmsCollectionManager({
   const [uploadingField, setUploadingField] = useState<string>("");
 
   useEffect(() => {
-    const snapshotQuery = query(collection(db, collectionName), orderBy(orderField, orderDirection));
+    const constraints = [...filters.map((item) => where(item.field, item.operator, item.value)), orderBy(orderField, orderDirection)];
+    const snapshotQuery = query(collection(db, collectionName), ...constraints);
     const unsub = onSnapshot(snapshotQuery, (snap) => {
       setRows(snap.docs.map((document) => rowWithId(document.id, document.data() as Record<string, unknown>)));
     });
     return () => unsub();
-  }, [collectionName, orderDirection, orderField]);
+  }, [collectionName, filters, orderDirection, orderField]);
 
   useEffect(() => {
     if (!fields.some((field) => field.type === "image")) return;
@@ -466,7 +474,7 @@ export function CmsCollectionManager({
                   if (field.type === "textarea") {
                     return (
                       <div key={field.key} className="space-y-2">
-                        <Label>{field.label}</Label>
+                        <AdminFieldLabel label={field.label} required={field.required} />
                         <Textarea
                           value={fieldValueAsString(value)}
                           onChange={(event) => setFieldValue(field, event.target.value)}
@@ -480,7 +488,7 @@ export function CmsCollectionManager({
                   if (field.type === "select") {
                     return (
                       <div key={field.key} className="space-y-2">
-                        <Label>{field.label}</Label>
+                        <AdminFieldLabel label={field.label} required={field.required} />
                         <Select
                           value={fieldValueAsString(value)}
                           onChange={(event) => setFieldValue(field, event.target.value)}
@@ -499,7 +507,7 @@ export function CmsCollectionManager({
                   if (field.type === "tags") {
                     return (
                       <div key={field.key} className="space-y-2">
-                        <Label>{field.label}</Label>
+                        <AdminFieldLabel label={field.label} required={field.required} helper="Comma separated list." />
                         <Input
                           value={Array.isArray(value) ? value.join(", ") : ""}
                           onChange={(event) =>
@@ -529,7 +537,7 @@ export function CmsCollectionManager({
                   if (field.type === "image") {
                     return (
                       <div key={field.key} className="space-y-2">
-                        <Label>{field.label}</Label>
+                        <AdminFieldLabel label={field.label} required={field.required} />
                         <Input
                           value={fieldValueAsString(value)}
                           onChange={(event) => setFieldValue(field, event.target.value)}
@@ -575,7 +583,7 @@ export function CmsCollectionManager({
 
                   return (
                     <div key={field.key} className="space-y-2">
-                      <Label>{field.label}</Label>
+                      <AdminFieldLabel label={field.label} required={field.required} />
                       <Input
                         type={
                           field.type === "number"

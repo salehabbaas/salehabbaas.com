@@ -11,7 +11,8 @@ import {
   query,
   serverTimestamp,
   setDoc,
-  updateDoc
+  updateDoc,
+  where
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
@@ -172,9 +173,12 @@ export function CmsManager() {
       setExperiences(snap.docs.map((d) => mapDocWithId<ExperienceContent>(d.id, d.data() as Record<string, unknown>)));
     });
 
-    const unsubProjects = onSnapshot(query(collection(db, "projects"), orderBy("sortOrder", "asc")), (snap) => {
+    const unsubProjects = onSnapshot(
+      query(collection(db, "projects"), where("status", "in", ["draft", "published", "hidden"]), orderBy("sortOrder", "asc")),
+      (snap) => {
       setProjects(snap.docs.map((d) => mapDocWithId<ProjectContent>(d.id, d.data() as Record<string, unknown>)));
-    });
+      }
+    );
 
     const unsubServices = onSnapshot(query(collection(db, "services"), orderBy("sortOrder", "asc")), (snap) => {
       setServices(snap.docs.map((d) => mapDocWithId<ServiceContent>(d.id, d.data() as Record<string, unknown>)));

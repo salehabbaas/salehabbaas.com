@@ -17,6 +17,19 @@ service cloud.firestore {
       return (status == null || status == 'published') && isDeleted != true;
     }
 
+    function isPmProject(data) {
+      return data.module == 'project-management'
+        && data.ownerId is string
+        && (data.status == 'active' || data.status == 'archived');
+    }
+
+    function isOwnedPmProject(projectId) {
+      return projectId is string
+        && exists(/databases/$(database)/documents/projects/$(projectId))
+        && isPmProject(get(/databases/$(database)/documents/projects/$(projectId)).data)
+        && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+    }
+
     match /contentItems/{contentItemId} {
       allow read, write: if isAdmin();
 
@@ -108,8 +121,68 @@ service cloud.firestore {
     }
 
     match /projects/{docId} {
-      allow read: if isAdmin() || (resource.data.status == 'published' && resource.data.isDeleted != true);
-      allow write: if isAdmin();
+      allow read: if (
+          isPmProject(resource.data)
+          && isAdmin()
+          && resource.data.ownerId == request.auth.uid
+        ) || (
+          !isPmProject(resource.data)
+          && (isAdmin() || (resource.data.status == 'published' && resource.data.isDeleted != true))
+        );
+
+      allow create: if isAdmin() && (
+          (isPmProject(request.resource.data) && request.resource.data.ownerId == request.auth.uid)
+          || !isPmProject(request.resource.data)
+        );
+
+      allow update, delete: if isAdmin() && (
+          (
+            isPmProject(resource.data)
+            && resource.data.ownerId == request.auth.uid
+            && isPmProject(request.resource.data)
+            && request.resource.data.ownerId == resource.data.ownerId
+          )
+          || !isPmProject(resource.data)
+        );
+    }
+
+    match /boards/{docId} {
+      allow read: if isAdmin() && isOwnedPmProject(resource.data.projectId);
+      allow create: if isAdmin() && isOwnedPmProject(request.resource.data.projectId);
+      allow update: if isAdmin()
+        && isOwnedPmProject(resource.data.projectId)
+        && request.resource.data.projectId == resource.data.projectId
+        && isOwnedPmProject(request.resource.data.projectId);
+      allow delete: if isAdmin() && isOwnedPmProject(resource.data.projectId);
+    }
+
+    match /tasks/{docId} {
+      allow read: if isAdmin() && isOwnedPmProject(resource.data.projectId);
+      allow create: if isAdmin() && isOwnedPmProject(request.resource.data.projectId);
+      allow update: if isAdmin()
+        && isOwnedPmProject(resource.data.projectId)
+        && request.resource.data.projectId == resource.data.projectId
+        && isOwnedPmProject(request.resource.data.projectId);
+      allow delete: if isAdmin() && isOwnedPmProject(resource.data.projectId);
+
+      match /notificationsSent/{notificationId} {
+        allow read, write: if isAdmin() && isOwnedPmProject(get(/databases/$(database)/documents/tasks/$(docId)).data.projectId);
+      }
+    }
+
+    match /activity/{docId} {
+      allow read, delete: if isAdmin() && isOwnedPmProject(resource.data.projectId);
+      allow create: if isAdmin() && isOwnedPmProject(request.resource.data.projectId);
+      allow update: if isAdmin()
+        && isOwnedPmProject(resource.data.projectId)
+        && request.resource.data.projectId == resource.data.projectId
+        && isOwnedPmProject(request.resource.data.projectId);
+    }
+
+    match /users/{userId} {
+      match /settings/{docId} {
+        allow read, write: if isAdmin() && request.auth.uid == userId;
+      }
     }
 
     match /blogPosts/{docId} {

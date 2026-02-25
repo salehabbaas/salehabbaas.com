@@ -45,6 +45,9 @@ const TRACKED_COLLECTIONS = new Set([
   "bookings",
   "blockedSlots",
   "bookingSettings",
+  "boards",
+  "tasks",
+  "activity",
   "jobApplications",
   "jobTrackerSettings",
   "creatorSettings",
@@ -443,3 +446,5 @@ export const bootstrapAdminClaim = onRequest(async (request, response) => {
   await adminAuth.setCustomUserClaims(uid, { admin: true });
   response.status(200).json({ success: true, uid });
 });
+
+export { taskReminderSweep } from "./scheduled/taskReminders";

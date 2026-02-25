@@ -193,7 +193,7 @@ export async function getAdminSystemsSummary(): Promise<AdminSystemsSummary> {
     getAdminHealthStatus(),
     getPublicPageSettings(),
     getRemoteFeatureFlags(),
-    adminDb.collection("projects").get(),
+    adminDb.collection("projects").where("status", "in", ["draft", "published", "hidden"]).get(),
     adminDb.collection("blogPosts").get(),
     adminDb.collection("experiences").get(),
     adminDb.collection("services").get(),

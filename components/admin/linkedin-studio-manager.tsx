@@ -1,12 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { CirclePlus, Sparkles, WandSparkles } from "lucide-react";
 
+import { AdminFieldLabel } from "@/components/admin/admin-field-label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { defaultStudioConfig } from "@/lib/linkedin-studio/defaults";
@@ -75,6 +77,15 @@ export function LinkedinStudioManager() {
   const [manualPillar, setManualPillar] = useState("");
   const [generating, setGenerating] = useState(false);
   const [syncingFromWebsite, setSyncingFromWebsite] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const [experienceOpen, setExperienceOpen] = useState(false);
+  const [profileVoiceOpen, setProfileVoiceOpen] = useState(false);
+  const [companiesOpen, setCompaniesOpen] = useState(false);
+  const [targetingOpen, setTargetingOpen] = useState(false);
+  const [experienceConfigOpen, setExperienceConfigOpen] = useState(false);
+  const [companyDraft, setCompanyDraft] = useState<StudioCompany>(defaultCompany());
+  const [experienceDraft, setExperienceDraft] = useState<StudioExperience>(defaultExperience());
 
   const [posts, setPosts] = useState<StudioPostRecord[]>([]);
   const [selectedPostId, setSelectedPostId] = useState("");
@@ -241,16 +252,6 @@ export function LinkedinStudioManager() {
     }));
   }
 
-  function addCompany() {
-    setConfig((prev) => ({
-      ...prev,
-      targeting: {
-        ...prev.targeting,
-        companies: [...prev.targeting.companies, defaultCompany()]
-      }
-    }));
-  }
-
   function updateExperience(index: number, key: keyof StudioExperience, value: string) {
     setConfig((prev) => {
       const next = [...prev.experience];
@@ -277,13 +278,6 @@ export function LinkedinStudioManager() {
     });
   }
 
-  function addExperience() {
-    setConfig((prev) => ({
-      ...prev,
-      experience: [...prev.experience, defaultExperience()]
-    }));
-  }
-
   function removeExperience(index: number) {
     setConfig((prev) => ({
       ...prev,
@@ -291,8 +285,79 @@ export function LinkedinStudioManager() {
     }));
   }
 
-  async function saveConfig(event: FormEvent<HTMLFormElement>) {
+  function openGenerateDialog() {
+    setManualCompany(config.targeting.companies[0]?.name ?? "");
+    setManualPillar(config.targeting.pillars[0] ?? "");
+    setManualTopic("");
+    setGenerateOpen(true);
+  }
+
+  function openCompanyDialog() {
+    setCompanyDraft(defaultCompany());
+    setCompanyOpen(true);
+  }
+
+  function saveCompanyDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const normalizedName = companyDraft.name.trim();
+    if (!normalizedName) return;
+
+    const payload: StudioCompany = {
+      ...companyDraft,
+      name: normalizedName,
+      website: companyDraft.website?.trim() || "",
+      notes: companyDraft.notes?.trim() || "",
+      priority: Number(companyDraft.priority ?? 1),
+      rotationWeight: Number(companyDraft.rotationWeight ?? 1)
+    };
+
+    setConfig((prev) => ({
+      ...prev,
+      targeting: {
+        ...prev.targeting,
+        companies: [...prev.targeting.companies, payload]
+      }
+    }));
+
+    setCompanyOpen(false);
+    setStatus(`Company \"${payload.name}\" added to targeting. Save setup to persist.`);
+  }
+
+  function openExperienceDialog() {
+    const draft = defaultExperience();
+    draft.startDate = String(new Date().getFullYear());
+    setExperienceDraft(draft);
+    setExperienceOpen(true);
+  }
+
+  function saveExperienceDraft(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const roleTitle = experienceDraft.roleTitle.trim();
+    const company = experienceDraft.company.trim();
+    if (!roleTitle || !company) return;
+
+    const payload: StudioExperience = {
+      ...experienceDraft,
+      roleTitle,
+      company,
+      industry: experienceDraft.industry?.trim() || "",
+      startDate: experienceDraft.startDate?.trim() || "",
+      endDate: experienceDraft.endDate?.trim() || "",
+      bullets: experienceDraft.bullets.filter(Boolean),
+      technologies: experienceDraft.technologies.filter(Boolean),
+      lessonsLearned: experienceDraft.lessonsLearned.filter(Boolean)
+    };
+
+    setConfig((prev) => ({
+      ...prev,
+      experience: [...prev.experience, payload]
+    }));
+
+    setExperienceOpen(false);
+    setStatus(`Experience \"${payload.roleTitle} @ ${payload.company}\" added. Save setup to persist.`);
+  }
+
+  async function persistConfig() {
     setSavingConfig(true);
     setStatus("");
 
@@ -335,11 +400,18 @@ export function LinkedinStudioManager() {
 
       setConfig(payload);
       setStatus("LinkedIn Studio setup saved.");
+      return true;
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to save setup.");
+      return false;
     } finally {
       setSavingConfig(false);
     }
+  }
+
+  async function saveConfigAndClose(setter: (open: boolean) => void) {
+    const saved = await persistConfig();
+    if (saved) setter(false);
   }
 
   async function generatePost() {
@@ -368,6 +440,7 @@ export function LinkedinStudioManager() {
       setManualCompany("");
       setManualTopic("");
       setManualPillar("");
+      setGenerateOpen(false);
       await loadPostDetail(post.id);
       setStatus("Draft generated.");
     } catch (error) {
@@ -503,12 +576,24 @@ export function LinkedinStudioManager() {
         <CardHeader>
           <CardTitle>LinkedIn Studio (Integrated)</CardTitle>
           <CardDescription>
-            Generate and version LinkedIn drafts inside your main admin panel. Includes targeting, cadence, audit logging, and post lifecycle controls.
+            Generate, version, and publish LinkedIn drafts with cleaner actions and popup-based forms.
           </CardDescription>
           <p className="admin-hint">
-            Hint: complete Profile + Voice and Targeting first, then generate drafts with optional manual company/topic/pillar overrides.
+            Build profile and targeting once, then use quick actions to generate drafts and update context without overwhelming the page.
           </p>
-          <div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={openGenerateDialog}>
+              <Sparkles className="h-4 w-4" />
+              Generate Draft
+            </Button>
+            <Button type="button" variant="outline" onClick={openCompanyDialog}>
+              <CirclePlus className="h-4 w-4" />
+              Add Company
+            </Button>
+            <Button type="button" variant="secondary" onClick={openExperienceDialog}>
+              <CirclePlus className="h-4 w-4" />
+              Add Experience
+            </Button>
             <Button type="button" variant="outline" onClick={syncProfileFromWebsite} disabled={syncingFromWebsite}>
               {syncingFromWebsite ? "Syncing..." : "Sync Profile From Website CMS"}
             </Button>
@@ -544,168 +629,415 @@ export function LinkedinStudioManager() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Generate New Draft</CardTitle>
-          <CardDescription>Leave fields empty for auto-selection based on your setup.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-4">
-          <Input placeholder="Manual company (optional)" value={manualCompany} onChange={(event) => setManualCompany(event.target.value)} />
-          <Input placeholder="Manual topic (optional)" value={manualTopic} onChange={(event) => setManualTopic(event.target.value)} />
-          <Input placeholder="Manual pillar (optional)" value={manualPillar} onChange={(event) => setManualPillar(event.target.value)} />
-          <Button onClick={generatePost} disabled={generating}>
-            {generating ? "Generating..." : "Generate Draft"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <form onSubmit={saveConfig} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile + Voice</CardTitle>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card className="bg-card/85">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Profile + Voice</CardTitle>
+            <CardDescription>{config.profile.displayName || "No display name set"}</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <Input
-              placeholder="Display Name"
-              value={config.profile.displayName}
-              onChange={(event) => setConfig((prev) => ({ ...prev, profile: { ...prev.profile, displayName: event.target.value } }))}
-            />
-            <Input
-              placeholder="Headline"
-              value={config.profile.headline}
-              onChange={(event) => setConfig((prev) => ({ ...prev, profile: { ...prev.profile, headline: event.target.value } }))}
-            />
-            <Textarea
-              className="md:col-span-2"
-              placeholder="About"
-              value={config.profile.about}
-              onChange={(event) => setConfig((prev) => ({ ...prev, profile: { ...prev.profile, about: event.target.value } }))}
-            />
-            <Textarea
-              placeholder="Goals (one per line)"
-              value={toLines(config.profile.goals)}
-              onChange={(event) => setConfig((prev) => ({ ...prev, profile: { ...prev.profile, goals: fromLines(event.target.value) } }))}
-            />
-            <Input
-              placeholder="Location"
-              value={config.profile.location || ""}
-              onChange={(event) => setConfig((prev) => ({ ...prev, profile: { ...prev.profile, location: event.target.value } }))}
-            />
-            <Input
-              placeholder="Tone"
-              value={config.profile.voiceStyle.tone}
-              onChange={(event) =>
-                setConfig((prev) => ({
-                  ...prev,
-                  profile: {
-                    ...prev.profile,
-                    voiceStyle: {
-                      ...prev.profile.voiceStyle,
-                      tone: event.target.value
-                    }
-                  }
-                }))
-              }
-            />
-            <Select
-              value={config.profile.voiceStyle.length}
-              onChange={(event) =>
-                setConfig((prev) => ({
-                  ...prev,
-                  profile: {
-                    ...prev.profile,
-                    voiceStyle: {
-                      ...prev.profile.voiceStyle,
-                      length: event.target.value
-                    }
-                  }
-                }))
-              }
-            >
-              <option value="Short">Short</option>
-              <option value="Medium">Medium</option>
-              <option value="Long">Long</option>
-            </Select>
-            <Textarea
-              placeholder="Do list (one per line)"
-              value={toLines(config.profile.voiceStyle.dos)}
-              onChange={(event) =>
-                setConfig((prev) => ({
-                  ...prev,
-                  profile: {
-                    ...prev.profile,
-                    voiceStyle: {
-                      ...prev.profile.voiceStyle,
-                      dos: fromLines(event.target.value)
-                    }
-                  }
-                }))
-              }
-            />
-            <Textarea
-              placeholder="Don't list (one per line)"
-              value={toLines(config.profile.voiceStyle.donts)}
-              onChange={(event) =>
-                setConfig((prev) => ({
-                  ...prev,
-                  profile: {
-                    ...prev.profile,
-                    voiceStyle: {
-                      ...prev.profile.voiceStyle,
-                      donts: fromLines(event.target.value)
-                    }
-                  }
-                }))
-              }
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Target Companies</CardTitle>
-            <CardDescription>Used by auto-selection when generating drafts.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {config.targeting.companies.map((company, index) => (
-              <div key={`${company.name}-${index}`} className="grid gap-2 rounded-xl border border-border/70 bg-card/70 p-3 md:grid-cols-5">
-                <Input placeholder="Company" value={company.name} onChange={(event) => updateCompany(index, "name", event.target.value)} />
-                <Input placeholder="Website" value={company.website || ""} onChange={(event) => updateCompany(index, "website", event.target.value)} />
-                <Input placeholder="Priority 1-5" type="number" value={company.priority ?? 1} onChange={(event) => updateCompany(index, "priority", event.target.value)} />
-                <Input
-                  placeholder="Rotation weight"
-                  type="number"
-                  value={company.rotationWeight ?? 1}
-                  onChange={(event) => updateCompany(index, "rotationWeight", event.target.value)}
-                />
-                <div className="flex gap-2">
-                  <Input placeholder="Notes" value={company.notes || ""} onChange={(event) => updateCompany(index, "notes", event.target.value)} />
-                  <Button type="button" variant="outline" onClick={() => removeCompany(index)}>
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ))}
-            <Button type="button" variant="outline" onClick={addCompany}>
-              Add Company
+          <CardContent className="space-y-3 text-sm">
+            <p className="line-clamp-2 text-muted-foreground">{config.profile.headline || "No headline set."}</p>
+            <p className="text-xs text-muted-foreground">Tone: {config.profile.voiceStyle.tone || "n/a"}</p>
+            <Button size="sm" onClick={() => setProfileVoiceOpen(true)}>
+              Edit
             </Button>
           </CardContent>
         </Card>
 
+        <Card className="bg-card/85">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Target Companies</CardTitle>
+            <CardDescription>{config.targeting.companies.length} company records</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p className="line-clamp-2 text-muted-foreground">
+              {config.targeting.companies.slice(0, 3).map((item) => item.name).join(", ") || "No companies yet."}
+            </p>
+            <Button size="sm" onClick={() => setCompaniesOpen(true)}>
+              Edit
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/85">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Targeting + Cadence</CardTitle>
+            <CardDescription>
+              {config.targeting.industries.length} industries · {config.settings.cadenceDaysOfWeek.length} cadence days
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p className="line-clamp-2 text-muted-foreground">Timezone: {config.settings.timezone || "n/a"}</p>
+            <Button size="sm" onClick={() => setTargetingOpen(true)}>
+              Edit
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/85">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Experience Context</CardTitle>
+            <CardDescription>{config.experience.length} role records</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p className="line-clamp-2 text-muted-foreground">
+              {config.experience.slice(0, 2).map((item) => `${item.roleTitle} @ ${item.company}`).join(" | ") || "No experience records yet."}
+            </p>
+            <Button size="sm" onClick={() => setExperienceConfigOpen(true)}>
+              Edit
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Targeting Lists + Cadence</CardTitle>
+            <CardTitle>Drafts</CardTitle>
+            <CardDescription>Select a draft to inspect version history and refine.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="max-h-[32rem] space-y-2 overflow-auto pr-1 text-sm">
+            {posts.map((post) => (
+              <button
+                key={post.id}
+                type="button"
+                className={`w-full rounded-xl border px-3 py-3 text-left transition ${
+                  selectedPostId === post.id ? "border-primary bg-primary/10" : "border-border/70 bg-card/70 hover:border-primary"
+                }`}
+                onClick={async () => {
+                  setSelectedPostId(post.id);
+                  await loadPostDetail(post.id);
+                }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium">{post.title || post.selectedCompany}</p>
+                  <Badge variant="secondary">{post.status}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{post.selectedCompany} · {post.selectedTopics.join(", ")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{post.createdAt ? formatDate(post.createdAt) : ""}</p>
+              </button>
+            ))}
+            {!posts.length ? <p className="text-muted-foreground">No drafts yet.</p> : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Selected Draft</CardTitle>
+            <CardDescription>Refine, publish, and review versions.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {loadingPost ? (
+              <p className="text-muted-foreground">Loading draft...</p>
+            ) : selectedPost ? (
+              <>
+                <div className="rounded-xl border border-border/70 bg-card/70 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium">{selectedPost.title}</p>
+                    <Badge variant="secondary">{selectedPost.status}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{selectedPost.selectedCompany}</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-7">{selectedPost.finalText}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">#{selectedPost.hashtags.join(" #")}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <AdminFieldLabel htmlFor="linkedin-refinement-feedback" label="Refinement Feedback" helper="Optional guidance for the next version." />
+                  <Textarea
+                    id="linkedin-refinement-feedback"
+                    value={feedback}
+                    onChange={(event) => setFeedback(event.target.value)}
+                    placeholder="Tighten intro and emphasize measurable outcomes."
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={refineSelectedPost} disabled={refining}>
+                    {refining ? "Refining..." : "Refine + New Version"}
+                  </Button>
+                  <Button variant="outline" onClick={publishSelectedPost} disabled={publishing}>
+                    {publishing ? "Publishing..." : "Mark Published"}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Version History</p>
+                  <div className="max-h-48 space-y-2 overflow-auto pr-1">
+                    {versions.map((version) => (
+                      <div key={version.id} className="rounded-xl border border-border/70 bg-card/70 p-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium">Version {version.versionNumber}</p>
+                          <p className="text-xs text-muted-foreground">{version.createdAt ? formatDate(version.createdAt) : ""}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{version.feedbackApplied || "No feedback"}</p>
+                      </div>
+                    ))}
+                    {!versions.length ? <p className="text-muted-foreground">No versions yet.</p> : null}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-muted-foreground">Select a draft to inspect details.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={profileVoiceOpen} onOpenChange={setProfileVoiceOpen}>
+        <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-3xl">
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveConfigAndClose(setProfileVoiceOpen);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Edit Profile + Voice</DialogTitle>
+              <DialogDescription>Update identity and writing voice settings used by generated posts.</DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-display-name" label="Display Name" required />
+                <Input
+                  id="linkedin-display-name"
+                  value={config.profile.displayName}
+                  onChange={(event) => setConfig((prev) => ({ ...prev, profile: { ...prev.profile, displayName: event.target.value } }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-headline" label="Headline" required />
+                <Input
+                  id="linkedin-headline"
+                  value={config.profile.headline}
+                  onChange={(event) => setConfig((prev) => ({ ...prev, profile: { ...prev.profile, headline: event.target.value } }))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <AdminFieldLabel htmlFor="linkedin-about" label="About" required />
+              <Textarea
+                id="linkedin-about"
+                value={config.profile.about}
+                onChange={(event) => setConfig((prev) => ({ ...prev, profile: { ...prev.profile, about: event.target.value } }))}
+                required
+              />
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-goals" label="Goals (one per line)" />
+                <Textarea
+                  id="linkedin-goals"
+                  value={toLines(config.profile.goals)}
+                  onChange={(event) => setConfig((prev) => ({ ...prev, profile: { ...prev.profile, goals: fromLines(event.target.value) } }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-location" label="Location" />
+                <Input
+                  id="linkedin-location"
+                  value={config.profile.location || ""}
+                  onChange={(event) => setConfig((prev) => ({ ...prev, profile: { ...prev.profile, location: event.target.value } }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-tone" label="Voice Tone" required />
+                <Input
+                  id="linkedin-tone"
+                  value={config.profile.voiceStyle.tone}
+                  onChange={(event) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      profile: {
+                        ...prev.profile,
+                        voiceStyle: {
+                          ...prev.profile.voiceStyle,
+                          tone: event.target.value
+                        }
+                      }
+                    }))
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-length" label="Post Length" required />
+                <Select
+                  id="linkedin-length"
+                  value={config.profile.voiceStyle.length}
+                  onChange={(event) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      profile: {
+                        ...prev.profile,
+                        voiceStyle: {
+                          ...prev.profile.voiceStyle,
+                          length: event.target.value
+                        }
+                      }
+                    }))
+                  }
+                >
+                  <option value="Short">Short</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Long">Long</option>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-do" label="Do List (one per line)" />
+                <Textarea
+                  id="linkedin-do"
+                  value={toLines(config.profile.voiceStyle.dos)}
+                  onChange={(event) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      profile: {
+                        ...prev.profile,
+                        voiceStyle: {
+                          ...prev.profile.voiceStyle,
+                          dos: fromLines(event.target.value)
+                        }
+                      }
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-dont" label="Don't List (one per line)" />
+                <Textarea
+                  id="linkedin-dont"
+                  value={toLines(config.profile.voiceStyle.donts)}
+                  onChange={(event) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      profile: {
+                        ...prev.profile,
+                        voiceStyle: {
+                          ...prev.profile.voiceStyle,
+                          donts: fromLines(event.target.value)
+                        }
+                      }
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setProfileVoiceOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={savingConfig}>
+                {savingConfig ? "Saving..." : "Save Profile + Voice"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={companiesOpen} onOpenChange={setCompaniesOpen}>
+        <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-4xl">
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveConfigAndClose(setCompaniesOpen);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Edit Target Companies</DialogTitle>
+              <DialogDescription>Manage the company pool used by LinkedIn draft generation.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              {config.targeting.companies.map((company, index) => (
+                <div key={`${company.name}-${index}`} className="grid gap-2 rounded-xl border border-border/70 bg-card/70 p-3 md:grid-cols-5">
+                  <Input placeholder="Company" value={company.name} onChange={(event) => updateCompany(index, "name", event.target.value)} />
+                  <Input placeholder="Website" value={company.website || ""} onChange={(event) => updateCompany(index, "website", event.target.value)} />
+                  <Input
+                    placeholder="Priority 1-5"
+                    type="number"
+                    value={company.priority ?? 1}
+                    onChange={(event) => updateCompany(index, "priority", event.target.value)}
+                  />
+                  <Input
+                    placeholder="Rotation weight"
+                    type="number"
+                    value={company.rotationWeight ?? 1}
+                    onChange={(event) => updateCompany(index, "rotationWeight", event.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <Input placeholder="Notes" value={company.notes || ""} onChange={(event) => updateCompany(index, "notes", event.target.value)} />
+                    <Button type="button" variant="outline" onClick={() => removeCompany(index)}>
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={openCompanyDialog}>
+                <CirclePlus className="h-4 w-4" />
+                Add Company
+              </Button>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCompaniesOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={savingConfig}>
+                {savingConfig ? "Saving..." : "Save Companies"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={targetingOpen} onOpenChange={setTargetingOpen}>
+        <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-4xl">
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveConfigAndClose(setTargetingOpen);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Edit Targeting + Cadence</DialogTitle>
+              <DialogDescription>Configure lists and automation cadence behavior.</DialogDescription>
+            </DialogHeader>
+
             <div className="grid gap-3 md:grid-cols-3">
-              <Textarea placeholder="Industries (one per line)" value={industriesText} onChange={(event) => setIndustriesText(event.target.value)} />
-              <Textarea placeholder="Technologies (one per line)" value={technologiesText} onChange={(event) => setTechnologiesText(event.target.value)} />
-              <Textarea placeholder="Pillars (one per line)" value={pillarsText} onChange={(event) => setPillarsText(event.target.value)} />
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-industries" label="Industries (one per line)" />
+                <Textarea id="linkedin-industries" value={industriesText} onChange={(event) => setIndustriesText(event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-technologies" label="Technologies (one per line)" />
+                <Textarea id="linkedin-technologies" value={technologiesText} onChange={(event) => setTechnologiesText(event.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-pillars" label="Pillars (one per line)" />
+                <Textarea id="linkedin-pillars" value={pillarsText} onChange={(event) => setPillarsText(event.target.value)} />
+              </div>
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
               <div className="space-y-2">
-                <Label>Cadence days</Label>
+                <AdminFieldLabel label="Cadence Days" />
                 <div className="flex flex-wrap gap-2">
                   {cadenceOptions.map((option) => {
                     const active = config.settings.cadenceDaysOfWeek.includes(option.key);
@@ -717,10 +1049,10 @@ export function LinkedinStudioManager() {
                   })}
                 </div>
               </div>
-
               <div className="space-y-2">
-                <Label>Reminder time</Label>
+                <AdminFieldLabel htmlFor="linkedin-reminder-time" label="Reminder Time" required />
                 <Input
+                  id="linkedin-reminder-time"
                   type="time"
                   value={config.settings.reminderTimeLocal}
                   onChange={(event) =>
@@ -729,12 +1061,13 @@ export function LinkedinStudioManager() {
                       settings: { ...prev.settings, reminderTimeLocal: event.target.value }
                     }))
                   }
+                  required
                 />
               </div>
-
               <div className="space-y-2">
-                <Label>Timezone</Label>
+                <AdminFieldLabel htmlFor="linkedin-timezone" label="Timezone" required />
                 <Input
+                  id="linkedin-timezone"
                   value={config.settings.timezone}
                   onChange={(event) =>
                     setConfig((prev) => ({
@@ -742,6 +1075,7 @@ export function LinkedinStudioManager() {
                       settings: { ...prev.settings, timezone: event.target.value }
                     }))
                   }
+                  required
                 />
               </div>
             </div>
@@ -804,147 +1138,317 @@ export function LinkedinStudioManager() {
                 Auto-share LinkedIn
               </label>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Experience Context</CardTitle>
-            <CardDescription>Used by AI generation to keep posts truthful to your background.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {config.experience.map((entry, index) => (
-              <div key={`${entry.roleTitle}-${index}`} className="space-y-2 rounded-xl border border-border/70 bg-card/70 p-3">
-                <div className="grid gap-2 md:grid-cols-3">
-                  <Input placeholder="Role title" value={entry.roleTitle} onChange={(event) => updateExperience(index, "roleTitle", event.target.value)} />
-                  <Input placeholder="Company" value={entry.company} onChange={(event) => updateExperience(index, "company", event.target.value)} />
-                  <Input placeholder="Industry" value={entry.industry || ""} onChange={(event) => updateExperience(index, "industry", event.target.value)} />
-                </div>
-                <div className="grid gap-2 md:grid-cols-2">
-                  <Input placeholder="Start date" value={entry.startDate || ""} onChange={(event) => updateExperience(index, "startDate", event.target.value)} />
-                  <Input placeholder="End date" value={entry.endDate || ""} onChange={(event) => updateExperience(index, "endDate", event.target.value)} />
-                </div>
-                <Textarea
-                  placeholder="Bullets (one per line)"
-                  value={toLines(entry.bullets)}
-                  onChange={(event) => updateExperience(index, "bullets", event.target.value)}
-                />
-                <Input
-                  placeholder="Technologies (comma separated)"
-                  value={entry.technologies.join(", ")}
-                  onChange={(event) => updateExperience(index, "technologies", event.target.value)}
-                />
-                <Textarea
-                  placeholder="Lessons learned (one per line)"
-                  value={toLines(entry.lessonsLearned)}
-                  onChange={(event) => updateExperience(index, "lessonsLearned", event.target.value)}
-                />
-                <Button type="button" variant="outline" onClick={() => removeExperience(index)}>
-                  Remove Experience
-                </Button>
-              </div>
-            ))}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setTargetingOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={savingConfig}>
+                {savingConfig ? "Saving..." : "Save Targeting"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-            <Button type="button" variant="outline" onClick={addExperience}>
+      <Dialog open={experienceConfigOpen} onOpenChange={setExperienceConfigOpen}>
+        <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-4xl">
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveConfigAndClose(setExperienceConfigOpen);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Edit Experience Context</DialogTitle>
+              <DialogDescription>Maintain experience records used by the generator for factual context.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              {config.experience.map((entry, index) => (
+                <div key={`${entry.roleTitle}-${index}`} className="space-y-2 rounded-xl border border-border/70 bg-card/70 p-3">
+                  <div className="grid gap-2 md:grid-cols-3">
+                    <Input placeholder="Role title" value={entry.roleTitle} onChange={(event) => updateExperience(index, "roleTitle", event.target.value)} />
+                    <Input placeholder="Company" value={entry.company} onChange={(event) => updateExperience(index, "company", event.target.value)} />
+                    <Input placeholder="Industry" value={entry.industry || ""} onChange={(event) => updateExperience(index, "industry", event.target.value)} />
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <Input placeholder="Start date" value={entry.startDate || ""} onChange={(event) => updateExperience(index, "startDate", event.target.value)} />
+                    <Input placeholder="End date" value={entry.endDate || ""} onChange={(event) => updateExperience(index, "endDate", event.target.value)} />
+                  </div>
+                  <Textarea
+                    placeholder="Bullets (one per line)"
+                    value={toLines(entry.bullets)}
+                    onChange={(event) => updateExperience(index, "bullets", event.target.value)}
+                  />
+                  <Input
+                    placeholder="Technologies (comma separated)"
+                    value={entry.technologies.join(", ")}
+                    onChange={(event) => updateExperience(index, "technologies", event.target.value)}
+                  />
+                  <Textarea
+                    placeholder="Lessons learned (one per line)"
+                    value={toLines(entry.lessonsLearned)}
+                    onChange={(event) => updateExperience(index, "lessonsLearned", event.target.value)}
+                  />
+                  <Button type="button" variant="outline" onClick={() => removeExperience(index)}>
+                    Remove Experience
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            <Button type="button" variant="outline" onClick={openExperienceDialog}>
+              <CirclePlus className="h-4 w-4" />
               Add Experience
             </Button>
 
-            <div>
-              <Button type="submit" disabled={savingConfig}>
-                {savingConfig ? "Saving..." : "Save LinkedIn Studio Setup"}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setExperienceConfigOpen(false)}>
+                Cancel
               </Button>
+              <Button type="submit" disabled={savingConfig}>
+                {savingConfig ? "Saving..." : "Save Experience Context"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
+        <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-2xl">
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void generatePost();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Generate LinkedIn Draft</DialogTitle>
+              <DialogDescription>
+                Leave optional overrides empty to use auto-selection from your current targeting setup.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-manual-company" label="Manual Company" helper="Optional override." />
+                <Input
+                  id="linkedin-manual-company"
+                  placeholder="Optional company"
+                  value={manualCompany}
+                  onChange={(event) => setManualCompany(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-manual-topic" label="Manual Topic" helper="Optional override." />
+                <Input
+                  id="linkedin-manual-topic"
+                  placeholder="Optional topic"
+                  value={manualTopic}
+                  onChange={(event) => setManualTopic(event.target.value)}
+                />
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </form>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Drafts</CardTitle>
-            <CardDescription>Select a draft to inspect version history and refine.</CardDescription>
-          </CardHeader>
-          <CardContent className="max-h-[32rem] space-y-2 overflow-auto pr-1 text-sm">
-            {posts.map((post) => (
-              <button
-                key={post.id}
-                type="button"
-                className={`w-full rounded-xl border px-3 py-3 text-left transition ${
-                  selectedPostId === post.id ? "border-primary bg-primary/10" : "border-border/70 bg-card/70 hover:border-primary"
-                }`}
-                onClick={async () => {
-                  setSelectedPostId(post.id);
-                  await loadPostDetail(post.id);
-                }}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium">{post.title || post.selectedCompany}</p>
-                  <Badge variant="secondary">{post.status}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{post.selectedCompany} · {post.selectedTopics.join(", ")}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{post.createdAt ? formatDate(post.createdAt) : ""}</p>
-              </button>
-            ))}
-            {!posts.length ? <p className="text-muted-foreground">No drafts yet.</p> : null}
-          </CardContent>
-        </Card>
+            <div className="space-y-2">
+              <AdminFieldLabel htmlFor="linkedin-manual-pillar" label="Manual Pillar" helper="Optional override." />
+              <Input
+                id="linkedin-manual-pillar"
+                placeholder="Optional pillar"
+                value={manualPillar}
+                onChange={(event) => setManualPillar(event.target.value)}
+              />
+            </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Selected Draft</CardTitle>
-            <CardDescription>Refine, publish, and review versions.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {loadingPost ? (
-              <p className="text-muted-foreground">Loading draft...</p>
-            ) : selectedPost ? (
-              <>
-                <div className="rounded-xl border border-border/70 bg-card/70 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-medium">{selectedPost.title}</p>
-                    <Badge variant="secondary">{selectedPost.status}</Badge>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{selectedPost.selectedCompany}</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-7">{selectedPost.finalText}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">#{selectedPost.hashtags.join(" #")}</p>
-                </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setGenerateOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={generating}>
+                <WandSparkles className="h-4 w-4" />
+                {generating ? "Generating..." : "Generate Draft"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-                <div className="space-y-2">
-                  <Label>Refinement feedback</Label>
-                  <Textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} placeholder="Tighten intro and emphasize measurable outcomes." />
-                </div>
+      <Dialog open={companyOpen} onOpenChange={setCompanyOpen}>
+        <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-2xl">
+          <form onSubmit={saveCompanyDraft} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Add Target Company</DialogTitle>
+              <DialogDescription>Add a reusable company profile for auto-selection and routing priority.</DialogDescription>
+            </DialogHeader>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={refineSelectedPost} disabled={refining}>
-                    {refining ? "Refining..." : "Refine + New Version"}
-                  </Button>
-                  <Button variant="outline" onClick={publishSelectedPost} disabled={publishing}>
-                    {publishing ? "Publishing..." : "Mark Published"}
-                  </Button>
-                </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-company-name" label="Company Name" required />
+                <Input
+                  id="linkedin-company-name"
+                  value={companyDraft.name}
+                  onChange={(event) => setCompanyDraft((prev) => ({ ...prev, name: event.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-company-website" label="Website" />
+                <Input
+                  id="linkedin-company-website"
+                  value={companyDraft.website || ""}
+                  onChange={(event) => setCompanyDraft((prev) => ({ ...prev, website: event.target.value }))}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
 
-                <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Version History</p>
-                  <div className="max-h-48 space-y-2 overflow-auto pr-1">
-                    {versions.map((version) => (
-                      <div key={version.id} className="rounded-xl border border-border/70 bg-card/70 p-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-medium">Version {version.versionNumber}</p>
-                          <p className="text-xs text-muted-foreground">{version.createdAt ? formatDate(version.createdAt) : ""}</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{version.feedbackApplied || "No feedback"}</p>
-                      </div>
-                    ))}
-                    {!versions.length ? <p className="text-muted-foreground">No versions yet.</p> : null}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p className="text-muted-foreground">Select a draft to inspect details.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-company-priority" label="Priority" required helper="Higher priority can be favored in selection." />
+                <Input
+                  id="linkedin-company-priority"
+                  type="number"
+                  min={1}
+                  value={companyDraft.priority ?? 1}
+                  onChange={(event) => setCompanyDraft((prev) => ({ ...prev, priority: Number(event.target.value || 1) }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-company-weight" label="Rotation Weight" required />
+                <Input
+                  id="linkedin-company-weight"
+                  type="number"
+                  min={1}
+                  value={companyDraft.rotationWeight ?? 1}
+                  onChange={(event) => setCompanyDraft((prev) => ({ ...prev, rotationWeight: Number(event.target.value || 1) }))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <AdminFieldLabel htmlFor="linkedin-company-notes" label="Notes" />
+              <Textarea
+                id="linkedin-company-notes"
+                value={companyDraft.notes || ""}
+                onChange={(event) => setCompanyDraft((prev) => ({ ...prev, notes: event.target.value }))}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCompanyOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Add Company</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={experienceOpen} onOpenChange={setExperienceOpen}>
+        <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-3xl">
+          <form onSubmit={saveExperienceDraft} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Add Experience Context</DialogTitle>
+              <DialogDescription>Add truthful career context that can be reused in generated posts.</DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-experience-role" label="Role Title" required />
+                <Input
+                  id="linkedin-experience-role"
+                  value={experienceDraft.roleTitle}
+                  onChange={(event) => setExperienceDraft((prev) => ({ ...prev, roleTitle: event.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-experience-company" label="Company" required />
+                <Input
+                  id="linkedin-experience-company"
+                  value={experienceDraft.company}
+                  onChange={(event) => setExperienceDraft((prev) => ({ ...prev, company: event.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-experience-industry" label="Industry" />
+                <Input
+                  id="linkedin-experience-industry"
+                  value={experienceDraft.industry || ""}
+                  onChange={(event) => setExperienceDraft((prev) => ({ ...prev, industry: event.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-experience-start" label="Start Date" helper="Defaults to current year." />
+                <Input
+                  id="linkedin-experience-start"
+                  value={experienceDraft.startDate || ""}
+                  onChange={(event) => setExperienceDraft((prev) => ({ ...prev, startDate: event.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <AdminFieldLabel htmlFor="linkedin-experience-end" label="End Date" />
+                <Input
+                  id="linkedin-experience-end"
+                  value={experienceDraft.endDate || ""}
+                  onChange={(event) => setExperienceDraft((prev) => ({ ...prev, endDate: event.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <AdminFieldLabel htmlFor="linkedin-experience-bullets" label="Bullets (one per line)" />
+              <Textarea
+                id="linkedin-experience-bullets"
+                value={toLines(experienceDraft.bullets)}
+                onChange={(event) => setExperienceDraft((prev) => ({ ...prev, bullets: fromLines(event.target.value) }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <AdminFieldLabel htmlFor="linkedin-experience-tech" label="Technologies (comma separated)" />
+              <Input
+                id="linkedin-experience-tech"
+                value={experienceDraft.technologies.join(", ")}
+                onChange={(event) =>
+                  setExperienceDraft((prev) => ({
+                    ...prev,
+                    technologies: event.target.value
+                      .split(",")
+                      .map((item) => item.trim())
+                      .filter(Boolean)
+                  }))
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <AdminFieldLabel htmlFor="linkedin-experience-lessons" label="Lessons Learned (one per line)" />
+              <Textarea
+                id="linkedin-experience-lessons"
+                value={toLines(experienceDraft.lessonsLearned)}
+                onChange={(event) => setExperienceDraft((prev) => ({ ...prev, lessonsLearned: fromLines(event.target.value) }))}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setExperienceOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Add Experience</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

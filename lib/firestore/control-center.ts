@@ -215,7 +215,7 @@ export async function getControlCenterSummary(): Promise<ControlCenterSummary> {
     linkedinProfileSnap
   ] = await Promise.all([
     adminDb.collection("analyticsEvents").where("createdAt", ">=", last90d).get(),
-    adminDb.collection("projects").get(),
+    adminDb.collection("projects").where("status", "in", ["draft", "published", "hidden"]).get(),
     adminDb.collection("blogPosts").get(),
     adminDb.collection("contentItems").get(),
     adminDb.collection("bookings").where("startAt", ">=", now).get(),

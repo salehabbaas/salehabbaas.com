@@ -59,6 +59,7 @@ const navIconMap: Record<AdminNavIcon, LucideIcon> = {
   "cms-media": ActivitySquare,
   creator: ActivitySquare,
   linkedin: Linkedin,
+  "project-management": FolderKanban,
   "job-tracker": BriefcaseBusiness,
   bookings: CalendarRange,
   settings: Settings,
@@ -97,7 +98,8 @@ const navIconToneMap: Record<AdminNavIcon, NavTone> = {
   "cms-social": "accent",
   "cms-media": "accent",
   creator: "accent",
-  linkedin: "accent",
+  linkedin: "warning",
+  "project-management": "warning",
   "job-tracker": "warning",
   bookings: "warning",
   settings: "success",
@@ -255,12 +257,15 @@ function AdminNavigationList({
                         title={item.label}
                         aria-label={item.label}
                         className={cn(
-                          "flex items-center justify-center rounded-xl border p-2.5 transition-colors",
+                          "group relative flex items-center justify-center rounded-xl border p-2.5 transition-colors",
                           active ? `${toneStyles.activeItem} text-foreground shadow-elev1` : `border-border/60 bg-card/50 text-foreground/85 ${toneStyles.hoverItem} hover:bg-card`
                         )}
                       >
                         <span className={cn("rounded-lg border p-1.5", active ? toneStyles.activeIcon : toneStyles.idleIcon)}>
                           <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-background/85 px-1 text-center text-[10px] font-semibold leading-tight text-foreground opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+                          {item.label}
                         </span>
                         <span className="sr-only">{item.label}</span>
                       </Link>

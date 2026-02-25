@@ -6,11 +6,11 @@ import { addDoc, collection } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import Link from "next/link";
 
+import { AdminFieldLabel } from "@/components/admin/admin-field-label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { db, storage } from "@/lib/firebase/client";
 import type { ProfileContent } from "@/types/cms";
@@ -139,34 +139,34 @@ export function CmsProfileManager() {
             {step === "form" ? (
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label>Name</Label>
-                  <Input value={draft.name} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} required />
+                  <AdminFieldLabel htmlFor="profile-name" label="Name" required />
+                  <Input id="profile-name" value={draft.name} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} required />
                 </div>
                 <div className="space-y-2">
-                  <Label>Headline</Label>
-                  <Input value={draft.headline} onChange={(event) => setDraft((prev) => ({ ...prev, headline: event.target.value }))} required />
+                  <AdminFieldLabel htmlFor="profile-headline" label="Headline" required />
+                  <Input id="profile-headline" value={draft.headline} onChange={(event) => setDraft((prev) => ({ ...prev, headline: event.target.value }))} required />
                 </div>
                 <div className="space-y-2">
-                  <Label>Bio</Label>
-                  <Textarea value={draft.bio} onChange={(event) => setDraft((prev) => ({ ...prev, bio: event.target.value }))} />
+                  <AdminFieldLabel htmlFor="profile-bio" label="Bio" />
+                  <Textarea id="profile-bio" value={draft.bio} onChange={(event) => setDraft((prev) => ({ ...prev, bio: event.target.value }))} />
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Location</Label>
-                    <Input value={draft.location} onChange={(event) => setDraft((prev) => ({ ...prev, location: event.target.value }))} />
+                    <AdminFieldLabel htmlFor="profile-location" label="Location" />
+                    <Input id="profile-location" value={draft.location} onChange={(event) => setDraft((prev) => ({ ...prev, location: event.target.value }))} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Email</Label>
-                    <Input value={draft.email} onChange={(event) => setDraft((prev) => ({ ...prev, email: event.target.value }))} />
+                    <AdminFieldLabel htmlFor="profile-email" label="Email" />
+                    <Input id="profile-email" value={draft.email} onChange={(event) => setDraft((prev) => ({ ...prev, email: event.target.value }))} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Resume URL</Label>
-                  <Input value={draft.resumeUrl} onChange={(event) => setDraft((prev) => ({ ...prev, resumeUrl: event.target.value }))} />
+                  <AdminFieldLabel htmlFor="profile-resume-url" label="Resume URL" />
+                  <Input id="profile-resume-url" value={draft.resumeUrl} onChange={(event) => setDraft((prev) => ({ ...prev, resumeUrl: event.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Avatar URL</Label>
-                  <Input value={draft.avatarUrl} onChange={(event) => setDraft((prev) => ({ ...prev, avatarUrl: event.target.value }))} />
+                  <AdminFieldLabel htmlFor="profile-avatar-url" label="Avatar URL" />
+                  <Input id="profile-avatar-url" value={draft.avatarUrl} onChange={(event) => setDraft((prev) => ({ ...prev, avatarUrl: event.target.value }))} />
                   <div className="space-y-2">
                     <Input
                       type="file"

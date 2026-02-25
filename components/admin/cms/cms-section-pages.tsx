@@ -3,6 +3,14 @@
 import { Badge } from "@/components/ui/badge";
 import { CmsCollectionManager } from "@/components/admin/cms/cms-collection-manager";
 
+const cmsProjectFilters = [
+  {
+    field: "status",
+    operator: "in" as const,
+    value: ["draft", "published", "hidden"]
+  }
+];
+
 export function CmsProjectsPage() {
   return (
     <CmsCollectionManager
@@ -11,6 +19,7 @@ export function CmsProjectsPage() {
       collectionName="projects"
       orderField="sortOrder"
       orderDirection="asc"
+      filters={cmsProjectFilters}
       statusField="status"
       slugField="slug"
       getSiteHref={(row) => {

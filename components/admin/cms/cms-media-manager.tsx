@@ -4,8 +4,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { addDoc, collection, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
+import { AdminFieldLabel } from "@/components/admin/admin-field-label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { db, storage } from "@/lib/firebase/client";
@@ -24,6 +26,7 @@ export function CmsMediaManager() {
   const [rows, setRows] = useState<MediaRow[]>([]);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, "mediaAssets"), orderBy("createdAt", "desc")), (snap) => {
@@ -60,6 +63,7 @@ export function CmsMediaManager() {
         createdAt: serverTimestamp()
       });
       setFile(null);
+      setUploadOpen(false);
       setMessage("Media uploaded.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Upload failed.");
@@ -76,13 +80,8 @@ export function CmsMediaManager() {
           <CardDescription>Single media library used by all CMS owner pages.</CardDescription>
           {message ? <p className="text-sm text-primary">{message}</p> : null}
         </CardHeader>
-        <CardContent>
-          <form onSubmit={onUpload} className="flex flex-wrap items-center gap-3">
-            <Input type="file" accept="image/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
-            <Button type="submit" disabled={!file || uploading}>
-              {uploading ? "Uploading..." : "Upload"}
-            </Button>
-          </form>
+        <CardContent className="pt-0">
+          <Button onClick={() => setUploadOpen(true)}>Upload Media</Button>
         </CardContent>
       </Card>
 
@@ -118,6 +117,29 @@ export function CmsMediaManager() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <form onSubmit={onUpload} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Upload Media</DialogTitle>
+              <DialogDescription>Select an image file and upload it into the shared media library.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <AdminFieldLabel htmlFor="media-upload-file" label="Image File" required />
+              <Input id="media-upload-file" type="file" accept="image/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setUploadOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!file || uploading}>
+                {uploading ? "Uploading..." : "Upload"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

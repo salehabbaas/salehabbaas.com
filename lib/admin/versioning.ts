@@ -8,7 +8,7 @@ import type { AdminRequestContext } from "@/lib/admin/request-context";
 
 export async function captureSiteSnapshot(actor: DecodedIdToken | null, note?: string, context?: Partial<AdminRequestContext>) {
   const [projectsSnap, blogSnap, contentItemsSnap, bookingsSnap, jobsSnap, linkedinSnap] = await Promise.all([
-    adminDb.collection("projects").get(),
+    adminDb.collection("projects").where("status", "in", ["draft", "published", "hidden"]).get(),
     adminDb.collection("blogPosts").get(),
     adminDb.collection("contentItems").get(),
     adminDb.collection("bookings").get(),

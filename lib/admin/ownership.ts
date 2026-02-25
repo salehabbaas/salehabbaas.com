@@ -14,6 +14,9 @@ export const adminPageOwnership: Record<string, string[]> = {
 
   "/admin/creator": ["creator.workflow"],
   "/admin/linkedin-studio": ["linkedin.workflow"],
+  "/admin/projects": ["projects.dashboard"],
+  "/admin/projects/[projectId]": ["projects.board"],
+  "/admin/projects/[projectId]/settings": ["projects.settings"],
   "/admin/job-tracker": ["jobs.tracker"],
   "/admin/bookings": ["bookings.management"],
 

@@ -46,6 +46,7 @@ export type AdminNavIcon =
   | "cms-media"
   | "creator"
   | "linkedin"
+  | "project-management"
   | "job-tracker"
   | "bookings"
   | "settings"
@@ -161,7 +162,13 @@ export const adminNavigation: AdminNavigationItem[] = [
     href: "/admin/linkedin-studio",
     label: "LinkedIn",
     icon: "linkedin",
-    section: "content"
+    section: "operations"
+  },
+  {
+    href: "/admin/projects",
+    label: "Projects",
+    icon: "project-management",
+    section: "operations"
   },
   {
     href: "/admin/job-tracker",

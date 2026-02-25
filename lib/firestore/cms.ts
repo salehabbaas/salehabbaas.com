@@ -118,6 +118,8 @@ export async function getProjects(options?: { publishedOnly?: boolean }): Promis
   let query: Query<DocumentData> = adminDb.collection("projects");
   if (options?.publishedOnly) {
     query = query.where("status", "==", "published");
+  } else {
+    query = query.where("status", "in", ["draft", "published", "hidden"]);
   }
 
   const snap = await query.orderBy("sortOrder", "asc").get();
