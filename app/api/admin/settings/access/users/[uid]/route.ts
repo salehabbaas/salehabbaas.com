@@ -6,17 +6,21 @@ import {
   getAdminUserAccess,
   getInviteExpiryDate,
   sanitizeModuleAccessInput,
-  sanitizeProjectRoleMap
+  sanitizeProjectRoleMap,
 } from "@/lib/admin/access";
 import { writeAdminAuditLog } from "@/lib/admin/audit";
 import { getAdminRequestContext } from "@/lib/admin/request-context";
 import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
-import { type AdminUserStatus, type ModuleAccessMap, type ProjectRoleMap } from "@/types/admin-access";
+import {
+  type AdminUserStatus,
+  type ModuleAccessMap,
+  type ProjectRoleMap,
+} from "@/types/admin-access";
 
 const projectRoleSchema = z.object({
   projectId: z.string().trim().min(1),
-  role: z.enum(["viewer", "editor"])
+  role: z.enum(["viewer", "editor"]),
 });
 
 const moduleAccessPatchSchema = z
@@ -31,7 +35,7 @@ const moduleAccessPatchSchema = z
     bookings: z.boolean().optional(),
     settings: z.boolean().optional(),
     agent: z.boolean().optional(),
-    salehOsChat: z.boolean().optional()
+    salehOsChat: z.boolean().optional(),
   })
   .partial();
 
@@ -41,11 +45,13 @@ const bodySchema = z
     status: z.enum(["invited", "active", "revoked"]).optional(),
     moduleAccess: moduleAccessPatchSchema.optional(),
     projectRoles: z.array(projectRoleSchema).max(200).optional(),
-    displayName: z.string().trim().max(180).optional()
+    displayName: z.string().trim().max(180).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, "No updates provided");
 
-function toProjectRoleMap(rows: Array<{ projectId: string; role: "viewer" | "editor" }> | undefined): ProjectRoleMap {
+function toProjectRoleMap(
+  rows: Array<{ projectId: string; role: "viewer" | "editor" }> | undefined,
+): ProjectRoleMap {
   const map: ProjectRoleMap = {};
   (rows ?? []).forEach((row) => {
     const projectId = row.projectId.trim();
@@ -55,7 +61,10 @@ function toProjectRoleMap(rows: Array<{ projectId: string; role: "viewer" | "edi
   return sanitizeProjectRoleMap(map);
 }
 
-function mergeModuleAccess(current: ModuleAccessMap, patch: Partial<ModuleAccessMap> | undefined) {
+function mergeModuleAccess(
+  current: ModuleAccessMap,
+  patch: Partial<ModuleAccessMap> | undefined,
+) {
   const merged = { ...current };
   Object.entries(patch ?? {}).forEach(([key, value]) => {
     if (typeof value === "boolean") {
@@ -68,10 +77,18 @@ function mergeModuleAccess(current: ModuleAccessMap, patch: Partial<ModuleAccess
 async function findInvalidProjectRoles(projectRoles: ProjectRoleMap) {
   const projectIds = Object.keys(projectRoles);
   if (!projectIds.length) return [] as string[];
-  const snaps = await Promise.all(projectIds.map((projectId) => adminDb.collection("projects").doc(projectId).get()));
+  const snaps = await Promise.all(
+    projectIds.map((projectId) =>
+      adminDb.collection("projects").doc(projectId).get(),
+    ),
+  );
 
   return snaps
-    .filter((snap) => !snap.exists || String(snap.data()?.module ?? "") !== "project-management")
+    .filter(
+      (snap) =>
+        !snap.exists ||
+        String(snap.data()?.module ?? "") !== "project-management",
+    )
     .map((snap) => snap.id);
 }
 
@@ -85,7 +102,7 @@ function applyStatusMetadata(input: {
       inviteSentAt: null,
       inviteExpiresAt: null,
       revokedAt: input.now,
-      acceptedAt: input.currentStatus === "active" ? null : undefined
+      ...(input.currentStatus === "active" ? { acceptedAt: null } : {}),
     };
   }
 
@@ -94,13 +111,13 @@ function applyStatusMetadata(input: {
       inviteSentAt: input.now,
       inviteExpiresAt: getInviteExpiryDate(input.now),
       revokedAt: null,
-      acceptedAt: null
+      acceptedAt: null,
     };
   }
 
   return {
     revokedAt: null,
-    acceptedAt: input.currentStatus === "active" ? undefined : input.now
+    ...(input.currentStatus === "active" ? {} : { acceptedAt: input.now }),
   };
 }
 
@@ -110,7 +127,7 @@ async function setAdminClaim(uid: string, enabled: boolean) {
 
   await adminAuth.setCustomUserClaims(uid, {
     ...(authUser.customClaims ?? {}),
-    admin: enabled
+    admin: enabled,
   });
 
   if (!enabled) {
@@ -118,9 +135,15 @@ async function setAdminClaim(uid: string, enabled: boolean) {
   }
 }
 
-export async function PATCH(request: Request, context: { params: Promise<{ uid: string }> }) {
-  const actor = await verifyAdminSessionFromCookie({ requiredModule: "settings" });
-  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ uid: string }> },
+) {
+  const actor = await verifyAdminSessionFromCookie({
+    requiredModule: "settings",
+  });
+  if (!actor)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const requestContext = getAdminRequestContext(request);
 
   const { uid } = await context.params;
@@ -134,15 +157,24 @@ export async function PATCH(request: Request, context: { params: Promise<{ uid: 
 
     const ownerImmutableFieldsTouched =
       target.role === "owner" &&
-      (body.role !== undefined || body.status !== undefined || body.moduleAccess !== undefined || body.projectRoles !== undefined);
+      (body.role !== undefined ||
+        body.status !== undefined ||
+        body.moduleAccess !== undefined ||
+        body.projectRoles !== undefined);
 
     if (ownerImmutableFieldsTouched) {
-      return NextResponse.json({ error: "Owner access is immutable." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Owner access is immutable." },
+        { status: 400 },
+      );
     }
 
-    const role = target.role === "owner" ? "owner" : body.role ?? target.role;
+    const role = target.role === "owner" ? "owner" : (body.role ?? target.role);
     const nextStatus = body.status ?? target.status;
-    const nextModuleAccess = role === "owner" ? sanitizeModuleAccessInput({}, true) : mergeModuleAccess(target.moduleAccess, body.moduleAccess);
+    const nextModuleAccess =
+      role === "owner"
+        ? sanitizeModuleAccessInput({}, true)
+        : mergeModuleAccess(target.moduleAccess, body.moduleAccess);
     const nextProjectRoles =
       role === "owner"
         ? {}
@@ -153,11 +185,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ uid: 
             : target.projectRoles;
 
     if (body.projectRoles) {
-      const invalidProjectRoles = await findInvalidProjectRoles(nextProjectRoles);
+      const invalidProjectRoles =
+        await findInvalidProjectRoles(nextProjectRoles);
       if (invalidProjectRoles.length) {
         return NextResponse.json(
-          { error: `Invalid project role assignments: ${invalidProjectRoles.join(", ")}` },
-          { status: 400 }
+          {
+            error: `Invalid project role assignments: ${invalidProjectRoles.join(", ")}`,
+          },
+          { status: 400 },
         );
       }
     }
@@ -165,31 +200,42 @@ export async function PATCH(request: Request, context: { params: Promise<{ uid: 
     const continuity = await ensureSettingsManagerContinuity({
       targetUid: target.uid,
       nextStatus,
-      nextModuleAccess
+      nextModuleAccess,
     });
     if (!continuity.ok) {
-      return NextResponse.json({ error: "At least one active settings manager must remain." }, { status: 400 });
+      return NextResponse.json(
+        { error: "At least one active settings manager must remain." },
+        { status: 400 },
+      );
     }
 
     const now = new Date();
     const statusFields = applyStatusMetadata({
       currentStatus: target.status,
       nextStatus,
-      now
+      now,
     });
 
-    await adminDb.collection("adminUsers").doc(target.uid).set(
-      {
-        role,
-        status: nextStatus,
-        moduleAccess: role === "owner" ? sanitizeModuleAccessInput({}, true) : nextModuleAccess,
-        projectRoles: role === "owner" ? {} : nextProjectRoles,
-        ...(typeof body.displayName === "string" ? { displayName: body.displayName } : {}),
-        ...statusFields,
-        updatedAt: now
-      },
-      { merge: true }
-    );
+    await adminDb
+      .collection("adminUsers")
+      .doc(target.uid)
+      .set(
+        {
+          role,
+          status: nextStatus,
+          moduleAccess:
+            role === "owner"
+              ? sanitizeModuleAccessInput({}, true)
+              : nextModuleAccess,
+          projectRoles: role === "owner" ? {} : nextProjectRoles,
+          ...(typeof body.displayName === "string"
+            ? { displayName: body.displayName }
+            : {}),
+          ...statusFields,
+          updatedAt: now,
+        },
+        { merge: true },
+      );
 
     if (nextStatus === "revoked") {
       await setAdminClaim(target.uid, false);
@@ -208,21 +254,22 @@ export async function PATCH(request: Request, context: { params: Promise<{ uid: 
           role,
           status: nextStatus,
           moduleAccess: nextModuleAccess,
-          projectRoleCount: Object.keys(nextProjectRoles).length
-        }
+          projectRoleCount: Object.keys(nextProjectRoles).length,
+        },
       },
       actor,
-      requestContext
+      requestContext,
     );
 
     const updated = await getAdminUserAccess(target.uid);
 
     return NextResponse.json({
       success: true,
-      user: updated
+      user: updated,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to update user access";
+    const message =
+      error instanceof Error ? error.message : "Unable to update user access";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
