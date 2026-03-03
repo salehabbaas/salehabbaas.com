@@ -22,3 +22,7 @@ functions/node_modules
 
 .firebase/
 .spm-clones/
+
+# iOS Firebase config (contains API keys)
+**/GoogleService-Info.plist
+!**/GoogleService-Info.example.plist
