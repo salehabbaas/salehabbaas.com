@@ -1,152 +1,80 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
   closestCorners,
-  useDroppable,
-  useSensor,
-  useSensors,
+  defaultDropAnimationSideEffects,
   type DragEndEvent,
-  type DragStartEvent
+  type DragStartEvent,
+  type DropAnimation,
 } from "@dnd-kit/core";
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { CalendarClock, GripVertical, Plus, Settings2 } from "lucide-react";
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { Plus, Settings2 } from "lucide-react";
 import { motion } from "framer-motion";
 
+import { BoardColumn } from "@/components/board/BoardColumn";
+import { CreateTaskModal } from "@/components/board/CreateTaskModal";
+import { BoardSettingsModal } from "@/components/board/BoardSettingsModal";
+import { BoardToolbar } from "@/components/board/BoardToolbar";
+import { FilterPopover } from "@/components/board/FilterPopover";
 import { TaskDrawer } from "@/components/admin/projects/task-drawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  formatDateTime,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useBoardData } from "@/hooks/useBoardData";
+import { useBoardDnDSensors } from "@/hooks/useDnD";
+import { useFilters } from "@/hooks/useFilters";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { priorityIconMap } from "@/lib/project-management/priority-ui";
+import {
   fromDatetimeLocalInput,
-  isTaskOverdue,
   orderColumns,
   parseTagInput,
-  toDatetimeLocalInput
 } from "@/lib/project-management/utils";
 import {
+  priorityLabelMap,
+  priorityRankMap,
   priorityToneMap,
-  type BoardColumn,
-  type BoardDoc,
-  type ProjectDoc,
+  type BoardColumn as BoardColumnDoc,
   type TaskDoc,
-  type TaskPriority
+  type TaskSubtask,
+  type TaskPriority,
 } from "@/types/project-management";
-
-type ProjectBoardPayload = {
-  project: ProjectDoc;
-  board: BoardDoc | null;
-  tasks: TaskDoc[];
-};
 
 type ProjectBoardProps = {
   projectId: string;
 };
 
-type SortableTaskCardProps = {
-  task: TaskDoc;
-  onClick: () => void;
-  onQuickEdit: () => void;
-};
-
-function SortableTaskCard({ task, onClick, onQuickEdit }: SortableTaskCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: task.id,
-    data: {
-      type: "task",
-      task,
-      columnId: task.statusColumnId
-    }
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition
-  };
-
-  return (
-    <div ref={setNodeRef} style={style}>
-      <Card
-        className={`cursor-pointer rounded-2xl border border-border/70 ${isDragging ? "opacity-65" : "opacity-100"}`}
-        onClick={onClick}
-      >
-        <CardContent className="space-y-3 p-3">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium tracking-tight">{task.title}</p>
-            <div
-              className="inline-flex cursor-grab items-center rounded-lg border border-border/70 bg-card/70 p-1.5"
-              {...attributes}
-              {...listeners}
-              onPointerDown={(event) => event.stopPropagation()}
-            >
-              <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Badge className={priorityToneMap[task.priority]}>{task.priority}</Badge>
-            <span className={`text-xs ${isTaskOverdue(task) ? "text-destructive" : "text-muted-foreground"}`}>
-              {task.dueDate ? formatDateTime(task.dueDate) : "No due date"}
-            </span>
-          </div>
-
-          <div className="flex flex-wrap gap-1">
-            {task.labels.slice(0, 4).map((label) => (
-              <span key={`${task.id}-${label}`} className="rounded-full border border-border/70 px-2 py-0.5 text-[11px] text-muted-foreground">
-                {label}
-              </span>
-            ))}
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={(event) => {
-              event.stopPropagation();
-              onQuickEdit();
-            }}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            Quick edit
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function ColumnDroppable({ id, children }: { id: string; children: React.ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `column-${id}` });
-  return (
-    <div ref={setNodeRef} className={`space-y-2 rounded-2xl p-2 transition-colors ${isOver ? "bg-primary/10" : "bg-transparent"}`}>
-      {children}
-    </div>
-  );
-}
-
 function normalizeColumnTasks(tasks: TaskDoc[]) {
   return [...tasks].sort((a, b) => {
-    if (a.orderInColumn !== b.orderInColumn) return a.orderInColumn - b.orderInColumn;
-    if (a.priorityRank !== b.priorityRank) return a.priorityRank - b.priorityRank;
+    if (a.orderInColumn !== b.orderInColumn)
+      return a.orderInColumn - b.orderInColumn;
+    if (a.priorityRank !== b.priorityRank)
+      return a.priorityRank - b.priorityRank;
     return a.title.localeCompare(b.title);
   });
 }
 
-function replaceColumnTasks(all: TaskDoc[], columnId: string, nextColumnTasks: TaskDoc[]) {
+function replaceColumnTasks(
+  all: TaskDoc[],
+  columnId: string,
+  nextColumnTasks: TaskDoc[],
+) {
   const other = all.filter((task) => task.statusColumnId !== columnId);
   return [...other, ...nextColumnTasks];
 }
@@ -156,17 +84,55 @@ function normalizeOrder(tasks: TaskDoc[], columnId: string) {
     .filter((task) => task.statusColumnId === columnId)
     .map((task, index) => ({
       ...task,
-      orderInColumn: index
+      orderInColumn: index,
     }));
 }
 
-export function ProjectBoard({ projectId }: ProjectBoardProps) {
-  const searchParams = useSearchParams();
+function generateColumnId(name: string, existingIds: Set<string>) {
+  const base =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "column";
+  let next = base;
+  let suffix = 2;
+  while (existingIds.has(next)) {
+    next = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  return next;
+}
 
-  const [payload, setPayload] = useState<ProjectBoardPayload | null>(null);
-  const [tasks, setTasks] = useState<TaskDoc[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState("");
+const taskDropAnimation: DropAnimation = {
+  duration: 260,
+  easing: "cubic-bezier(0.18, 0.67, 0.3, 1.02)",
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: "0.45",
+      },
+    },
+  }),
+};
+
+export function ProjectBoard({ projectId }: ProjectBoardProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const boardAreaRef = useRef<HTMLDivElement | null>(null);
+
+  const {
+    payload,
+    setPayload,
+    tasks,
+    setTasks,
+    loading,
+    status,
+    setStatus,
+    loadBoard,
+  } = useBoardData(projectId);
+  const { filters, setFilters, searchInput, setSearchInput, filteredTasks } =
+    useFilters(projectId, tasks);
 
   const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -177,40 +143,29 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("P3");
   const [statusColumnId, setStatusColumnId] = useState("");
+  const [createAssigneeId, setCreateAssigneeId] = useState("");
   const [dueDateInput, setDueDateInput] = useState("");
   const [labelsInput, setLabelsInput] = useState("");
 
-  const [quickEditTask, setQuickEditTask] = useState<TaskDoc | null>(null);
-  const [quickPriority, setQuickPriority] = useState<TaskPriority>("P3");
-  const [quickDueDate, setQuickDueDate] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [inlineCreateColumnId, setInlineCreateColumnId] = useState<
+    string | null
+  >(null);
+  const [addingColumn, setAddingColumn] = useState(false);
+  const [newColumnName, setNewColumnName] = useState("");
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 6
-      }
-    })
-  );
+  const [boardSettings, setBoardSettings] = useState({
+    showLabels: true,
+    showDueDate: true,
+    showSubtasks: true,
+    showComments: true,
+    showPriority: true,
+    showAssignee: true,
+  });
+  const [savingColumns, setSavingColumns] = useState(false);
 
-  const loadBoard = useCallback(async () => {
-    setLoading(true);
-    setStatus("");
-
-    try {
-      const response = await fetch(`/api/admin/projects/${projectId}`, { cache: "no-store" });
-      const data = (await response.json()) as ProjectBoardPayload & { error?: string };
-      if (!response.ok) throw new Error(data.error ?? "Unable to load board");
-      setPayload(data);
-      setTasks(data.tasks ?? []);
-
-      const defaultColumn = orderColumns(data.board?.columns ?? [])[0];
-      if (defaultColumn) setStatusColumnId((prev) => prev || defaultColumn.id);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to load board");
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
+  const sensors = useBoardDnDSensors();
 
   useEffect(() => {
     loadBoard();
@@ -223,26 +178,152 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
 
   const board = payload?.board;
   const project = payload?.project;
-  const orderedColumns = useMemo(() => orderColumns(board?.columns ?? []), [board?.columns]);
+  const members = useMemo(() => payload?.members ?? [], [payload?.members]);
+  const actorUid = payload?.actorUid ?? "";
+  const accessRole = payload?.accessRole ?? null;
+  const canWrite = accessRole === "owner" || accessRole === "editor";
+  const assigneeNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    members.forEach((member) => {
+      map[member.uid] = member.displayName || member.email || member.uid;
+    });
+    return map;
+  }, [members]);
+  const memberOptions = useMemo(
+    () =>
+      members.map((member) => ({
+        uid: member.uid,
+        label: member.displayName || member.email || member.uid,
+      })),
+    [members],
+  );
+  const orderedColumns = useMemo(
+    () => orderColumns(board?.columns ?? []),
+    [board?.columns],
+  );
+
+  useEffect(() => {
+    if (!statusColumnId && orderedColumns.length) {
+      setStatusColumnId(orderedColumns[0].id);
+    }
+  }, [orderedColumns, statusColumnId]);
 
   const tasksByColumn = useMemo(() => {
     const map: Record<string, TaskDoc[]> = {};
     orderedColumns.forEach((column) => {
-      map[column.id] = normalizeColumnTasks(tasks.filter((task) => task.statusColumnId === column.id));
+      map[column.id] = normalizeColumnTasks(
+        filteredTasks.filter((task) => task.statusColumnId === column.id),
+      );
     });
     return map;
-  }, [orderedColumns, tasks]);
+  }, [orderedColumns, filteredTasks]);
 
   const drawerTask = tasks.find((task) => task.id === drawerTaskId) ?? null;
   const activeTask = tasks.find((task) => task.id === activeTaskId) ?? null;
 
+  async function createTaskForColumn(
+    columnId: string,
+    draft: {
+      title: string;
+      priority: TaskPriority;
+      assigneeId?: string;
+      dueDateInput: string;
+    },
+  ) {
+    if (!board || !canWrite) return;
+    const dueDate = fromDatetimeLocalInput(draft.dueDateInput);
+    const nextPriority = draft.priority;
+    const previousTasks = tasks;
+
+    const optimisticId = `tmp-${Date.now().toString(36)}`;
+    const optimisticTask: TaskDoc = {
+      id: optimisticId,
+      projectId,
+      boardId: board.id,
+      title: draft.title,
+      description: "",
+      priority: nextPriority,
+      priorityRank: priorityRankMap[nextPriority],
+      statusColumnId: columnId,
+      dueDate,
+      labels: [],
+      assigneeId: draft.assigneeId || undefined,
+      watchers: [],
+      subtasks: [],
+      comments: [],
+      links: [],
+      startDate: undefined,
+      completedAt: undefined,
+      category: undefined,
+      orderInColumn: 0,
+      reminderConfig: {
+        email24h: true,
+        email1h: true,
+        dailyOverdue: true,
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastMovedAt: new Date().toISOString(),
+    };
+
+    setTasks([
+      ...previousTasks.map((task) =>
+        task.statusColumnId === columnId
+          ? { ...task, orderInColumn: task.orderInColumn + 1 }
+          : task,
+      ),
+      optimisticTask,
+    ]);
+    // Close inline composer immediately so the row never lingers on slower requests.
+    setInlineCreateColumnId(null);
+
+    try {
+      const response = await fetch(`/api/admin/projects/${projectId}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          boardId: board.id,
+          title: draft.title,
+          description: "",
+          priority: nextPriority,
+          statusColumnId: columnId,
+          dueDate,
+          assigneeId: draft.assigneeId || undefined,
+          labels: [],
+          watchers: [],
+        }),
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        taskId?: string;
+        taskKey?: string;
+      };
+      if (!response.ok) throw new Error(data.error ?? "Unable to create task");
+
+      const createdTaskId = data.taskId || optimisticId;
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === optimisticId
+            ? {
+                ...task,
+                id: createdTaskId,
+                taskKey: data.taskKey || task.taskKey,
+              }
+            : task,
+        ),
+      );
+    } catch (error) {
+      setTasks(previousTasks);
+      setStatus(
+        error instanceof Error ? error.message : "Unable to create task",
+      );
+    }
+  }
+
   async function createTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!board) return;
-
+    if (!board || !canWrite) return;
     setCreating(true);
-    setStatus("");
-
     try {
       const response = await fetch(`/api/admin/projects/${projectId}/tasks`, {
         method: "POST",
@@ -255,86 +336,325 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
           statusColumnId,
           dueDate: fromDatetimeLocalInput(dueDateInput),
           labels: parseTagInput(labelsInput),
-          watchers: []
-        })
+          assigneeId: createAssigneeId || undefined,
+          watchers: [],
+        }),
       });
-
-      const data = (await response.json()) as { error?: string };
+      const data = (await response.json()) as {
+        error?: string;
+        taskId?: string;
+        taskKey?: string;
+      };
       if (!response.ok) throw new Error(data.error ?? "Unable to create task");
+
+      setTasks((prev) => [
+        ...prev.map((task) =>
+          task.statusColumnId === statusColumnId
+            ? { ...task, orderInColumn: task.orderInColumn + 1 }
+            : task,
+        ),
+        {
+          id: data.taskId || `tmp-${Date.now().toString(36)}`,
+          taskKey: data.taskKey,
+          projectId,
+          boardId: board.id,
+          title,
+          description,
+          priority,
+          priorityRank: priorityRankMap[priority],
+          statusColumnId,
+          dueDate: fromDatetimeLocalInput(dueDateInput),
+          labels: parseTagInput(labelsInput),
+          assigneeId: createAssigneeId || undefined,
+          watchers: [],
+          subtasks: [],
+          comments: [],
+          links: [],
+          startDate: undefined,
+          completedAt: undefined,
+          category: undefined,
+          orderInColumn: 0,
+          reminderConfig: { email24h: true, email1h: true, dailyOverdue: true },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          lastMovedAt: new Date().toISOString(),
+        },
+      ]);
 
       setCreateOpen(false);
       setTitle("");
       setDescription("");
       setPriority("P3");
+      setCreateAssigneeId("");
       setDueDateInput("");
       setLabelsInput("");
-      await loadBoard();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to create task");
+      setStatus(
+        error instanceof Error ? error.message : "Unable to create task",
+      );
     } finally {
       setCreating(false);
     }
   }
 
-  async function saveQuickEdit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!quickEditTask) return;
+  function mapSubtasksForUpdate(items: TaskSubtask[]) {
+    return items.map((item) => ({
+      id: item.id,
+      title: item.title.trim(),
+      completed: item.completed,
+      assigneeId: item.assigneeId || "",
+      status: item.status || (item.completed ? "done" : "todo"),
+      priority: item.priority || "P3",
+    }));
+  }
 
-    setStatus("");
+  async function updateSubtaskStatus(
+    taskId: string,
+    subtaskId: string,
+    statusValue: "todo" | "in_progress" | "done",
+  ) {
+    if (!canWrite) return;
+    const currentTask = tasks.find((task) => task.id === taskId);
+    if (!currentTask) return;
+
+    const nextSubtasks = currentTask.subtasks.map((item) =>
+      item.id === subtaskId
+        ? {
+            ...item,
+            status: statusValue,
+            completed: statusValue === "done",
+          }
+        : item,
+    );
+
+    const previousTasks = tasks;
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              subtasks: nextSubtasks,
+              updatedAt: new Date().toISOString(),
+            }
+          : task,
+      ),
+    );
 
     try {
-      const response = await fetch(`/api/admin/projects/${projectId}/tasks/${quickEditTask.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          priority: quickPriority,
-          dueDate: fromDatetimeLocalInput(quickDueDate) ?? null
-        })
-      });
-
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error ?? "Unable to update task");
-
-      setQuickEditTask(null);
-      await loadBoard();
+      const response = await fetch(
+        `/api/admin/projects/${projectId}/tasks/${taskId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subtasks: mapSubtasksForUpdate(nextSubtasks),
+          }),
+        },
+      );
+      const data = (await response.json()) as {
+        error?: string;
+        task?: TaskDoc;
+      };
+      if (!response.ok)
+        throw new Error(data.error ?? "Unable to update subtask status");
+      const updatedTask = data.task;
+      if (updatedTask) {
+        setTasks((prev) =>
+          prev.map((task) => (task.id === taskId ? updatedTask : task)),
+        );
+      }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to update task");
+      setTasks(previousTasks);
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to update subtask status",
+      );
     }
   }
 
-  function openQuickEdit(task: TaskDoc) {
-    setQuickEditTask(task);
-    setQuickPriority(task.priority);
-    setQuickDueDate(toDatetimeLocalInput(task.dueDate));
+  async function patchTaskQuick(
+    taskId: string,
+    payload: Record<string, unknown>,
+    optimistic: (task: TaskDoc) => TaskDoc,
+    errorMessage: string,
+  ) {
+    if (!canWrite) return;
+    const previousTasks = tasks;
+    setTasks((prev) =>
+      prev.map((task) => (task.id === taskId ? optimistic(task) : task)),
+    );
+
+    try {
+      const response = await fetch(
+        `/api/admin/projects/${projectId}/tasks/${taskId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      const data = (await response.json()) as {
+        error?: string;
+        task?: TaskDoc;
+      };
+      if (!response.ok) throw new Error(data.error ?? errorMessage);
+      if (data.task) {
+        setTasks((prev) =>
+          prev.map((task) => (task.id === taskId ? data.task! : task)),
+        );
+      }
+    } catch (error) {
+      setTasks(previousTasks);
+      setStatus(error instanceof Error ? error.message : errorMessage);
+    }
+  }
+
+  async function updateTaskPriority(
+    taskId: string,
+    nextPriority: TaskPriority,
+  ) {
+    const current = tasks.find((task) => task.id === taskId);
+    if (!current || current.priority === nextPriority) return;
+    await patchTaskQuick(
+      taskId,
+      { priority: nextPriority },
+      (task) => ({
+        ...task,
+        priority: nextPriority,
+        priorityRank: priorityRankMap[nextPriority],
+        updatedAt: new Date().toISOString(),
+      }),
+      "Unable to update task priority",
+    );
+  }
+
+  async function updateTaskAssignee(taskId: string, nextAssigneeId: string) {
+    const current = tasks.find((task) => task.id === taskId);
+    const normalizedNext = nextAssigneeId || "";
+    const normalizedCurrent = current?.assigneeId || "";
+    if (!current || normalizedCurrent === normalizedNext) return;
+    await patchTaskQuick(
+      taskId,
+      { assigneeId: normalizedNext || null },
+      (task) => ({
+        ...task,
+        assigneeId: normalizedNext || undefined,
+        updatedAt: new Date().toISOString(),
+      }),
+      "Unable to update task assignee",
+    );
+  }
+
+  async function updateTaskDueDate(
+    taskId: string,
+    dueDateInputValue: string | null,
+  ) {
+    const current = tasks.find((task) => task.id === taskId);
+    if (!current) return;
+    const nextDueDate = dueDateInputValue
+      ? (fromDatetimeLocalInput(dueDateInputValue) ?? null)
+      : null;
+    const currentDueDate = current.dueDate || null;
+    if ((currentDueDate || "") === (nextDueDate || "")) return;
+    await patchTaskQuick(
+      taskId,
+      { dueDate: nextDueDate },
+      (task) => ({
+        ...task,
+        dueDate: nextDueDate || undefined,
+        updatedAt: new Date().toISOString(),
+      }),
+      "Unable to update task due date",
+    );
   }
 
   function onDragStart(event: DragStartEvent) {
-    const id = String(event.active.id);
-    setActiveTaskId(id);
+    if (!canWrite) return;
+    const activeType = String(event.active.data.current?.type ?? "");
+    if (activeType === "task") {
+      setActiveTaskId(String(event.active.id));
+      return;
+    }
+    setActiveTaskId(null);
   }
 
-  async function persistReorder(nextTasks: TaskDoc[], updates: Array<{ taskId: string; statusColumnId: string; orderInColumn: number }>, movedTaskId: string, fromColumnId: string, toColumnId: string) {
-    const response = await fetch(`/api/admin/projects/${projectId}/tasks/reorder`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        updates,
-        movedTaskId,
-        fromColumnId,
-        toColumnId
-      })
-    });
-
+  async function persistReorder(
+    nextTasks: TaskDoc[],
+    updates: Array<{
+      taskId: string;
+      statusColumnId: string;
+      orderInColumn: number;
+    }>,
+    movedTaskId: string,
+    fromColumnId: string,
+    toColumnId: string,
+  ) {
+    const response = await fetch(
+      `/api/admin/projects/${projectId}/tasks/reorder`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          updates,
+          movedTaskId,
+          fromColumnId,
+          toColumnId,
+        }),
+      },
+    );
     const data = (await response.json()) as { error?: string };
-    if (!response.ok) throw new Error(data.error ?? "Unable to persist task order");
-
+    if (!response.ok)
+      throw new Error(data.error ?? "Unable to persist task order");
     setTasks(nextTasks);
   }
 
   async function onDragEnd(event: DragEndEvent) {
+    if (!canWrite) return;
+    const activeType = String(event.active.data.current?.type ?? "");
     setActiveTaskId(null);
 
     const { active, over } = event;
+    if (activeType === "column") {
+      if (!over) return;
+      const activeId = String(active.id);
+      const overId = String(over.id);
+      if (activeId === overId) return;
+
+      const activeColumnId = activeId.startsWith("board-column-")
+        ? activeId.replace("board-column-", "")
+        : "";
+      if (!activeColumnId) return;
+
+      let overColumnId = "";
+      if (overId.startsWith("board-column-")) {
+        overColumnId = overId.replace("board-column-", "");
+      } else if (overId.startsWith("column-")) {
+        overColumnId = overId.replace("column-", "");
+      } else {
+        const overTask = tasks.find((task) => task.id === overId);
+        overColumnId = overTask?.statusColumnId ?? "";
+      }
+      if (!overColumnId || overColumnId === activeColumnId) return;
+
+      const oldIndex = orderedColumns.findIndex(
+        (column) => column.id === activeColumnId,
+      );
+      const newIndex = orderedColumns.findIndex(
+        (column) => column.id === overColumnId,
+      );
+      if (oldIndex < 0 || newIndex < 0) return;
+
+      const reordered = arrayMove(orderedColumns, oldIndex, newIndex).map(
+        (column, index) => ({
+          ...column,
+          order: index,
+        }),
+      );
+      await saveBoardColumns(reordered);
+      return;
+    }
+
     if (!over) return;
 
     const activeId = String(active.id);
@@ -345,67 +665,82 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
     if (!activeTaskRow) return;
 
     const overTask = tasks.find((task) => task.id === overId);
-    const toColumnId = overId.startsWith("column-") ? overId.replace("column-", "") : overTask?.statusColumnId;
+    const toColumnId = overId.startsWith("column-")
+      ? overId.replace("column-", "")
+      : overTask?.statusColumnId;
     if (!toColumnId) return;
 
     const fromColumnId = activeTaskRow.statusColumnId;
     const previousTasks = tasks;
 
-    const sourceTasks = normalizeColumnTasks(tasks.filter((task) => task.statusColumnId === fromColumnId));
-    const targetTasks = normalizeColumnTasks(tasks.filter((task) => task.statusColumnId === toColumnId));
+    const sourceTasks = normalizeColumnTasks(
+      tasks.filter((task) => task.statusColumnId === fromColumnId),
+    );
+    const targetTasks = normalizeColumnTasks(
+      tasks.filter((task) => task.statusColumnId === toColumnId),
+    );
 
     let nextTasks = [...tasks];
 
     if (fromColumnId === toColumnId) {
       const oldIndex = sourceTasks.findIndex((task) => task.id === activeId);
-      const newIndex = overId.startsWith("column-") ? sourceTasks.length - 1 : sourceTasks.findIndex((task) => task.id === overId);
+      const newIndex = overId.startsWith("column-")
+        ? sourceTasks.length - 1
+        : sourceTasks.findIndex((task) => task.id === overId);
       if (oldIndex < 0 || newIndex < 0) return;
 
-      const moved = arrayMove(sourceTasks, oldIndex, newIndex).map((task, index) => ({
-        ...task,
-        orderInColumn: index
-      }));
+      const moved = arrayMove(sourceTasks, oldIndex, newIndex).map(
+        (task, index) => ({ ...task, orderInColumn: index }),
+      );
       nextTasks = replaceColumnTasks(nextTasks, fromColumnId, moved);
-
       const updates = moved.map((task) => ({
         taskId: task.id,
         statusColumnId: task.statusColumnId,
-        orderInColumn: task.orderInColumn
+        orderInColumn: task.orderInColumn,
       }));
 
       setTasks(nextTasks);
       try {
-        await persistReorder(nextTasks, updates, activeId, fromColumnId, toColumnId);
+        await persistReorder(
+          nextTasks,
+          updates,
+          activeId,
+          fromColumnId,
+          toColumnId,
+        );
       } catch (error) {
         setTasks(previousTasks);
-        setStatus(error instanceof Error ? error.message : "Unable to persist task order");
+        setStatus(
+          error instanceof Error
+            ? error.message
+            : "Unable to persist task order",
+        );
       }
-
       return;
     }
 
-    const removedSource = sourceTasks.filter((task) => task.id !== activeId).map((task, index) => ({
-      ...task,
-      orderInColumn: index
-    }));
-
-    const movedTask: TaskDoc = {
-      ...activeTaskRow,
-      statusColumnId: toColumnId
-    };
-
-    const insertIndex = overId.startsWith("column-") ? targetTasks.length : targetTasks.findIndex((task) => task.id === overId);
+    const removedSource = sourceTasks
+      .filter((task) => task.id !== activeId)
+      .map((task, index) => ({ ...task, orderInColumn: index }));
+    const movedTask: TaskDoc = { ...activeTaskRow, statusColumnId: toColumnId };
+    const insertIndex = overId.startsWith("column-")
+      ? targetTasks.length
+      : targetTasks.findIndex((task) => task.id === overId);
     const nextTargetBase = [...targetTasks];
-    const normalizedInsert = insertIndex < 0 ? nextTargetBase.length : insertIndex;
+    const normalizedInsert =
+      insertIndex < 0 ? nextTargetBase.length : insertIndex;
     nextTargetBase.splice(normalizedInsert, 0, movedTask);
 
     const reorderedTarget = nextTargetBase.map((task, index) => ({
       ...task,
       orderInColumn: index,
-      statusColumnId: toColumnId
+      statusColumnId: toColumnId,
     }));
-
-    nextTasks = tasks.filter((task) => task.statusColumnId !== fromColumnId && task.statusColumnId !== toColumnId);
+    nextTasks = tasks.filter(
+      (task) =>
+        task.statusColumnId !== fromColumnId &&
+        task.statusColumnId !== toColumnId,
+    );
     nextTasks = [...nextTasks, ...removedSource, ...reorderedTarget];
 
     const sourceUpdates = normalizeOrder(nextTasks, fromColumnId);
@@ -413,31 +748,131 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
     const updates = [...sourceUpdates, ...targetUpdates].map((task) => ({
       taskId: task.id,
       statusColumnId: task.statusColumnId,
-      orderInColumn: task.orderInColumn
+      orderInColumn: task.orderInColumn,
     }));
 
     setTasks(nextTasks);
-
     try {
-      await persistReorder(nextTasks, updates, activeId, fromColumnId, toColumnId);
+      await persistReorder(
+        nextTasks,
+        updates,
+        activeId,
+        fromColumnId,
+        toColumnId,
+      );
     } catch (error) {
       setTasks(previousTasks);
-      setStatus(error instanceof Error ? error.message : "Unable to persist task move");
+      setStatus(
+        error instanceof Error ? error.message : "Unable to persist task move",
+      );
     }
   }
 
-  const columnTone = [
-    "border-slate-500/35 bg-slate-500/10",
-    "border-blue-500/35 bg-blue-500/10",
-    "border-amber-500/35 bg-amber-500/10",
-    "border-emerald-500/35 bg-emerald-500/10"
-  ];
+  async function saveBoardColumns(nextColumns: BoardColumnDoc[]) {
+    if (!board || !canWrite) return;
+    const normalized = nextColumns.map((column, index) => ({
+      id: column.id,
+      name: column.name.trim(),
+      order: index,
+    }));
+    if (!normalized.length) {
+      setStatus("At least one column is required.");
+      return;
+    }
+
+    const previousColumns = [...(board.columns ?? [])];
+    setSavingColumns(true);
+    setStatus("");
+    setPayload((prev) =>
+      prev?.board
+        ? {
+            ...prev,
+            board: {
+              ...prev.board,
+              columns: normalized,
+            },
+          }
+        : prev,
+    );
+
+    try {
+      const response = await fetch(`/api/admin/projects/${projectId}/board`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          boardId: board.id,
+          name: board.name || "Board",
+          columns: normalized,
+        }),
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok)
+        throw new Error(data.error ?? "Unable to save board columns");
+      setStatus("Board columns updated.");
+    } catch (error) {
+      setPayload((prev) =>
+        prev?.board
+          ? {
+              ...prev,
+              board: {
+                ...prev.board,
+                columns: previousColumns,
+              },
+            }
+          : prev,
+      );
+      setStatus(
+        error instanceof Error ? error.message : "Unable to save board columns",
+      );
+    } finally {
+      setSavingColumns(false);
+    }
+  }
+
+  async function renameBoardColumn(columnId: string, nextName: string) {
+    const trimmed = nextName.trim();
+    if (!trimmed) return;
+    const next = orderedColumns.map((column) =>
+      column.id === columnId ? { ...column, name: trimmed } : column,
+    );
+    await saveBoardColumns(next);
+  }
+
+  async function addBoardColumn() {
+    if (!canWrite || !board) return;
+    const trimmed = newColumnName.trim();
+    if (!trimmed) return;
+    if (orderedColumns.length >= 12) {
+      setStatus("Maximum 12 columns allowed.");
+      return;
+    }
+    const idSet = new Set(orderedColumns.map((column) => column.id));
+    const id = generateColumnId(trimmed, idSet);
+    const next = [
+      ...orderedColumns,
+      { id, name: trimmed, order: orderedColumns.length },
+    ];
+    await saveBoardColumns(next);
+    setAddingColumn(false);
+    setNewColumnName("");
+  }
+
+  useShortcuts({
+    onCreate: () => canWrite && setCreateOpen(true),
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onEscape: () => {
+      if (drawerTaskId) setDrawerTaskId(null);
+      if (inlineCreateColumnId) setInlineCreateColumnId(null);
+    },
+  });
 
   if (loading) {
     return (
       <div className="admin-workspace">
         <Card>
-          <CardContent className="pt-6 text-sm text-muted-foreground">Loading board...</CardContent>
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            Loading board...
+          </CardContent>
         </Card>
       </div>
     );
@@ -449,192 +884,272 @@ export function ProjectBoard({ projectId }: ProjectBoardProps) {
         <Card>
           <CardHeader>
             <CardTitle>Board unavailable</CardTitle>
-            <CardDescription>{status || "This project does not have a board yet."}</CardDescription>
+            <CardDescription>
+              {status || "This project does not have a board yet."}
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href={`/admin/projects/${projectId}/settings`}>
-                <Settings2 className="h-4 w-4" />
-                Open project settings
-              </Link>
-            </Button>
-          </CardContent>
+          {canWrite ? (
+            <CardContent>
+              <Button asChild>
+                <Link href={`/admin/projects/${projectId}/settings`}>
+                  <Settings2 className="h-4 w-4" />
+                  Open project settings
+                </Link>
+              </Button>
+            </CardContent>
+          ) : null}
         </Card>
       </div>
     );
   }
 
   return (
-    <div className="admin-workspace space-y-6">
-      <Card>
-        <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <CardTitle>{project.name}</CardTitle>
-            <CardDescription>{project.description || "No description"}</CardDescription>
-            {status ? <p className="mt-2 text-sm text-primary">{status}</p> : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" asChild>
-              <Link href={`/admin/projects/${projectId}/settings`}>
-                <Settings2 className="h-4 w-4" />
-                Settings
-              </Link>
-            </Button>
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4" />
-              New Task
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
+    <div className="admin-workspace space-y-4">
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        <Card>
+          <CardHeader className="space-y-3">
+            <div>
+              <CardTitle>{project.name}</CardTitle>
+              <CardDescription>
+                {project.description || "No description"}
+              </CardDescription>
+              {status ? (
+                <p className="mt-2 text-sm text-primary">{status}</p>
+              ) : null}
+              {!canWrite ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Read-only access: viewer permissions.
+                </p>
+              ) : null}
+            </div>
+            <BoardToolbar
+              search={searchInput}
+              onSearchChange={setSearchInput}
+              onOpenFilters={() => setFilterOpen(true)}
+              onOpenSettings={() => setSettingsOpen(true)}
+              onCreate={() => setCreateOpen(true)}
+              onFocusSearchRef={(el) => {
+                searchInputRef.current = el;
+              }}
+            />
+          </CardHeader>
+        </Card>
+      </motion.div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {orderedColumns.map((column, index) => {
-            const columnTasks = tasksByColumn[column.id] ?? [];
-            const wipExceeded = typeof column.wipLimit === "number" && columnTasks.length > column.wipLimit;
-
-            return (
-              <motion.section
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      >
+        <div ref={boardAreaRef} className="flex gap-3 overflow-x-auto pb-2">
+          <SortableContext
+            items={orderedColumns.map((column) => `board-column-${column.id}`)}
+            strategy={horizontalListSortingStrategy}
+          >
+            {orderedColumns.map((column, index) => (
+              <motion.div
                 key={column.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, delay: index * 0.05 }}
-                className="w-[86vw] min-w-[18rem] max-w-[22rem] flex-none sm:w-[20rem]"
+                transition={{ duration: 0.16, delay: index * 0.03 }}
               >
-                <Card className="h-full rounded-3xl border border-border/70">
-                  <CardHeader className={`rounded-3xl border ${columnTone[index % columnTone.length]}`}>
-                    <div className="flex items-center justify-between gap-3">
-                      <CardTitle className="text-base">{column.name}</CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{columnTasks.length}</Badge>
-                        {typeof column.wipLimit === "number" ? (
-                          <Badge variant={wipExceeded ? "outline" : "secondary"}>WIP {column.wipLimit}</Badge>
-                        ) : null}
+                <BoardColumn
+                  column={column}
+                  tasks={tasksByColumn[column.id] ?? []}
+                  canWrite={canWrite}
+                  assigneeNameById={assigneeNameById}
+                  memberOptions={memberOptions}
+                  inlineCreateOpen={inlineCreateColumnId === column.id}
+                  creating={creating}
+                  onOpenInlineCreate={() => setInlineCreateColumnId(column.id)}
+                  onCancelInlineCreate={() => setInlineCreateColumnId(null)}
+                  onCreateInline={async (inlineDraft) => {
+                    setCreating(true);
+                    await createTaskForColumn(column.id, inlineDraft);
+                    setCreating(false);
+                  }}
+                  onSubtaskStatusChange={updateSubtaskStatus}
+                  onTaskPriorityChange={updateTaskPriority}
+                  onTaskAssigneeChange={updateTaskAssignee}
+                  onTaskDueDateChange={updateTaskDueDate}
+                  onOpenTask={(taskId) => setDrawerTaskId(taskId)}
+                  boardRootRef={boardAreaRef}
+                  canManageColumn={canWrite}
+                  onRenameColumn={(nextName) =>
+                    renameBoardColumn(column.id, nextName)
+                  }
+                  savingColumns={savingColumns}
+                />
+              </motion.div>
+            ))}
+          </SortableContext>
+
+          {canWrite ? (
+            <motion.section
+              className="w-[86vw] min-w-[18rem] max-w-[22rem] flex-none sm:w-[20rem]"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18 }}
+            >
+              <Card className="h-full rounded-2xl border border-dashed border-border/70 bg-card/40">
+                <CardContent className="flex h-full min-h-[132px] items-center justify-center p-3">
+                  {addingColumn ? (
+                    <form
+                      className="w-full space-y-2"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void addBoardColumn();
+                      }}
+                    >
+                      <Input
+                        value={newColumnName}
+                        onChange={(event) =>
+                          setNewColumnName(event.target.value)
+                        }
+                        placeholder="Column name"
+                        className="h-9"
+                        autoFocus
+                        disabled={savingColumns}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={!newColumnName.trim() || savingColumns}
+                        >
+                          Add
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setAddingColumn(false);
+                            setNewColumnName("");
+                          }}
+                          disabled={savingColumns}
+                        >
+                          Cancel
+                        </Button>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-2">
-                    <ColumnDroppable id={column.id}>
-                      <SortableContext items={columnTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
-                        {columnTasks.map((task) => (
-                          <SortableTaskCard
-                            key={task.id}
-                            task={task}
-                            onClick={() => setDrawerTaskId(task.id)}
-                            onQuickEdit={() => openQuickEdit(task)}
-                          />
-                        ))}
-                      </SortableContext>
-                      {!columnTasks.length ? <p className="rounded-xl border border-dashed border-border/70 p-4 text-center text-xs text-muted-foreground">Drop task here</p> : null}
-                    </ColumnDroppable>
-                  </CardContent>
-                </Card>
-              </motion.section>
-            );
-          })}
+                    </form>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setAddingColumn(true)}
+                      disabled={savingColumns || orderedColumns.length >= 12}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add column
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.section>
+          ) : null}
         </div>
 
-        <DragOverlay>
-          {activeTask ? (
-            <div className="w-[18rem] rounded-2xl border border-primary/35 bg-card/95 p-3 shadow-elev2">
-              <p className="text-sm font-medium">{activeTask.title}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{activeTask.priority}</p>
-            </div>
-          ) : null}
-        </DragOverlay>
+        {canWrite ? (
+          <DragOverlay dropAnimation={taskDropAnimation}>
+            {activeTask
+              ? (() => {
+                  const PriorityIcon = priorityIconMap[activeTask.priority];
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.12, ease: "easeOut" }}
+                      className="w-[18rem] rounded-xl border border-primary/35 bg-card/95 p-3 shadow-elev2"
+                    >
+                      <p className="text-sm font-medium">{activeTask.title}</p>
+                      <Badge
+                        className={`mt-1 inline-flex items-center gap-1 ${priorityToneMap[activeTask.priority]}`}
+                      >
+                        <PriorityIcon className="h-3 w-3" />
+                        {priorityLabelMap[activeTask.priority]}
+                      </Badge>
+                    </motion.div>
+                  );
+                })()
+              : null}
+          </DragOverlay>
+        ) : null}
       </DndContext>
 
-      <TaskDrawer projectId={projectId} task={drawerTask} columns={orderedColumns} open={Boolean(drawerTask)} onOpenChange={(open) => (!open ? setDrawerTaskId(null) : undefined)} onSaved={loadBoard} />
+      <TaskDrawer
+        projectId={projectId}
+        task={drawerTask}
+        tasks={tasks}
+        columns={orderedColumns}
+        members={members}
+        canWrite={canWrite}
+        open={Boolean(drawerTask)}
+        actorUid={actorUid}
+        onOpenChange={(open) => (!open ? setDrawerTaskId(null) : undefined)}
+        onTaskUpdated={(updatedTask) => {
+          setTasks((prev) =>
+            prev.map((task) =>
+              task.id === updatedTask.id ? updatedTask : task,
+            ),
+          );
+        }}
+        onTaskDeleted={(taskId) => {
+          setTasks((prev) => prev.filter((task) => task.id !== taskId));
+        }}
+        onOpenFullPage={(taskId) => {
+          router.push(`/admin/projects/${projectId}/tasks/${taskId}`);
+        }}
+        onOpenTask={(taskId) => setDrawerTaskId(taskId)}
+        onSaved={loadBoard}
+      />
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create task</DialogTitle>
-            <DialogDescription>Add a new card to the board.</DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={createTask}>
-            <div className="space-y-2">
-              <Label>Title</Label>
-              <Input value={title} onChange={(event) => setTitle(event.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Priority</Label>
-                <Select value={priority} onChange={(event) => setPriority(event.target.value as TaskPriority)}>
-                  <option value="P1">P1</option>
-                  <option value="P2">P2</option>
-                  <option value="P3">P3</option>
-                  <option value="P4">P4</option>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Column</Label>
-                <Select value={statusColumnId} onChange={(event) => setStatusColumnId(event.target.value)}>
-                  {orderedColumns.map((column) => (
-                    <option key={column.id} value={column.id}>
-                      {column.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Due date</Label>
-                <Input type="datetime-local" value={dueDateInput} onChange={(event) => setDueDateInput(event.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Labels</Label>
-                <Input value={labelsInput} onChange={(event) => setLabelsInput(event.target.value)} placeholder="api, urgent" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={creating}>
-                {creating ? "Creating..." : "Create"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <FilterPopover
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        filters={filters}
+        onChange={setFilters}
+        columns={orderedColumns}
+        members={members}
+        tasks={tasks}
+      />
 
-      <Dialog open={Boolean(quickEditTask)} onOpenChange={(open) => (!open ? setQuickEditTask(null) : undefined)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Quick Edit</DialogTitle>
-            <DialogDescription>Update priority and due date quickly.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={saveQuickEdit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Priority</Label>
-              <Select value={quickPriority} onChange={(event) => setQuickPriority(event.target.value as TaskPriority)}>
-                <option value="P1">P1</option>
-                <option value="P2">P2</option>
-                <option value="P3">P3</option>
-                <option value="P4">P4</option>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Due date</Label>
-              <Input type="datetime-local" value={quickDueDate} onChange={(event) => setQuickDueDate(event.target.value)} />
-            </div>
-            <DialogFooter>
-              <Button type="submit">Save</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <BoardSettingsModal
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        settings={boardSettings}
+        onChange={setBoardSettings}
+        accessSummary={canWrite ? "owner/editor" : "viewer"}
+      />
 
-      <div className="rounded-2xl border border-border/70 bg-card/80 p-4 text-xs text-muted-foreground">
-        <p className="flex items-center gap-2">
-          <CalendarClock className="h-3.5 w-3.5" />
-          Drag cards within a column to reorder or across columns to change status. Updates persist with optimistic UI and rollback on failure.
-        </p>
-      </div>
+      <CreateTaskModal
+        open={createOpen}
+        canWrite={canWrite}
+        creating={creating}
+        title={title}
+        description={description}
+        priority={priority}
+        statusColumnId={statusColumnId}
+        assigneeId={createAssigneeId}
+        dueDateInput={dueDateInput}
+        labelsInput={labelsInput}
+        members={members}
+        columns={orderedColumns}
+        onOpenChange={setCreateOpen}
+        onTitleChange={setTitle}
+        onDescriptionChange={setDescription}
+        onPriorityChange={setPriority}
+        onStatusChange={setStatusColumnId}
+        onAssigneeChange={setCreateAssigneeId}
+        onDueDateChange={setDueDateInput}
+        onLabelsChange={setLabelsInput}
+        onSubmit={createTask}
+      />
     </div>
   );
 }

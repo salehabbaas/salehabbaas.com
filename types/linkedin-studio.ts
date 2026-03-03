@@ -6,6 +6,7 @@ export type StudioVoiceStyle = {
 };
 
 export type StudioCompany = {
+  companyId?: string;
   name: string;
   website?: string;
   notes?: string;
@@ -16,6 +17,7 @@ export type StudioCompany = {
 
 export type StudioExperience = {
   roleTitle: string;
+  companyId?: string;
   company: string;
   industry?: string;
   startDate?: string;

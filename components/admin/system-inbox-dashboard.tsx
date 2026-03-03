@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Wrench } from "lucide-react";
 
+import { NotificationCenter } from "@/components/admin/notifications/notification-center";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SystemInboxSummary } from "@/lib/firestore/system-inbox";
@@ -29,6 +30,8 @@ export function SystemInboxDashboard({ summary }: { summary: SystemInboxSummary 
           </div>
         </CardContent>
       </Card>
+
+      <NotificationCenter maxItems={80} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

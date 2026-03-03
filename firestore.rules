@@ -5,8 +5,38 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
+    function hasAdminClaim() {
       return isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    function adminProfile() {
+      return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid));
+    }
+
+    function hasActiveAdminProfile() {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid))
+        && adminProfile().data.status == 'active';
+    }
+
+    function isActiveAdmin() {
+      return hasActiveAdminProfile();
+    }
+
+    function hasModule(moduleKey) {
+      return isActiveAdmin() && (
+        adminProfile().data.role == 'owner'
+        || (moduleKey == 'dashboard' && adminProfile().data.moduleAccess.dashboard == true)
+        || (moduleKey == 'cms' && adminProfile().data.moduleAccess.cms == true)
+        || (moduleKey == 'creator' && adminProfile().data.moduleAccess.creator == true)
+        || (moduleKey == 'linkedin' && adminProfile().data.moduleAccess.linkedin == true)
+        || (moduleKey == 'projects' && adminProfile().data.moduleAccess.projects == true)
+        || (moduleKey == 'resume' && adminProfile().data.moduleAccess.resume == true)
+        || (moduleKey == 'jobs' && adminProfile().data.moduleAccess.jobs == true)
+        || (moduleKey == 'bookings' && adminProfile().data.moduleAccess.bookings == true)
+        || (moduleKey == 'settings' && adminProfile().data.moduleAccess.settings == true)
+        || (moduleKey == 'agent' && adminProfile().data.moduleAccess.agent == true)
+      );
     }
 
     function isPublicOrUnlistedPublished(visibility, publishedAt) {
@@ -17,227 +47,400 @@ service cloud.firestore {
       return (status == null || status == 'published') && isDeleted != true;
     }
 
+    function isOwnedByRequester(data) {
+      return data.ownerId is string && data.ownerId == request.auth.uid;
+    }
+
     function isPmProject(data) {
       return data.module == 'project-management'
         && data.ownerId is string
         && (data.status == 'active' || data.status == 'archived');
     }
 
-    function isOwnedPmProject(projectId) {
+    function projectDoc(projectId) {
+      return get(/databases/$(database)/documents/projects/$(projectId));
+    }
+
+    function projectRole(projectId) {
+      return adminProfile().data.projectRoles[projectId];
+    }
+
+    function canReadPmProjectData(data, projectId) {
+      return hasModule('projects')
+        && isPmProject(data)
+        && (
+          data.ownerId == request.auth.uid
+          || projectRole(projectId) == 'viewer'
+          || projectRole(projectId) == 'editor'
+        );
+    }
+
+    function canWritePmProjectData(data, projectId) {
+      return hasModule('projects')
+        && isPmProject(data)
+        && (
+          data.ownerId == request.auth.uid
+          || projectRole(projectId) == 'editor'
+        );
+    }
+
+    function canReadPmProject(projectId) {
       return projectId is string
         && exists(/databases/$(database)/documents/projects/$(projectId))
-        && isPmProject(get(/databases/$(database)/documents/projects/$(projectId)).data)
-        && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+        && canReadPmProjectData(projectDoc(projectId).data, projectId);
+    }
+
+    function canWritePmProject(projectId) {
+      return projectId is string
+        && exists(/databases/$(database)/documents/projects/$(projectId))
+        && canWritePmProjectData(projectDoc(projectId).data, projectId);
+    }
+
+    function isResumeJobActivity(data) {
+      return isOwnedByRequester(data)
+        && data.entityType is string
+        && (data.entityType == 'resumeDocument' || data.entityType == 'job' || data.entityType == 'company')
+        && data.entityId is string;
+    }
+
+    function hasModuleForResumeJobActivity(data) {
+      return (data.entityType == 'resumeDocument' && hasModule('resume'))
+        || ((data.entityType == 'job' || data.entityType == 'company') && hasModule('jobs'));
+    }
+
+    function dataIsPm(doc) {
+      return doc.data.projectId is string;
+    }
+
+    function isPmActivity(data) {
+      return data.projectId is string && canReadPmProject(data.projectId);
+    }
+
+    match /adminUsers/{uid} {
+      allow read: if hasModule('settings');
+      allow write: if false;
     }
 
     match /contentItems/{contentItemId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('cms');
 
       match /variants/{variantId} {
-        allow read: if isAdmin() || isPublicOrUnlistedPublished(resource.data.visibility, resource.data.publishedAt);
-        allow create, update, delete: if isAdmin();
+        allow read: if hasModule('cms') || isPublicOrUnlistedPublished(resource.data.visibility, resource.data.publishedAt);
+        allow create, update, delete: if hasModule('cms');
 
         match /metrics/{metricId} {
-          allow read: if isAdmin() || isPublicOrUnlistedPublished(
+          allow read: if hasModule('cms') || isPublicOrUnlistedPublished(
             get(/databases/$(database)/documents/contentItems/$(contentItemId)/variants/$(variantId)).data.visibility,
             get(/databases/$(database)/documents/contentItems/$(contentItemId)/variants/$(variantId)).data.publishedAt
           );
-          allow write: if isAdmin();
+          allow write: if hasModule('cms');
         }
       }
     }
 
     match /creatorSettings/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if hasModule('creator');
     }
 
     match /creatorTemplates/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('creator');
     }
 
     match /hookLibrary/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('creator');
     }
 
     match /ctaLibrary/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('creator');
     }
 
     match /jobApplications/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('jobs');
     }
 
     match /jobTrackerSettings/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('jobs');
+    }
+
+    match /resumeDocuments/{docId} {
+      allow read, delete: if hasModule('resume') && isOwnedByRequester(resource.data);
+      allow create: if hasModule('resume') && isOwnedByRequester(request.resource.data);
+      allow update: if hasModule('resume')
+        && isOwnedByRequester(resource.data)
+        && isOwnedByRequester(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    match /resumeTemplates/{templateId} {
+      allow read, delete: if hasModule('resume') && isOwnedByRequester(resource.data);
+      allow create: if hasModule('resume') && isOwnedByRequester(request.resource.data);
+      allow update: if hasModule('resume')
+        && isOwnedByRequester(resource.data)
+        && isOwnedByRequester(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    match /resumeVersions/{versionId} {
+      allow read, delete: if hasModule('resume') && isOwnedByRequester(resource.data);
+      allow create: if hasModule('resume') && isOwnedByRequester(request.resource.data);
+      allow update: if hasModule('resume')
+        && isOwnedByRequester(resource.data)
+        && isOwnedByRequester(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    match /resumeExports/{exportId} {
+      allow read, delete: if hasModule('resume') && isOwnedByRequester(resource.data);
+      allow create: if hasModule('resume') && isOwnedByRequester(request.resource.data);
+      allow update: if hasModule('resume')
+        && isOwnedByRequester(resource.data)
+        && isOwnedByRequester(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    match /jobTrackerJobs/{jobId} {
+      allow read, delete: if hasModule('jobs') && isOwnedByRequester(resource.data);
+      allow create: if hasModule('jobs') && isOwnedByRequester(request.resource.data);
+      allow update: if hasModule('jobs')
+        && isOwnedByRequester(resource.data)
+        && isOwnedByRequester(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    match /trackedCompanies/{companyId} {
+      allow read, delete: if hasModule('jobs') && isOwnedByRequester(resource.data);
+      allow create: if hasModule('jobs') && isOwnedByRequester(request.resource.data);
+      allow update: if hasModule('jobs')
+        && isOwnedByRequester(resource.data)
+        && isOwnedByRequester(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    match /jobResumeLinks/{linkId} {
+      allow read, delete: if hasModule('jobs') && isOwnedByRequester(resource.data);
+      allow create: if hasModule('jobs') && isOwnedByRequester(request.resource.data);
+      allow update: if hasModule('jobs')
+        && isOwnedByRequester(resource.data)
+        && isOwnedByRequester(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId;
     }
 
     match /newsletterSubscribers/{subscriberId} {
       allow create: if request.resource.data.email is string
         && request.resource.data.status == 'pending'
         && request.resource.data.source is string;
-      allow update, read, delete: if isAdmin();
+      allow update, read, delete: if hasModule('settings');
     }
 
     match /contactSubmissions/{docId} {
       allow create: if request.resource.data.name is string
         && request.resource.data.email is string
         && request.resource.data.message is string;
-      allow read, update, delete: if isAdmin();
+      allow read, update, delete: if hasModule('settings');
     }
 
     match /analyticsEvents/{docId} {
       allow create: if request.resource.data.name is string;
-      allow read, update, delete: if isAdmin();
+      allow read, update, delete: if hasModule('settings');
     }
 
     match /siteContent/{docId} {
-      allow read: if docId != 'integrations' || isAdmin();
-      allow write: if isAdmin();
+      allow read: if docId != 'integrations' || hasModule('settings');
+      allow write: if hasModule('cms') || hasModule('settings');
     }
 
     match /adminSettings/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('settings');
     }
 
     match /experiences/{docId} {
-      allow read: if isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
-      allow write: if isAdmin();
+      allow read: if isActiveAdmin() || isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
+      allow write: if isActiveAdmin();
     }
 
     match /services/{docId} {
-      allow read: if isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
-      allow write: if isAdmin();
+      allow read: if isActiveAdmin() || isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
+      allow write: if isActiveAdmin();
     }
 
     match /certificates/{docId} {
-      allow read: if isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
-      allow write: if isAdmin();
+      allow read: if isActiveAdmin() || isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
+      allow write: if isActiveAdmin();
     }
 
     match /socialLinks/{docId} {
-      allow read: if isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
-      allow write: if isAdmin();
+      allow read: if isActiveAdmin() || isPublishedAndNotDeleted(resource.data.status, resource.data.isDeleted);
+      allow write: if isActiveAdmin();
     }
 
     match /projects/{docId} {
       allow read: if (
           isPmProject(resource.data)
-          && isAdmin()
+          && canReadPmProjectData(resource.data, docId)
+        ) || (
+          !isPmProject(resource.data)
+          && (hasModule('cms') || (resource.data.status == 'published' && resource.data.isDeleted != true))
+        );
+
+      allow create: if (
+          isPmProject(request.resource.data)
+          && hasModule('projects')
+          && request.resource.data.ownerId == request.auth.uid
+        ) || (
+          !isPmProject(request.resource.data)
+          && hasModule('cms')
+        );
+
+      allow update: if (
+          isPmProject(resource.data)
+          && canWritePmProjectData(resource.data, docId)
+          && isPmProject(request.resource.data)
+          && request.resource.data.ownerId == resource.data.ownerId
+        ) || (
+          !isPmProject(resource.data)
+          && hasModule('cms')
+        );
+
+      allow delete: if (
+          isPmProject(resource.data)
+          && hasModule('projects')
           && resource.data.ownerId == request.auth.uid
         ) || (
           !isPmProject(resource.data)
-          && (isAdmin() || (resource.data.status == 'published' && resource.data.isDeleted != true))
-        );
-
-      allow create: if isAdmin() && (
-          (isPmProject(request.resource.data) && request.resource.data.ownerId == request.auth.uid)
-          || !isPmProject(request.resource.data)
-        );
-
-      allow update, delete: if isAdmin() && (
-          (
-            isPmProject(resource.data)
-            && resource.data.ownerId == request.auth.uid
-            && isPmProject(request.resource.data)
-            && request.resource.data.ownerId == resource.data.ownerId
-          )
-          || !isPmProject(resource.data)
+          && hasModule('cms')
         );
     }
 
     match /boards/{docId} {
-      allow read: if isAdmin() && isOwnedPmProject(resource.data.projectId);
-      allow create: if isAdmin() && isOwnedPmProject(request.resource.data.projectId);
-      allow update: if isAdmin()
-        && isOwnedPmProject(resource.data.projectId)
+      allow read: if hasModule('projects') && canReadPmProject(resource.data.projectId);
+      allow create: if hasModule('projects') && canWritePmProject(request.resource.data.projectId);
+      allow update: if hasModule('projects')
+        && canWritePmProject(resource.data.projectId)
         && request.resource.data.projectId == resource.data.projectId
-        && isOwnedPmProject(request.resource.data.projectId);
-      allow delete: if isAdmin() && isOwnedPmProject(resource.data.projectId);
+        && canWritePmProject(request.resource.data.projectId);
+      allow delete: if hasModule('projects') && canWritePmProject(resource.data.projectId);
     }
 
     match /tasks/{docId} {
-      allow read: if isAdmin() && isOwnedPmProject(resource.data.projectId);
-      allow create: if isAdmin() && isOwnedPmProject(request.resource.data.projectId);
-      allow update: if isAdmin()
-        && isOwnedPmProject(resource.data.projectId)
+      allow read: if hasModule('projects') && canReadPmProject(resource.data.projectId);
+      allow create: if hasModule('projects') && canWritePmProject(request.resource.data.projectId);
+      allow update: if hasModule('projects')
+        && canWritePmProject(resource.data.projectId)
         && request.resource.data.projectId == resource.data.projectId
-        && isOwnedPmProject(request.resource.data.projectId);
-      allow delete: if isAdmin() && isOwnedPmProject(resource.data.projectId);
+        && canWritePmProject(request.resource.data.projectId);
+      allow delete: if hasModule('projects') && canWritePmProject(resource.data.projectId);
 
       match /notificationsSent/{notificationId} {
-        allow read, write: if isAdmin() && isOwnedPmProject(get(/databases/$(database)/documents/tasks/$(docId)).data.projectId);
+        allow read: if hasModule('projects')
+          && canReadPmProject(get(/databases/$(database)/documents/tasks/$(docId)).data.projectId);
+        allow write: if hasModule('projects')
+          && canWritePmProject(get(/databases/$(database)/documents/tasks/$(docId)).data.projectId);
       }
     }
 
     match /activity/{docId} {
-      allow read, delete: if isAdmin() && isOwnedPmProject(resource.data.projectId);
-      allow create: if isAdmin() && isOwnedPmProject(request.resource.data.projectId);
-      allow update: if isAdmin()
-        && isOwnedPmProject(resource.data.projectId)
-        && request.resource.data.projectId == resource.data.projectId
-        && isOwnedPmProject(request.resource.data.projectId);
+      allow read, delete: if (
+          dataIsPm(resource)
+          && hasModule('projects')
+          && canReadPmProject(resource.data.projectId)
+        ) || (
+          isResumeJobActivity(resource.data)
+          && hasModuleForResumeJobActivity(resource.data)
+        );
+
+      allow create: if (
+          dataIsPm(request.resource)
+          && hasModule('projects')
+          && canWritePmProject(request.resource.data.projectId)
+        ) || (
+          isResumeJobActivity(request.resource.data)
+          && hasModuleForResumeJobActivity(request.resource.data)
+        );
+
+      allow update: if (
+          dataIsPm(resource)
+          && dataIsPm(request.resource)
+          && hasModule('projects')
+          && canWritePmProject(resource.data.projectId)
+          && request.resource.data.projectId == resource.data.projectId
+        ) || (
+          isResumeJobActivity(resource.data)
+          && isResumeJobActivity(request.resource.data)
+          && hasModuleForResumeJobActivity(resource.data)
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.entityType == resource.data.entityType
+          && request.resource.data.entityId == resource.data.entityId
+        );
     }
 
     match /users/{userId} {
       match /settings/{docId} {
-        allow read, write: if isAdmin() && request.auth.uid == userId;
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /notifications/{notificationId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /notificationDevices/{deviceId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
       }
     }
 
     match /blogPosts/{docId} {
-      allow read: if isAdmin() || (resource.data.status == 'published' && resource.data.isDeleted != true);
-      allow write: if isAdmin();
+      allow read: if hasModule('cms') || (resource.data.status == 'published' && resource.data.isDeleted != true);
+      allow write: if hasModule('cms');
     }
 
     match /mediaAssets/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if hasModule('cms');
     }
 
     match /bookingSettings/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if hasModule('bookings');
     }
 
     match /bookings/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('bookings');
     }
 
     match /blockedSlots/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('bookings');
     }
 
     match /bookingSlotLocks/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('bookings');
     }
 
     match /creatorReminders/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('settings');
     }
 
     match /linkedinStudioProfiles/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('linkedin');
     }
 
     match /linkedinStudioPosts/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('linkedin');
 
       match /versions/{versionId} {
-        allow read, write: if isAdmin();
+        allow read, write: if hasModule('linkedin');
       }
     }
 
     match /auditLogs/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('dashboard') || hasModule('settings');
     }
 
     match /adminAccessLogs/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('dashboard') || hasModule('settings');
     }
 
     match /siteVersionSnapshots/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if hasModule('dashboard');
     }
   }
 }

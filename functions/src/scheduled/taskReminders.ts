@@ -3,6 +3,9 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 
 import { adminAuth, adminDb } from "../lib/admin";
 import { getEmailAdapter } from "../lib/email/service";
+import { renderConfiguredEmailTemplate } from "../lib/email/templates";
+import { createNotification } from "../lib/notifications/service";
+import { getReminderRuntimeSettings, type ReminderRuntimeSettings } from "../lib/notifications/settings";
 
 type ReminderTask = {
   id: string;
@@ -21,7 +24,7 @@ type ReminderTask = {
 
 type RecipientProfile = {
   uid: string;
-  email: string;
+  email?: string;
   timezone: string;
   emailRemindersEnabled: boolean;
 };
@@ -108,10 +111,10 @@ async function getRecipientProfile(uid: string, cache: Map<string, RecipientProf
   ]);
 
   const settings = settingsSnap.data() ?? {};
-  const profile: RecipientProfile | null = userRecord?.email
+  const profile: RecipientProfile | null = userRecord
     ? {
         uid,
-        email: userRecord.email,
+        email: userRecord.email ?? "",
         timezone: String(settings.timezone ?? "UTC"),
         emailRemindersEnabled: settings.emailRemindersEnabled !== false
       }
@@ -129,18 +132,37 @@ async function sendTaskReminderEmail(input: {
   recipientEmail: string;
   timezone: string;
   task: ReminderTask;
-  subjectPrefix: string;
   kind: "email24h" | "email1h";
 }) {
   const adapter = await getEmailAdapter();
   const due = dueLabel(input.task.dueDate, input.timezone);
   const url = taskUrl(input.task.projectId, input.task.id);
+  const templateId = input.kind === "email24h" ? "taskReminder24h" : "taskReminder1h";
+  const renderedTemplate = await renderConfiguredEmailTemplate(templateId, {
+    moduleName: "Project Management",
+    primaryActionLabel: "Open Task",
+    primaryActionUrl: url,
+    quickLinks: [
+      { label: "Projects", url: "/admin/projects" },
+      { label: "Reminders", url: "/admin/settings/reminders" },
+      { label: "System Inbox", url: "/admin/system-inbox" }
+    ],
+    taskTitle: input.task.title,
+    dueLabel: due,
+    taskDescription: input.task.description || "-",
+    taskUrl: url
+  });
 
   await adapter.send({
     to: input.recipientEmail,
-    subject: `${input.subjectPrefix} ${input.task.title}`,
-    html: `<p><strong>${input.task.title}</strong></p><p>Due: ${due}</p><p>${input.task.description || ""}</p><p><a href="${url}">Open task</a></p>`,
-    text: `${input.task.title}\nDue: ${due}\n${url}`
+    subject: renderedTemplate.subject,
+    html: renderedTemplate.html,
+    text: renderedTemplate.text,
+    activity: {
+      module: "Project Management",
+      templateId,
+      trigger: input.kind
+    }
   });
 
   return {
@@ -152,10 +174,14 @@ async function sendTaskReminderEmail(input: {
 async function processWindowReminders(options: {
   tasks: ReminderTask[];
   kind: "email24h" | "email1h";
-  subjectPrefix: string;
   recipientCache: Map<string, RecipientProfile | null>;
   now: Date;
+  runtimeSettings: ReminderRuntimeSettings;
 }) {
+  if (!options.runtimeSettings.tasks.enabled) return 0;
+  if (options.kind === "email24h" && !options.runtimeSettings.tasks.default24h) return 0;
+  if (options.kind === "email1h" && !options.runtimeSettings.tasks.default1h) return 0;
+
   let sentCount = 0;
 
   for (const task of options.tasks) {
@@ -169,10 +195,43 @@ async function processWindowReminders(options: {
 
     for (const uid of recipientIds) {
       const profile = await getRecipientProfile(uid, options.recipientCache);
-      if (!profile || !profile.emailRemindersEnabled) continue;
+      if (!profile) continue;
 
       const dueKey = task.dueDate.toISOString().slice(0, 16);
       const dedupeKey = `${options.kind}:${uid}:${dueKey}`;
+
+      try {
+        const due = dueLabel(task.dueDate, profile.timezone);
+        const subjectPrefix = options.kind === "email24h" ? "Task due in 24h:" : "Task due in 1h:";
+        await createNotification({
+          recipientId: uid,
+          dedupeKey: `task:${task.id}:${dedupeKey}`,
+          module: "tasks",
+          sourceType: "task_due",
+          sourceId: task.id,
+          title: `${subjectPrefix} ${task.title}`,
+          body: `Due ${due}`,
+          priority: options.kind === "email1h" ? "high" : "medium",
+          ctaUrl: `/admin/projects/${task.projectId}?taskId=${task.id}`,
+          scheduledFor: task.dueDate,
+          metadata: {
+            taskId: task.id,
+            projectId: task.projectId,
+            kind: options.kind
+          }
+        });
+      } catch (error) {
+        logger.error("Task in-app reminder create failed", {
+          kind: options.kind,
+          taskId: task.id,
+          recipientId: uid,
+          message: error instanceof Error ? error.message : "unknown"
+        });
+      }
+
+      if (!options.runtimeSettings.channels.emailEnabled) continue;
+      if (!profile.emailRemindersEnabled || !profile.email) continue;
+
       const dedupeRef = dedupeDoc(task.id, dedupeKey);
       const dedupeSnap = await dedupeRef.get();
       if (dedupeSnap.exists) continue;
@@ -182,7 +241,6 @@ async function processWindowReminders(options: {
           recipientEmail: profile.email,
           timezone: profile.timezone,
           task,
-          subjectPrefix: options.subjectPrefix,
           kind: options.kind
         });
 
@@ -212,7 +270,12 @@ async function processDailyOverdueDigest(options: {
   tasks: ReminderTask[];
   now: Date;
   recipientCache: Map<string, RecipientProfile | null>;
+  runtimeSettings: ReminderRuntimeSettings;
 }) {
+  if (!options.runtimeSettings.tasks.enabled || !options.runtimeSettings.tasks.defaultDailyOverdue) {
+    return 0;
+  }
+
   const recipientBuckets = new Map<
     string,
     {
@@ -231,7 +294,7 @@ async function processDailyOverdueDigest(options: {
 
     for (const uid of recipientIds) {
       const profile = await getRecipientProfile(uid, options.recipientCache);
-      if (!profile || !profile.emailRemindersEnabled) continue;
+      if (!profile) continue;
 
       const dayKey = dateKeyForTimezone(options.now, profile.timezone);
       const dedupeKey = `dailyOverdue:${uid}:${dayKey}`;
@@ -252,13 +315,44 @@ async function processDailyOverdueDigest(options: {
 
   if (!recipientBuckets.size) return 0;
 
-  const adapter = await getEmailAdapter();
+  let adapter: Awaited<ReturnType<typeof getEmailAdapter>> | null = null;
   let sentCount = 0;
 
   for (const [uid, bucket] of recipientBuckets.entries()) {
     if (!bucket.tasks.length) continue;
 
     try {
+      const dayKey = dateKeyForTimezone(options.now, bucket.profile.timezone);
+      await createNotification({
+        recipientId: uid,
+        dedupeKey: `task:dailyOverdue:${uid}:${dayKey}`,
+        module: "tasks",
+        sourceType: "task_overdue_digest",
+        sourceId: uid,
+        title: `Overdue tasks (${bucket.tasks.length})`,
+        body: `You have ${bucket.tasks.length} overdue task(s).`,
+        priority: "high",
+        ctaUrl: "/admin/projects",
+        metadata: {
+          taskCount: bucket.tasks.length,
+          kind: "dailyOverdue"
+        }
+      });
+    } catch (error) {
+      logger.error("Overdue in-app notification failed", {
+        recipientId: uid,
+        message: error instanceof Error ? error.message : "unknown"
+      });
+    }
+
+    if (!options.runtimeSettings.channels.emailEnabled || !bucket.profile.emailRemindersEnabled || !bucket.profile.email) {
+      continue;
+    }
+
+    try {
+      if (!adapter) {
+        adapter = await getEmailAdapter();
+      }
       const items = bucket.tasks
         .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
         .map((task) => {
@@ -267,12 +361,39 @@ async function processDailyOverdueDigest(options: {
           return `<li><strong>${task.title}</strong> — overdue since ${due} (<a href="${url}">Open</a>)</li>`;
         })
         .join("");
+      const itemsText = bucket.tasks
+        .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+        .map((task) => {
+          const due = dueLabel(task.dueDate, bucket.profile.timezone);
+          const url = taskUrl(task.projectId, task.id);
+          return `- ${task.title} — overdue since ${due} (${url})`;
+        })
+        .join("\n");
+
+      const renderedTemplate = await renderConfiguredEmailTemplate("taskOverdueDigest", {
+        moduleName: "Project Management",
+        primaryActionLabel: "Open Projects",
+        primaryActionUrl: "/admin/projects",
+        quickLinks: [
+          { label: "Projects", url: "/admin/projects" },
+          { label: "Reminders", url: "/admin/settings/reminders" },
+          { label: "System Inbox", url: "/admin/system-inbox" }
+        ],
+        taskCount: bucket.tasks.length,
+        overdueItemsHtml: items,
+        overdueItemsText: itemsText
+      });
 
       await adapter.send({
         to: bucket.profile.email,
-        subject: `Daily overdue tasks (${bucket.tasks.length})`,
-        html: `<p>You have ${bucket.tasks.length} overdue task(s).</p><ul>${items}</ul>`,
-        text: `Overdue tasks: ${bucket.tasks.length}`
+        subject: renderedTemplate.subject,
+        html: renderedTemplate.html,
+        text: renderedTemplate.text,
+        activity: {
+          module: "Project Management",
+          templateId: "taskOverdueDigest",
+          trigger: "daily_overdue_digest"
+        }
       });
 
       const batch = adminDb.batch();
@@ -338,26 +459,28 @@ export const taskReminderSweep = onSchedule(
       .filter((task): task is ReminderTask => Boolean(task));
 
     const recipientCache = new Map<string, RecipientProfile | null>();
+    const runtimeSettings = await getReminderRuntimeSettings();
 
     const [sent24h, sent1h, overdueDigestCount] = await Promise.all([
       processWindowReminders({
         tasks: due24Tasks,
         kind: "email24h",
-        subjectPrefix: "Task due in 24h:",
         recipientCache,
-        now
+        now,
+        runtimeSettings
       }),
       processWindowReminders({
         tasks: due1Tasks,
         kind: "email1h",
-        subjectPrefix: "Task due in 1h:",
         recipientCache,
-        now
+        now,
+        runtimeSettings
       }),
       processDailyOverdueDigest({
         tasks: overdueTasks,
         now,
-        recipientCache
+        recipientCache,
+        runtimeSettings
       })
     ]);
 

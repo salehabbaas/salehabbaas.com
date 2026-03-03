@@ -20,6 +20,7 @@ export const studioConfigSchema = z.object({
     companies: z
       .array(
         z.object({
+          companyId: z.string().max(200).optional(),
           name: z.string().min(1).max(200),
           website: z.string().max(300).optional(),
           notes: z.string().max(400).optional(),
@@ -46,6 +47,7 @@ export const studioConfigSchema = z.object({
     .array(
       z.object({
         roleTitle: z.string().min(1).max(200),
+        companyId: z.string().max(200).optional(),
         company: z.string().min(1).max(200),
         industry: z.string().max(160).optional(),
         startDate: z.string().max(80).optional(),

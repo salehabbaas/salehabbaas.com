@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { canWriteProject } from "@/lib/admin/access";
 import { writeAdminAuditLog } from "@/lib/admin/audit";
 import { getAdminRequestContext } from "@/lib/admin/request-context";
-import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
+import { verifyAdminRequest } from "@/lib/auth/admin-api";
 import { adminDb } from "@/lib/firebase/admin";
 
 const boardSchema = z.object({
@@ -14,28 +15,20 @@ const boardSchema = z.object({
       z.object({
         id: z.string().trim().min(1),
         name: z.string().trim().min(1).max(80),
-        order: z.number().int().min(0),
-        wipLimit: z.number().int().min(1).max(999).optional()
+        order: z.number().int().min(0)
       })
     )
     .min(1)
     .max(12)
 });
 
-async function projectOwnedBy(projectId: string, uid: string) {
-  const projectRef = adminDb.collection("projects").doc(projectId);
-  const snap = await projectRef.get();
-  if (!snap.exists) return false;
-  return String(snap.data()?.ownerId ?? "") === uid;
-}
-
 export async function PUT(request: Request, context: { params: Promise<{ projectId: string }> }) {
-  const user = await verifyAdminSessionFromCookie();
+  const user = await verifyAdminRequest({ requiredModule: "projects" });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const reqContext = getAdminRequestContext(request);
 
   const { projectId } = await context.params;
-  const allowed = await projectOwnedBy(projectId, user.uid);
+  const allowed = await canWriteProject(user.uid, projectId);
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   try {
@@ -43,6 +36,10 @@ export async function PUT(request: Request, context: { params: Promise<{ project
     const now = new Date();
 
     const boardRef = body.boardId ? adminDb.collection("boards").doc(body.boardId) : adminDb.collection("boards").doc();
+    const existingBoard = await boardRef.get();
+    if (existingBoard.exists && String(existingBoard.data()?.projectId ?? "") !== projectId) {
+      return NextResponse.json({ error: "Board does not belong to this project" }, { status: 400 });
+    }
 
     await boardRef.set(
       {
@@ -50,7 +47,7 @@ export async function PUT(request: Request, context: { params: Promise<{ project
         name: body.name,
         columns: body.columns,
         updatedAt: now,
-        createdAt: now
+        ...(existingBoard.exists ? {} : { createdAt: now })
       },
       { merge: true }
     );

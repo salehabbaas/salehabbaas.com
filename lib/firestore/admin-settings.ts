@@ -2,7 +2,10 @@ import "server-only";
 
 import { adminDb } from "@/lib/firebase/admin";
 import { publicNavigation } from "@/lib/data/navigation";
+import { applyEmailTemplatePatch, normalizeAdminEmailTemplates } from "@/lib/email/template-catalog";
+import { getSecretPresenceFromSettings, getSecretSourceMap, type SecretSource } from "@/lib/admin/integration-secrets";
 import type {
+  AdminEmailTemplates,
   AdminIntegrationSettings,
   AdminSecretSettings,
   PublicPageSettings,
@@ -68,7 +71,15 @@ const DEFAULT_ADMIN_INTEGRATIONS: AdminIntegrationSettings = {
   bookingFunctionUrl: "",
   googleCalendarId: "primary",
   geminiModel: "gemini-2.5-flash",
-  geminiTextModel: ""
+  geminiTextModel: "",
+  telegramAllowedChatIds: "",
+  telegramDefaultChatId: "",
+  agentOwnerUid: "",
+  telegramActionsEnabled: false,
+  resumeStudioV2Enabled: false,
+  resumeAi53Enabled: false,
+  resumeJobUrlParserEnabled: false,
+  resumeAdvancedTemplateBuilderEnabled: false
 };
 
 const DEFAULT_ADMIN_SECRETS: AdminSecretSettings = {
@@ -76,14 +87,23 @@ const DEFAULT_ADMIN_SECRETS: AdminSecretSettings = {
   sendgridApiKey: "",
   mailgunApiKey: "",
   mailgunDomain: "",
+  gmailAppPassword: "",
+  zohoSmtpHost: "",
+  zohoSmtpPort: "",
+  zohoSmtpSecure: "",
+  zohoSmtpUsername: "",
+  zohoSmtpPassword: "",
   googleServiceAccountEmail: "",
   googleServiceAccountPrivateKey: "",
   geminiApiKey: "",
-  googleApiKey: ""
+  googleApiKey: "",
+  telegramBotToken: "",
+  telegramWebhookSecret: ""
 };
 
 const INTEGRATIONS_PATH = { collection: "adminSettings", doc: "integrations" } as const;
 const SECRETS_PATH = { collection: "adminSettings", doc: "secrets" } as const;
+const EMAIL_TEMPLATES_PATH = { collection: "adminSettings", doc: "emailTemplates" } as const;
 const PAGE_VISIBILITY_PATH = { collection: "siteContent", doc: "pageVisibility" } as const;
 
 function asString(value: unknown) {
@@ -286,7 +306,7 @@ export async function savePublicPageSettings(input: PublicPageSettings) {
 }
 
 function normalizeProvider(value: unknown): AdminIntegrationSettings["emailProvider"] {
-  if (value === "sendgrid" || value === "resend" || value === "mailgun" || value === "zoho") {
+  if (value === "sendgrid" || value === "resend" || value === "mailgun" || value === "zoho" || value === "gmail") {
     return value;
   }
   return DEFAULT_ADMIN_INTEGRATIONS.emailProvider;
@@ -309,7 +329,28 @@ export async function getAdminIntegrationSettings(): Promise<AdminIntegrationSet
     bookingFunctionUrl: asString(data.bookingFunctionUrl),
     googleCalendarId: asString(data.googleCalendarId) || DEFAULT_ADMIN_INTEGRATIONS.googleCalendarId,
     geminiModel: asString(data.geminiModel) || DEFAULT_ADMIN_INTEGRATIONS.geminiModel,
-    geminiTextModel: asString(data.geminiTextModel)
+    geminiTextModel: asString(data.geminiTextModel),
+    telegramAllowedChatIds: asString(data.telegramAllowedChatIds),
+    telegramDefaultChatId: asString(data.telegramDefaultChatId),
+    agentOwnerUid: asString(data.agentOwnerUid),
+    telegramActionsEnabled:
+      typeof data.telegramActionsEnabled === "boolean"
+        ? data.telegramActionsEnabled
+        : DEFAULT_ADMIN_INTEGRATIONS.telegramActionsEnabled,
+    resumeStudioV2Enabled:
+      typeof data.resumeStudioV2Enabled === "boolean"
+        ? data.resumeStudioV2Enabled
+        : DEFAULT_ADMIN_INTEGRATIONS.resumeStudioV2Enabled,
+    resumeAi53Enabled:
+      typeof data.resumeAi53Enabled === "boolean" ? data.resumeAi53Enabled : DEFAULT_ADMIN_INTEGRATIONS.resumeAi53Enabled,
+    resumeJobUrlParserEnabled:
+      typeof data.resumeJobUrlParserEnabled === "boolean"
+        ? data.resumeJobUrlParserEnabled
+        : DEFAULT_ADMIN_INTEGRATIONS.resumeJobUrlParserEnabled,
+    resumeAdvancedTemplateBuilderEnabled:
+      typeof data.resumeAdvancedTemplateBuilderEnabled === "boolean"
+        ? data.resumeAdvancedTemplateBuilderEnabled
+        : DEFAULT_ADMIN_INTEGRATIONS.resumeAdvancedTemplateBuilderEnabled
   };
 }
 
@@ -326,6 +367,16 @@ export async function saveAdminIntegrationSettings(patch: Partial<AdminIntegrati
   if (typeof patch.googleCalendarId === "string") payload.googleCalendarId = patch.googleCalendarId.trim();
   if (typeof patch.geminiModel === "string") payload.geminiModel = patch.geminiModel.trim();
   if (typeof patch.geminiTextModel === "string") payload.geminiTextModel = patch.geminiTextModel.trim();
+  if (typeof patch.telegramAllowedChatIds === "string") payload.telegramAllowedChatIds = patch.telegramAllowedChatIds.trim();
+  if (typeof patch.telegramDefaultChatId === "string") payload.telegramDefaultChatId = patch.telegramDefaultChatId.trim();
+  if (typeof patch.agentOwnerUid === "string") payload.agentOwnerUid = patch.agentOwnerUid.trim();
+  if (typeof patch.telegramActionsEnabled === "boolean") payload.telegramActionsEnabled = patch.telegramActionsEnabled;
+  if (typeof patch.resumeStudioV2Enabled === "boolean") payload.resumeStudioV2Enabled = patch.resumeStudioV2Enabled;
+  if (typeof patch.resumeAi53Enabled === "boolean") payload.resumeAi53Enabled = patch.resumeAi53Enabled;
+  if (typeof patch.resumeJobUrlParserEnabled === "boolean") payload.resumeJobUrlParserEnabled = patch.resumeJobUrlParserEnabled;
+  if (typeof patch.resumeAdvancedTemplateBuilderEnabled === "boolean") {
+    payload.resumeAdvancedTemplateBuilderEnabled = patch.resumeAdvancedTemplateBuilderEnabled;
+  }
 
   await adminDb.collection(INTEGRATIONS_PATH.collection).doc(INTEGRATIONS_PATH.doc).set(payload, { merge: true });
 
@@ -349,25 +400,48 @@ export async function getAdminSecretSettings(): Promise<AdminSecretSettings> {
     sendgridApiKey: asString(data.sendgridApiKey),
     mailgunApiKey: asString(data.mailgunApiKey),
     mailgunDomain: asString(data.mailgunDomain),
+    gmailAppPassword: asString(data.gmailAppPassword),
+    zohoSmtpHost: asString(data.zohoSmtpHost),
+    zohoSmtpPort: asString(data.zohoSmtpPort),
+    zohoSmtpSecure: asString(data.zohoSmtpSecure),
+    zohoSmtpUsername: asString(data.zohoSmtpUsername),
+    zohoSmtpPassword: asString(data.zohoSmtpPassword),
     googleServiceAccountEmail: asString(data.googleServiceAccountEmail),
     googleServiceAccountPrivateKey: asString(data.googleServiceAccountPrivateKey),
     geminiApiKey: asString(data.geminiApiKey),
-    googleApiKey: asString(data.googleApiKey)
+    googleApiKey: asString(data.googleApiKey),
+    telegramBotToken: asString(data.telegramBotToken),
+    telegramWebhookSecret: asString(data.telegramWebhookSecret)
   };
 }
 
 export async function getAdminSecretPresence(): Promise<SecretPresence> {
   const settings = await getAdminSecretSettings();
-  return {
-    resendApiKey: Boolean(settings.resendApiKey),
-    sendgridApiKey: Boolean(settings.sendgridApiKey),
-    mailgunApiKey: Boolean(settings.mailgunApiKey),
-    mailgunDomain: Boolean(settings.mailgunDomain),
-    googleServiceAccountEmail: Boolean(settings.googleServiceAccountEmail),
-    googleServiceAccountPrivateKey: Boolean(settings.googleServiceAccountPrivateKey),
-    geminiApiKey: Boolean(settings.geminiApiKey),
-    googleApiKey: Boolean(settings.googleApiKey)
-  };
+  return getSecretPresenceFromSettings(settings, process.env);
+}
+
+export async function getAdminSecretSources(): Promise<Record<keyof AdminSecretSettings, SecretSource>> {
+  const settings = await getAdminSecretSettings();
+  return getSecretSourceMap(settings, process.env);
+}
+
+export async function getAdminEmailTemplates(): Promise<AdminEmailTemplates> {
+  const snap = await adminDb.collection(EMAIL_TEMPLATES_PATH.collection).doc(EMAIL_TEMPLATES_PATH.doc).get();
+  const data = (snap.data() ?? {}) as Record<string, unknown>;
+  return normalizeAdminEmailTemplates(data.templates ?? data);
+}
+
+export async function saveAdminEmailTemplates(patch: Partial<AdminEmailTemplates>) {
+  const existing = await getAdminEmailTemplates();
+  const merged = applyEmailTemplatePatch(existing, patch);
+
+  await adminDb.collection(EMAIL_TEMPLATES_PATH.collection).doc(EMAIL_TEMPLATES_PATH.doc).set(
+    {
+      templates: merged,
+      updatedAt: new Date()
+    },
+    { merge: true }
+  );
 }
 
 export async function saveAdminSecretSettings(patch: Partial<AdminSecretSettings>) {
@@ -385,6 +459,10 @@ export async function saveAdminSecretSettings(patch: Partial<AdminSecretSettings
 }
 
 export async function getRuntimeAdminSettings() {
-  const [integrations, secrets] = await Promise.all([getAdminIntegrationSettings(), getAdminSecretSettings()]);
-  return { integrations, secrets };
+  const [integrations, secrets, emailTemplates] = await Promise.all([
+    getAdminIntegrationSettings(),
+    getAdminSecretSettings(),
+    getAdminEmailTemplates()
+  ]);
+  return { integrations, secrets, emailTemplates };
 }

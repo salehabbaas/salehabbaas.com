@@ -10,10 +10,27 @@
 3. Fill `.env.local` with Firebase Web SDK and Admin SDK values.
    - Set `NEXT_PUBLIC_FIRESTORE_DATABASE_ID=salehabbaas`
    - Set `FIRESTORE_DATABASE_ID=salehabbaas`
+   - Set `NOTIFICATION_PRIMARY_ADMIN_UID` to the admin UID that should receive booking/system/audit reminders
    - Ensure `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` is a bare host (example: `your-project-id.firebaseapp.com`, no `https://`, no path like `/__/auth/handler`, no port, no trailing slash)
+   - Configure web push key for reminder notifications:
+     - Set `NEXT_PUBLIC_FIREBASE_VAPID_KEY` (Firebase Cloud Messaging web push certificate key)
+     - Set `NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY` (public key used by native browser push subscription; can reuse Firebase VAPID public key)
+     - Set `WEB_PUSH_VAPID_PUBLIC_KEY` (server-side VAPID public key; should match the browser public key)
+     - Set `WEB_PUSH_VAPID_PRIVATE_KEY` (server-side VAPID private key used to send direct browser push)
+     - Set `WEB_PUSH_SUBJECT` (example: `mailto:notifications@your-domain.com`)
    - (Optional) Enable Saleh-OS (AI assistant):
      - Set `GEMINI_API_KEY`
      - Optionally set `GEMINI_MODEL` (defaults to `gemini-2.5-flash`)
+   - Enable Resume Studio AI + ATS:
+     - Set `OPENAI_API_KEY`
+     - Optionally set `OPENAI_MODEL` (default: `gpt-5.2`; alternatives: `gpt-5-mini`, `gpt-5-nano`)
+   - Optional PDF renderer controls for Resume Studio export:
+     - `RESUME_EXPORT_RENDERER=auto` (default; tries Chromium print route then falls back to pdf-lib)
+     - `RESUME_EXPORT_BASE_URL=https://salehabbaas.com` (recommended in production for stable print URL resolution)
+   - Ensure at least one email adapter is configured for export delivery:
+     - `RESEND_API_KEY` or `SENDGRID_API_KEY` or `MAILGUN_API_KEY` (+ `MAILGUN_DOMAIN`)
+     - or Gmail SMTP (App Password): `GMAIL_APP_PASSWORD` (with `senderEmail` set to your Gmail address in Admin Integrations)
+     - or Zoho SMTP: `ZOHO_SMTP_HOST`, `ZOHO_SMTP_PORT`, `ZOHO_SMTP_SECURE`, `ZOHO_SMTP_USERNAME`, `ZOHO_SMTP_PASSWORD`
 4. Start app:
    - `npm run dev`
 
@@ -81,6 +98,10 @@ Seeds include:
 - Creator settings
 - Creator templates, hook/CTA libraries
 - Sample content item + draft/private variant scaffold
+- Sample Resume Studio records:
+  - one `jobTrackerJobs` sample job
+  - one `resumeDocuments` sample resume linked to that job
+  - one `jobResumeLinks` record
 
 ## 6) Domain + SEO Rollout
 
@@ -131,3 +152,44 @@ Implemented events:
 - `subscribe_newsletter`
 
 Verify in Firebase Analytics DebugView during manual QA.
+
+## 10) Resume Studio QA
+
+1. Open `/admin/resume-studio` and create a new resume.
+2. Edit directly on-canvas in `/admin/resume-studio/<docId>` and reorder with drag & drop.
+3. Run ATS check in `/admin/resume-studio/<docId>/ats`:
+   - with linked job
+   - with pasted job description
+4. Open HTML print preview in `/admin/resume-studio/<docId>/print`.
+5. Test export in `/admin/resume-studio/<docId>/export`:
+   - Download PDF
+   - Download TXT
+   - Send PDF to email
+6. Open `/admin/resume-studio/templates`:
+   - browse built-in templates
+   - create/edit a custom template in `/admin/resume-studio/templates/<templateId>`
+   - run PDF import in `/admin/resume-studio/templates/import`
+7. Open `/admin/job-tracker`:
+   - create/import job
+   - link existing resume
+   - create tailored resume for selected job
+
+## 11) Reminder System QA
+
+1. Open `/admin/settings/reminders` and configure:
+   - channels + `Primary admin UID`
+   - module windows for tasks/bookings/linkedin/jobs/goals/audit
+2. Open admin header and verify:
+   - notification bell unread badge
+   - top reminder banner appears for unread banner-enabled items
+3. Open `/admin/system-inbox`:
+   - verify Notification Center feed
+   - mark read / dismiss / mark all read actions
+4. Browser push:
+   - click `Enable Push` in Notification Center
+   - confirm browser permission prompt
+   - confirm `users/<uid>/notificationDevices/*` documents are created
+5. Scheduler + trigger verification:
+   - task reminders still send email and now create in-app notifications
+   - unified reminder sweep creates reminders for bookings, LinkedIn, jobs, goals
+   - high-risk audit events create system notifications for primary admin

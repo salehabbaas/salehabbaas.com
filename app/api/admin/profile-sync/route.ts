@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { writeAdminAuditLog } from "@/lib/admin/audit";
 import { getAdminRequestContext } from "@/lib/admin/request-context";
-import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
+import { verifyAdminRequest } from "@/lib/auth/admin-api";
 import { adminDb } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
@@ -17,7 +17,7 @@ function asString(value: unknown) {
 }
 
 export async function GET() {
-  const session = await verifyAdminSessionFromCookie();
+  const session = await verifyAdminRequest({ requiredModule: "linkedin" });
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -51,7 +51,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await verifyAdminSessionFromCookie();
+  const session = await verifyAdminRequest({ requiredModule: "linkedin" });
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

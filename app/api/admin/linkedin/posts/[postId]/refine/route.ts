@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { writeAdminAuditLog } from "@/lib/admin/audit";
 import { getAdminRequestContext } from "@/lib/admin/request-context";
-import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
+import { verifyAdminRequest } from "@/lib/auth/admin-api";
 import { adminDb } from "@/lib/firebase/admin";
 import { readStudioConfig } from "@/lib/linkedin-studio/firestore";
 import { refineStudioPost } from "@/lib/linkedin-studio/generation";
@@ -11,7 +11,7 @@ import { refinePostSchema, studioConfigSchema } from "@/lib/linkedin-studio/vali
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ postId: string }> }) {
-  const session = await verifyAdminSessionFromCookie();
+  const session = await verifyAdminRequest({ requiredModule: "linkedin" });
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { canWriteProject, listProjectMembers } from "@/lib/admin/access";
 import { writeAdminAuditLog } from "@/lib/admin/audit";
 import { getAdminRequestContext } from "@/lib/admin/request-context";
-import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
+import { verifyAdminRequest } from "@/lib/auth/admin-api";
 import { getProjectBoard } from "@/lib/firestore/project-management";
 import { adminDb } from "@/lib/firebase/admin";
 
@@ -15,22 +16,8 @@ const updateSchema = z
   })
   .refine((value) => Object.keys(value).length > 0, "No updates provided");
 
-async function assertOwner(projectId: string, uid: string) {
-  const projectSnap = await adminDb.collection("projects").doc(projectId).get();
-  if (!projectSnap.exists) {
-    return { error: "Project not found", status: 404 as const };
-  }
-
-  const ownerId = String(projectSnap.data()?.ownerId ?? "");
-  if (!ownerId || ownerId !== uid) {
-    return { error: "Forbidden", status: 403 as const };
-  }
-
-  return { projectSnap };
-}
-
 export async function GET(_: Request, context: { params: Promise<{ projectId: string }> }) {
-  const user = await verifyAdminSessionFromCookie();
+  const user = await verifyAdminRequest({ requiredModule: "projects" });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { projectId } = await context.params;
@@ -39,17 +26,29 @@ export async function GET(_: Request, context: { params: Promise<{ projectId: st
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  return NextResponse.json(payload);
+  const members = await listProjectMembers({
+    projectId,
+    ownerId: payload.project.ownerId
+  });
+
+  return NextResponse.json({
+    ...payload,
+    actorUid: user.uid,
+    members
+  });
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ projectId: string }> }) {
-  const user = await verifyAdminSessionFromCookie();
+  const user = await verifyAdminRequest({ requiredModule: "projects" });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const reqContext = getAdminRequestContext(request);
 
   const { projectId } = await context.params;
-  const ownership = await assertOwner(projectId, user.uid);
-  if ("error" in ownership) return NextResponse.json({ error: ownership.error }, { status: ownership.status });
+  const allowed = await canWriteProject(user.uid, projectId);
+  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const projectSnap = await adminDb.collection("projects").doc(projectId).get();
+  if (!projectSnap.exists) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
   try {
     const body = updateSchema.parse(await request.json());
@@ -61,7 +60,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
     if (typeof body.description === "string") updates.description = body.description;
     if (body.status) updates.status = body.status;
 
-    await ownership.projectSnap.ref.set(updates, { merge: true });
+    await projectSnap.ref.set(updates, { merge: true });
 
     await writeAdminAuditLog(
       {

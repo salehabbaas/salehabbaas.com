@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Award,
@@ -18,12 +19,13 @@ import {
   User,
   Wrench
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { BRAND_NAME } from "@/lib/brand";
+import { auth } from "@/lib/firebase/client";
 import { cn } from "@/lib/utils";
 import type { PublicPagePath, PublicPageSettings } from "@/types/site-settings";
 
@@ -58,6 +60,7 @@ function isActive(pathname: string, path: string) {
 export function SiteHeader({ pageSettings }: { pageSettings: PublicPageSettings }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showAdminPanelLink, setShowAdminPanelLink] = useState(false);
   const enabledPages = useMemo(
     () =>
       pageSettings
@@ -82,6 +85,44 @@ export function SiteHeader({ pageSettings }: { pageSettings: PublicPageSettings 
         })),
     [enabledPages]
   );
+
+  useEffect(() => {
+    let active = true;
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!active) return;
+      if (!user) {
+        setShowAdminPanelLink(false);
+        return;
+      }
+
+      try {
+        const existingSession = await fetch("/api/admin/session", { method: "GET", cache: "no-store" });
+        if (existingSession.ok) {
+          if (!active) return;
+          setShowAdminPanelLink(true);
+          return;
+        }
+
+        const idToken = await user.getIdToken();
+        const sessionRepair = await fetch("/api/admin/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken })
+        });
+        if (!active) return;
+        setShowAdminPanelLink(sessionRepair.ok);
+      } catch {
+        if (!active) return;
+        setShowAdminPanelLink(false);
+      }
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
 
   return (
     <>
@@ -136,6 +177,11 @@ export function SiteHeader({ pageSettings }: { pageSettings: PublicPageSettings 
 
           <div className="hidden items-center gap-1 lg:flex">
             <ThemeToggle />
+            {showAdminPanelLink ? (
+              <Button asChild variant="outline" size="sm" className="h-9 rounded-full px-4 font-mono text-[10px] font-black uppercase tracking-[0.2em]">
+                <Link href="/admin">Admin Panel</Link>
+              </Button>
+            ) : null}
             {bookMeetingPage ? (
               <Button asChild size="sm" className="h-9 rounded-full px-4 font-mono text-[10px] font-black uppercase tracking-[0.2em]">
                 <Link href={bookMeetingPage.link}>Let&apos;s Build</Link>
@@ -189,14 +235,25 @@ export function SiteHeader({ pageSettings }: { pageSettings: PublicPageSettings 
                   })}
                 </div>
 
-                {bookMeetingPage ? (
+                {showAdminPanelLink || bookMeetingPage ? (
                   <div className="px-6 pb-6">
-                    <Button asChild variant="cta" className="w-full">
-                      <Link href={bookMeetingPage.link} onClick={() => setMobileOpen(false)}>
-                        <CalendarDays className="h-4 w-4" />
-                        Let&apos;s Build
-                      </Link>
-                    </Button>
+                    <div className="space-y-2">
+                      {showAdminPanelLink ? (
+                        <Button asChild variant="outline" className="w-full">
+                          <Link href="/admin" onClick={() => setMobileOpen(false)}>
+                            Admin Panel
+                          </Link>
+                        </Button>
+                      ) : null}
+                      {bookMeetingPage ? (
+                        <Button asChild variant="cta" className="w-full">
+                          <Link href={bookMeetingPage.link} onClick={() => setMobileOpen(false)}>
+                            <CalendarDays className="h-4 w-4" />
+                            Let&apos;s Build
+                          </Link>
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
               </SheetContent>

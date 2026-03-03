@@ -84,7 +84,15 @@ export function ProjectSettings({ projectId }: ProjectSettingsProps) {
       setProjectStatus(projectData.project.status);
 
       setBoardName(projectData.board?.name ?? "Kanban Board");
-      setColumns(projectData.board?.columns?.length ? projectData.board.columns : defaultBoardColumns);
+      setColumns(
+        projectData.board?.columns?.length
+          ? projectData.board.columns.map((column) => ({
+              id: column.id,
+              name: column.name,
+              order: column.order
+            }))
+          : defaultBoardColumns.map((column) => ({ id: column.id, name: column.name, order: column.order }))
+      );
 
       setEmailRemindersEnabled(userData.emailRemindersEnabled);
       setTimezone(userData.timezone);
@@ -140,7 +148,11 @@ export function ProjectSettings({ projectId }: ProjectSettingsProps) {
         body: JSON.stringify({
           boardId: board?.id,
           name: boardName,
-          columns: orderedColumns
+          columns: orderedColumns.map((column) => ({
+            id: column.id,
+            name: column.name,
+            order: column.order
+          }))
         })
       });
 
@@ -302,7 +314,7 @@ export function ProjectSettings({ projectId }: ProjectSettingsProps) {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Board Columns</CardTitle>
-            <CardDescription>Set status lanes, order, and optional WIP limits.</CardDescription>
+            <CardDescription>Set status lanes and order.</CardDescription>
           </div>
           <Button type="button" variant="outline" onClick={addColumn}>
             <Plus className="h-4 w-4" />
@@ -334,17 +346,6 @@ export function ProjectSettings({ projectId }: ProjectSettingsProps) {
                     placeholder="Order"
                   />
                   <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={1}
-                      value={column.wipLimit ?? ""}
-                      onChange={(event) =>
-                        updateColumn(index, {
-                          wipLimit: event.target.value ? Number(event.target.value) : undefined
-                        })
-                      }
-                      placeholder="WIP"
-                    />
                     <Button type="button" variant="outline" size="icon" onClick={() => removeColumn(index)} disabled={orderedColumns.length <= 1}>
                       <Trash2 className="h-4 w-4" />
                     </Button>

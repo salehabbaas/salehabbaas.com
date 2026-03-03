@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { getAdminHealthStatus } from "@/lib/admin/health";
-import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
+import { verifyAdminRequest } from "@/lib/auth/admin-api";
 
 export async function GET() {
-  const user = await verifyAdminSessionFromCookie();
+  const user = await verifyAdminRequest({ requiredModule: "settings" });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const health = await getAdminHealthStatus();

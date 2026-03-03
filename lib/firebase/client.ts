@@ -1,8 +1,8 @@
 "use client";
 
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { browserLocalPersistence, getAuth, setPersistence } from "firebase/auth";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
@@ -73,7 +73,7 @@ const firebaseConfig = {
 const isBrowser = typeof window !== "undefined";
 const hasFirebaseConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId);
 const app = isBrowser && hasFirebaseConfig ? (getApps().length ? getApp() : initializeApp(firebaseConfig)) : null;
-const firestoreDatabaseId = process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID;
+const firestoreDatabaseId = process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID || "salehabbaas";
 
 if (app && process.env.NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY) {
   try {
@@ -86,12 +86,43 @@ if (app && process.env.NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY) {
   }
 }
 
-export const auth = app ? getAuth(app) : (null as unknown as ReturnType<typeof getAuth>);
-export const db = app
-  ? firestoreDatabaseId
-    ? getFirestore(app, firestoreDatabaseId)
-    : getFirestore(app)
-  : (null as unknown as ReturnType<typeof getFirestore>);
+const authInstance = app ? getAuth(app) : null;
+if (authInstance && typeof window !== "undefined") {
+  void setPersistence(authInstance, browserLocalPersistence).catch(() => {
+    // Keep auth usable even if persistence cannot be applied (e.g., strict browser settings).
+  });
+}
+
+export const auth = authInstance ?? (null as unknown as ReturnType<typeof getAuth>);
+
+function createFirestore() {
+  if (!app) {
+    return null as unknown as ReturnType<typeof getFirestore>;
+  }
+
+  try {
+    // WebKit/Safari can fail Firestore WebChannel streaming with CORS-like
+    // listen channel errors. Auto long-polling + disabled fetch streams avoids it.
+    return firestoreDatabaseId
+      ? initializeFirestore(
+          app,
+          {
+            experimentalForceLongPolling: true,
+            experimentalAutoDetectLongPolling: true,
+          },
+          firestoreDatabaseId
+        )
+      : initializeFirestore(app, {
+          experimentalForceLongPolling: true,
+          experimentalAutoDetectLongPolling: true,
+        });
+  } catch {
+    // If Firestore was already initialized during HMR, reuse existing instance.
+    return firestoreDatabaseId ? getFirestore(app, firestoreDatabaseId) : getFirestore(app);
+  }
+}
+
+export const db = createFirestore();
 export const storage = app ? getStorage(app) : (null as unknown as ReturnType<typeof getStorage>);
 
 let analyticsPromise: Promise<ReturnType<typeof getAnalytics> | null> | null = null;

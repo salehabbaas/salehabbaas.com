@@ -1,11 +1,13 @@
 import { Metadata } from "next";
 
-import { JobTracker } from "@/components/admin/job-tracker";
+import { JobTrackerDashboard } from "@/components/admin/resume-studio/job-tracker-dashboard";
+import { requireAdminSession } from "@/lib/auth/admin-session";
 
 export const metadata: Metadata = {
   title: "Job Tracker"
 };
 
-export default function AdminJobTrackerPage() {
-  return <JobTracker />;
+export default async function AdminJobTrackerPage() {
+  const session = await requireAdminSession();
+  return <JobTrackerDashboard ownerId={session.uid} />;
 }

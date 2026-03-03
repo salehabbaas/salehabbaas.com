@@ -29,7 +29,33 @@ export type PublicPageSettingsItem = {
 
 export type PublicPageSettings = PublicPageSettingsItem[];
 
-export type ManagedEmailProvider = "sendgrid" | "resend" | "mailgun" | "zoho";
+export type ManagedEmailProvider = "sendgrid" | "resend" | "mailgun" | "zoho" | "gmail";
+
+export type EmailTemplateId =
+  | "settingsTest"
+  | "adminInvitation"
+  | "resumeExport"
+  | "contactSubmission"
+  | "bookingConfirmation"
+  | "bookingOwnerNotification"
+  | "taskReminder24h"
+  | "taskReminder1h"
+  | "taskOverdueDigest";
+
+export type EmailTemplateContent = {
+  subject: string;
+  html: string;
+  text: string;
+};
+
+export type AdminEmailTemplates = Record<EmailTemplateId, EmailTemplateContent>;
+
+export type EmailTemplateDefinition = {
+  id: EmailTemplateId;
+  label: string;
+  description: string;
+  placeholders: string[];
+};
 
 export type AdminIntegrationSettings = {
   emailProvider: ManagedEmailProvider;
@@ -40,6 +66,14 @@ export type AdminIntegrationSettings = {
   googleCalendarId: string;
   geminiModel: string;
   geminiTextModel: string;
+  telegramAllowedChatIds: string;
+  telegramDefaultChatId: string;
+  agentOwnerUid: string;
+  telegramActionsEnabled: boolean;
+  resumeStudioV2Enabled: boolean;
+  resumeAi53Enabled: boolean;
+  resumeJobUrlParserEnabled: boolean;
+  resumeAdvancedTemplateBuilderEnabled: boolean;
 };
 
 export type AdminSecretSettings = {
@@ -47,10 +81,18 @@ export type AdminSecretSettings = {
   sendgridApiKey: string;
   mailgunApiKey: string;
   mailgunDomain: string;
+  gmailAppPassword: string;
+  zohoSmtpHost: string;
+  zohoSmtpPort: string;
+  zohoSmtpSecure: string;
+  zohoSmtpUsername: string;
+  zohoSmtpPassword: string;
   googleServiceAccountEmail: string;
   googleServiceAccountPrivateKey: string;
   geminiApiKey: string;
   googleApiKey: string;
+  telegramBotToken: string;
+  telegramWebhookSecret: string;
 };
 
 export type SecretPresence = Record<keyof AdminSecretSettings, boolean>;

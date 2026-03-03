@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import {
   addDoc,
   collection,
@@ -15,6 +16,7 @@ import {
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 import { AdminFieldLabel } from "@/components/admin/admin-field-label";
+import { CompanyPicker } from "@/components/admin/company/company-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -22,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { db, storage } from "@/lib/firebase/client";
+import { auth, db, storage } from "@/lib/firebase/client";
 import { slugify } from "@/lib/utils";
 
 type Direction = "asc" | "desc";
@@ -30,7 +32,7 @@ type Direction = "asc" | "desc";
 export type CmsField = {
   key: string;
   label: string;
-  type: "text" | "textarea" | "number" | "url" | "datetime" | "select" | "tags" | "image" | "slug";
+  type: "text" | "textarea" | "number" | "url" | "datetime" | "select" | "tags" | "image" | "slug" | "company";
   required?: boolean;
   placeholder?: string;
   options?: Array<{ value: string; label: string }>;
@@ -55,6 +57,7 @@ type CmsCollectionManagerProps = {
   statusField?: string;
   slugField?: string;
   getSiteHref?: (row: Record<string, unknown>) => string | null;
+  ownerId?: string;
   filters?: Array<{
     field: string;
     operator: "<" | "<=" | "==" | "!=" | ">=" | ">" | "array-contains" | "in" | "array-contains-any" | "not-in";
@@ -95,6 +98,7 @@ export function CmsCollectionManager({
   statusField,
   slugField,
   getSiteHref,
+  ownerId,
   filters = []
 }: CmsCollectionManagerProps) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
@@ -108,29 +112,68 @@ export function CmsCollectionManager({
   const [message, setMessage] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [uploadingField, setUploadingField] = useState<string>("");
+  const [authReady, setAuthReady] = useState(false);
+  const [authUid, setAuthUid] = useState<string | null>(() => (auth ? auth.currentUser?.uid ?? null : null));
 
   useEffect(() => {
+    if (!auth) {
+      setAuthReady(true);
+      setAuthUid(null);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setAuthUid(user?.uid ?? null);
+      setAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!authReady || !authUid) {
+      setRows([]);
+      return;
+    }
+
     const constraints = [...filters.map((item) => where(item.field, item.operator, item.value)), orderBy(orderField, orderDirection)];
     const snapshotQuery = query(collection(db, collectionName), ...constraints);
-    const unsub = onSnapshot(snapshotQuery, (snap) => {
-      setRows(snap.docs.map((document) => rowWithId(document.id, document.data() as Record<string, unknown>)));
-    });
+    const unsub = onSnapshot(
+      snapshotQuery,
+      (snap) => {
+        setRows(snap.docs.map((document) => rowWithId(document.id, document.data() as Record<string, unknown>)));
+      },
+      (error) => {
+        setRows([]);
+        setMessage(error.code === "permission-denied" ? "You do not have permission to view this collection." : error.message);
+      }
+    );
     return () => unsub();
-  }, [collectionName, filters, orderDirection, orderField]);
+  }, [authReady, authUid, collectionName, filters, orderDirection, orderField]);
 
   useEffect(() => {
+    if (!authReady || !authUid) {
+      setMediaAssets([]);
+      return;
+    }
     if (!fields.some((field) => field.type === "image")) return;
-    const unsub = onSnapshot(query(collection(db, "mediaAssets"), orderBy("createdAt", "desc")), (snap) => {
-      setMediaAssets(
-        snap.docs.slice(0, 120).map((document) => ({
-          id: document.id,
-          name: String(document.data().name ?? "media"),
-          url: String(document.data().url ?? "")
-        }))
-      );
-    });
+    const unsub = onSnapshot(
+      query(collection(db, "mediaAssets"), orderBy("createdAt", "desc")),
+      (snap) => {
+        setMediaAssets(
+          snap.docs.slice(0, 120).map((document) => ({
+            id: document.id,
+            name: String(document.data().name ?? "media"),
+            url: String(document.data().url ?? "")
+          }))
+        );
+      },
+      (error) => {
+        setMediaAssets([]);
+        setMessage(error.code === "permission-denied" ? "You do not have permission to view media assets." : error.message);
+      }
+    );
     return () => unsub();
-  }, [fields]);
+  }, [authReady, authUid, fields]);
 
   const visibleRows = useMemo(
     () => rows.filter((row) => (showArchived ? true : row.isDeleted !== true)),
@@ -180,6 +223,9 @@ export function CmsCollectionManager({
     const nextForm: Record<string, unknown> = {};
     fields.forEach((field) => {
       nextForm[field.key] = normalizeFieldValue(field, row[field.key]);
+      if (field.type === "company") {
+        nextForm[`${field.key}Id`] = fieldValueAsString(row[`${field.key}Id`]);
+      }
     });
     setForm({
       ...defaultForm,
@@ -222,6 +268,12 @@ export function CmsCollectionManager({
       }
       if (field.type === "number") {
         if (!Number.isFinite(Number(value))) nextErrors[field.key] = `${field.label} must be a number`;
+        return;
+      }
+      if (field.type === "company") {
+        if (!String(value ?? "").trim()) {
+          nextErrors[field.key] = `${field.label} is required`;
+        }
         return;
       }
       if (!String(value ?? "").trim()) {
@@ -318,6 +370,11 @@ export function CmsCollectionManager({
       }
       if (field.type === "number") {
         payload[field.key] = Number(value ?? 0);
+        return;
+      }
+      if (field.type === "company") {
+        payload[field.key] = String(value ?? "").trim();
+        payload[`${field.key}Id`] = String(form[`${field.key}Id`] ?? "").trim();
         return;
       }
       if (field.type === "slug") {
@@ -576,6 +633,51 @@ export function CmsCollectionManager({
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={fieldValueAsString(value)} alt={field.label} className="h-28 w-full rounded-lg border border-border/70 object-cover" />
                         ) : null}
+                        {errors[field.key] ? <p className="text-xs text-destructive">{errors[field.key]}</p> : null}
+                      </div>
+                    );
+                  }
+
+                  if (field.type === "company") {
+                    if (!ownerId) {
+                      return (
+                        <div key={field.key} className="space-y-2">
+                          <AdminFieldLabel label={field.label} required={field.required} />
+                          <Input
+                            value={fieldValueAsString(value)}
+                            onChange={(event) => setFieldValue(field, event.target.value)}
+                            placeholder={field.placeholder || "Company"}
+                          />
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={field.key} className="space-y-2">
+                        <AdminFieldLabel label={field.label} required={field.required} />
+                        <CompanyPicker
+                          ownerId={ownerId}
+                          companyId={fieldValueAsString(form[`${field.key}Id`])}
+                          companyName={fieldValueAsString(value)}
+                          inputId={`${collectionName}-${field.key}`}
+                          required={field.required}
+                          placeholder={field.placeholder || "Type company name"}
+                          onSelect={(company) => {
+                            setForm((prev) => ({
+                              ...prev,
+                              [field.key]: company.name,
+                              [`${field.key}Id`]: company.id
+                            }));
+                            setErrors((prev) => ({ ...prev, [field.key]: "" }));
+                          }}
+                          onNameChange={(name) => {
+                            setForm((prev) => ({
+                              ...prev,
+                              [field.key]: name,
+                              [`${field.key}Id`]: ""
+                            }));
+                          }}
+                        />
                         {errors[field.key] ? <p className="text-xs text-destructive">{errors[field.key]}</p> : null}
                       </div>
                     );

@@ -1,4 +1,5 @@
 import { EmailAdapter, EmailMessage } from "./types";
+import nodemailer from "nodemailer";
 
 class ResendAdapter implements EmailAdapter {
   constructor(private readonly apiKey: string, private readonly sender: string) {}
@@ -75,9 +76,66 @@ class MailgunAdapter implements EmailAdapter {
   }
 }
 
+class GmailAdapter implements EmailAdapter {
+  private readonly transporter;
+
+  constructor(
+    private readonly username: string,
+    private readonly password: string,
+    private readonly sender: string
+  ) {
+    this.transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: this.username,
+        pass: this.password
+      }
+    });
+  }
+
+  async send(message: EmailMessage) {
+    await this.transporter.sendMail({
+      from: this.sender,
+      to: message.to,
+      subject: message.subject,
+      html: message.html,
+      text: message.text
+    });
+  }
+}
+
 class ZohoAdapter implements EmailAdapter {
-  async send() {
-    throw new Error("Zoho adapter is reserved for future integration and currently disabled.");
+  private readonly transporter;
+
+  constructor(
+    private readonly host: string,
+    private readonly port: number,
+    private readonly secure: boolean,
+    private readonly username: string,
+    private readonly password: string,
+    private readonly sender: string
+  ) {
+    this.transporter = nodemailer.createTransport({
+      host: this.host,
+      port: this.port,
+      secure: this.secure,
+      auth: {
+        user: this.username,
+        pass: this.password
+      }
+    });
+  }
+
+  async send(message: EmailMessage) {
+    await this.transporter.sendMail({
+      from: this.sender,
+      to: message.to,
+      subject: message.subject,
+      html: message.html,
+      text: message.text
+    });
   }
 }
 
@@ -88,7 +146,7 @@ class ConsoleAdapter implements EmailAdapter {
 }
 
 export function createEmailAdapter(input: {
-  provider: "sendgrid" | "resend" | "mailgun" | "zoho";
+  provider: "sendgrid" | "resend" | "mailgun" | "zoho" | "gmail";
   senderEmail: string;
   senderName: string;
   secrets?: {
@@ -96,6 +154,12 @@ export function createEmailAdapter(input: {
     sendgridApiKey?: string;
     mailgunApiKey?: string;
     mailgunDomain?: string;
+    gmailAppPassword?: string;
+    zohoSmtpHost?: string;
+    zohoSmtpPort?: string;
+    zohoSmtpSecure?: string;
+    zohoSmtpUsername?: string;
+    zohoSmtpPassword?: string;
   };
 }) {
   const sender = input.senderName ? `${input.senderName} <${input.senderEmail}>` : input.senderEmail;
@@ -116,8 +180,23 @@ export function createEmailAdapter(input: {
     if (key && domain) return new MailgunAdapter(key, domain, sender);
   }
 
+  if (input.provider === "gmail") {
+    const password = input.secrets?.gmailAppPassword || process.env.GMAIL_APP_PASSWORD || "";
+    if (input.senderEmail && password) return new GmailAdapter(input.senderEmail, password, sender);
+  }
+
   if (input.provider === "zoho") {
-    return new ZohoAdapter();
+    const host = input.secrets?.zohoSmtpHost || process.env.ZOHO_SMTP_HOST || "";
+    const portRaw = input.secrets?.zohoSmtpPort || process.env.ZOHO_SMTP_PORT || "";
+    const secureRaw = input.secrets?.zohoSmtpSecure || process.env.ZOHO_SMTP_SECURE || "";
+    const username = input.secrets?.zohoSmtpUsername || process.env.ZOHO_SMTP_USERNAME || "";
+    const password = input.secrets?.zohoSmtpPassword || process.env.ZOHO_SMTP_PASSWORD || "";
+    const parsedPort = Number(portRaw || "465");
+    const secure = ["1", "true", "yes", "on"].includes(String(secureRaw).trim().toLowerCase()) || parsedPort === 465;
+
+    if (host && Number.isFinite(parsedPort) && parsedPort > 0 && username && password) {
+      return new ZohoAdapter(host, parsedPort, secure, username, password, sender);
+    }
   }
 
   return new ConsoleAdapter();

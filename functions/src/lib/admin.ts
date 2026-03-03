@@ -2,6 +2,7 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
+import { getMessaging } from "firebase-admin/messaging";
 
 const app = getApps().length ? getApps()[0] : initializeApp();
 const configuredDatabaseId =
@@ -11,3 +12,4 @@ const firestoreDatabaseId = configuredDatabaseId === "(default)" ? undefined : c
 export const adminDb = firestoreDatabaseId ? getFirestore(app, firestoreDatabaseId) : getFirestore(app);
 export const adminAuth = getAuth(app);
 export const adminStorage = getStorage(app);
+export const adminMessaging = getMessaging(app);

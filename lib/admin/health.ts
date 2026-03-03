@@ -44,12 +44,40 @@ export async function getAdminHealthStatus(): Promise<AdminHealthStatus> {
             { key: "mailgunApiKey", label: "Mailgun API Key", configured: withFallback(secrets.mailgunApiKey, env.MAILGUN_API_KEY) },
             { key: "mailgunDomain", label: "Mailgun Domain", configured: withFallback(secrets.mailgunDomain, env.MAILGUN_DOMAIN) }
           ]
+        : emailProvider === "gmail"
+          ? [
+              {
+                key: "gmailAppPassword",
+                label: "Gmail App Password",
+                configured: withFallback(secrets.gmailAppPassword, env.GMAIL_APP_PASSWORD)
+              }
+            ]
         : emailProvider === "zoho"
           ? [
               {
-                key: "zohoReserved",
-                label: "Zoho provider currently unavailable",
-                configured: false
+                key: "zohoSmtpHost",
+                label: "Zoho SMTP Host",
+                configured: withFallback(secrets.zohoSmtpHost, env.ZOHO_SMTP_HOST)
+              },
+              {
+                key: "zohoSmtpPort",
+                label: "Zoho SMTP Port",
+                configured: withFallback(secrets.zohoSmtpPort, env.ZOHO_SMTP_PORT)
+              },
+              {
+                key: "zohoSmtpSecure",
+                label: "Zoho SMTP Secure",
+                configured: withFallback(secrets.zohoSmtpSecure, env.ZOHO_SMTP_SECURE)
+              },
+              {
+                key: "zohoSmtpUsername",
+                label: "Zoho SMTP Username",
+                configured: withFallback(secrets.zohoSmtpUsername, env.ZOHO_SMTP_USERNAME)
+              },
+              {
+                key: "zohoSmtpPassword",
+                label: "Zoho SMTP Password",
+                configured: withFallback(secrets.zohoSmtpPassword, env.ZOHO_SMTP_PASSWORD)
               }
             ]
           : [{ key: "resendApiKey", label: "Resend API Key", configured: withFallback(secrets.resendApiKey, env.RESEND_API_KEY) }];

@@ -365,8 +365,8 @@ export async function getAdminSystemsSummary(): Promise<AdminSystemsSummary> {
     const createdAt = safeDate(asIso(data.createdAt));
     if (createdAt && createdAt >= last7d) actions7d += 1;
 
-    const module = String(data.module ?? "unknown");
-    topModuleMap.set(module, (topModuleMap.get(module) ?? 0) + 1);
+    const moduleName = String(data.module ?? "unknown");
+    topModuleMap.set(moduleName, (topModuleMap.get(moduleName) ?? 0) + 1);
   });
 
   const recentAudit = auditsRecentSnap.docs.map((doc) => {
@@ -423,7 +423,7 @@ export async function getAdminSystemsSummary(): Promise<AdminSystemsSummary> {
       actions7d,
       actions30d: audits30dSnap.size,
       topModules: Array.from(topModuleMap.entries())
-        .map(([module, count]) => ({ module, count }))
+        .map(([moduleName, count]) => ({ module: moduleName, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 8),
       recent: recentAudit

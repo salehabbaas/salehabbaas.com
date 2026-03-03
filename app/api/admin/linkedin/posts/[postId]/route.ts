@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
+import { verifyAdminRequest } from "@/lib/auth/admin-api";
 import { adminDb } from "@/lib/firebase/admin";
 import { mapVersion } from "@/lib/linkedin-studio/firestore";
 
@@ -17,7 +17,7 @@ function asIso(value: unknown) {
 export const runtime = "nodejs";
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ postId: string }> }) {
-  const session = await verifyAdminSessionFromCookie();
+  const session = await verifyAdminRequest({ requiredModule: "linkedin" });
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

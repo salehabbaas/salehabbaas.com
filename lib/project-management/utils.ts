@@ -130,3 +130,9 @@ export function fromDatetimeLocalInput(value: string) {
   if (Number.isNaN(parsed.getTime())) return undefined;
   return parsed.toISOString();
 }
+
+export function formatTaskIdentifier(task: Pick<TaskDoc, "id" | "taskKey">) {
+  const explicit = typeof task.taskKey === "string" ? task.taskKey.trim() : "";
+  if (explicit) return explicit;
+  return `task-${task.id.slice(0, 5).toUpperCase()}`;
+}

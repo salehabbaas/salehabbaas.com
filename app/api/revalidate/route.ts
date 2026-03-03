@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
+import { resolveAdminAccess } from "@/lib/admin/access";
 import { adminAuth } from "@/lib/firebase/admin";
 
 export async function POST(request: Request) {
@@ -16,7 +17,14 @@ export async function POST(request: Request) {
 
       const token = authorization.split("Bearer ")[1];
       const decoded = await adminAuth.verifyIdToken(token);
-      if (decoded.admin !== true) {
+
+      const access = await resolveAdminAccess({
+        token: decoded,
+        requiredModule: "creator",
+        activateInvitation: false,
+        touchLastLogin: false
+      });
+      if (access.status !== "ok" || !access.access) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }

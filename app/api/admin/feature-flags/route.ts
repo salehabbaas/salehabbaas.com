@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { writeAdminAuditLog } from "@/lib/admin/audit";
 import { getAdminRequestContext } from "@/lib/admin/request-context";
-import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
+import { verifyAdminRequest } from "@/lib/auth/admin-api";
 import { getRemoteFeatureFlags, setRemoteFeatureFlags } from "@/lib/firebase/remote-config";
 import { adminDb } from "@/lib/firebase/admin";
 
@@ -15,7 +15,7 @@ const schema = z.object({
 });
 
 export async function GET() {
-  const user = await verifyAdminSessionFromCookie();
+  const user = await verifyAdminRequest({ requiredModule: ["bookings", "settings"] });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const remote = await getRemoteFeatureFlags();
@@ -50,7 +50,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await verifyAdminSessionFromCookie();
+  const user = await verifyAdminRequest({ requiredModule: ["bookings", "settings"] });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const requestContext = getAdminRequestContext(request);
 

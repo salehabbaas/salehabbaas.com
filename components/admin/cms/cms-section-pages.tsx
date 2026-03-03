@@ -145,6 +145,7 @@ export function CmsExperiencePage() {
       statusField="status"
       getSiteHref={() => "/experience"}
       defaultForm={{
+        companyId: "",
         company: "",
         role: "",
         startDate: "",
@@ -156,7 +157,7 @@ export function CmsExperiencePage() {
         isDeleted: false
       }}
       fields={[
-        { key: "company", label: "Company", type: "text", required: true },
+        { key: "company", label: "Company", type: "company", required: true },
         { key: "role", label: "Role", type: "text", required: true },
         { key: "startDate", label: "Start Date", type: "text" },
         { key: "endDate", label: "End Date", type: "text" },

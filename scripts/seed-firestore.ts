@@ -353,6 +353,134 @@ async function seed() {
     updatedAt: FieldValue.serverTimestamp()
   });
 
+  const seedOwnerId = process.env.ADMIN_BOOTSTRAP_UID || "seed-admin";
+  const sampleJobId = "sample-job-resume-studio";
+  const sampleResumeId = "sample-resume-studio-doc";
+  const sampleLinkId = "sample-job-resume-link";
+
+  await db.collection("jobTrackerJobs").doc(sampleJobId).set(
+    {
+      ownerId: seedOwnerId,
+      company: "North Star Health Systems",
+      title: "Senior Full-Stack Engineer",
+      location: "Remote",
+      jobUrl: "https://example.com/jobs/senior-fullstack-engineer",
+      status: "saved",
+      appliedAt: null,
+      nextFollowUpAt: null,
+      descriptionText:
+        "We need a full-stack engineer with TypeScript, Next.js, Firebase, API design, and measurable delivery impact. Experience with ATS-friendly resume tailoring is a plus.",
+      descriptionSource: "paste",
+      tags: ["sample", "resume-studio"],
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  await db.collection("resumeDocuments").doc(sampleResumeId).set(
+    {
+      ownerId: seedOwnerId,
+      type: "resume",
+      title: "Sample Resume - Resume Studio",
+      linkedJobId: sampleJobId,
+      templateId: "classic-single-column",
+      page: {
+        size: "A4",
+        margins: 22,
+        sectionSpacing: 14
+      },
+      style: {
+        primaryColor: "#0f172a",
+        accentColor: "#2563eb",
+        fontFamily: "Arimo",
+        fontScale: 1,
+        lineHeight: 1.4,
+        background: "#ffffff"
+      },
+      language: {
+        mode: "auto"
+      },
+      sections: [
+        {
+          id: "section-header",
+          kind: "header",
+          data: {
+            fullName: "Sample Candidate",
+            headline: "Senior Full-Stack Engineer",
+            email: "sample.candidate@example.com",
+            phone: "+1 555 0100",
+            location: "Ottawa, ON",
+            links: ["linkedin.com/in/sample-candidate", "github.com/sample-candidate"]
+          },
+          locked: true
+        },
+        {
+          id: "section-summary",
+          kind: "summary",
+          data: {
+            text: "Senior engineer with strong delivery across Next.js, TypeScript, and Firebase. Built admin systems, AI-assisted workflows, and measurable product improvements."
+          }
+        },
+        {
+          id: "section-experience",
+          kind: "experience",
+          data: {
+            items: [
+              {
+                id: "exp-1",
+                company: "North Star Health Systems",
+                role: "Lead Software Engineer",
+                location: "Remote",
+                startDate: "2022-01",
+                endDate: "Present",
+                bullets: [
+                  "Led migration to Next.js and TypeScript across core admin workflows.",
+                  "Improved delivery speed by 38% through reusable UI patterns and automation.",
+                  "Built ATS-aware resume tooling with explainable scoring and export flows."
+                ]
+              }
+            ]
+          }
+        },
+        {
+          id: "section-skills",
+          kind: "skills",
+          data: {
+            items: [
+              { id: "skill-1", name: "TypeScript", level: "Advanced" },
+              { id: "skill-2", name: "Next.js", level: "Advanced" },
+              { id: "skill-3", name: "Firebase", level: "Advanced" }
+            ]
+          }
+        }
+      ],
+      ats: {
+        lastScore: 82,
+        lastCheckedAt: FieldValue.serverTimestamp(),
+        lastJobHash: "seed",
+        issues: []
+      },
+      pinned: true,
+      tags: ["sample", "seed"],
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  await db.collection("jobResumeLinks").doc(sampleLinkId).set(
+    {
+      ownerId: seedOwnerId,
+      jobId: sampleJobId,
+      docId: sampleResumeId,
+      createdAt: FieldValue.serverTimestamp(),
+      atsScore: 82,
+      notes: "Seed sample link"
+    },
+    { merge: true }
+  );
+
   console.log("Firestore seed completed.");
 }
 

@@ -29,7 +29,7 @@ export const publicNavigation: PublicNavigationItem[] = [
   { href: "/contact", label: "Contact", shortLabel: "Contact", description: "Get in touch", section: "support" }
 ];
 
-export type AdminNavSectionId = "overview" | "content" | "operations" | "settings";
+export type AdminNavSectionId = "overview" | "content" | "operations" | "ai" | "settings";
 
 export type AdminNavIcon =
   | "overview"
@@ -47,9 +47,13 @@ export type AdminNavIcon =
   | "creator"
   | "linkedin"
   | "project-management"
+  | "resume-studio"
+  | "resume-templates"
   | "job-tracker"
   | "bookings"
   | "settings"
+  | "settings-reminders"
+  | "settings-access"
   | "settings-integrations"
   | "settings-visibility"
   | "settings-health";
@@ -80,6 +84,10 @@ export const adminNavigationSections: AdminNavigationSection[] = [
     label: "Operations"
   },
   {
+    id: "ai",
+    label: "AI"
+  },
+  {
     id: "settings",
     label: "Settings"
   }
@@ -101,6 +109,12 @@ export const adminNavigation: AdminNavigationItem[] = [
   {
     href: "/admin/system-inbox",
     label: "Inbox",
+    icon: "overview",
+    section: "overview"
+  },
+  {
+    href: "/admin/logs",
+    label: "Logs",
     icon: "overview",
     section: "overview"
   },
@@ -162,12 +176,24 @@ export const adminNavigation: AdminNavigationItem[] = [
     href: "/admin/linkedin-studio",
     label: "LinkedIn",
     icon: "linkedin",
-    section: "operations"
+    section: "ai"
   },
   {
     href: "/admin/projects",
     label: "Projects",
     icon: "project-management",
+    section: "operations"
+  },
+  {
+    href: "/admin/resume-studio",
+    label: "Resume Studio",
+    icon: "resume-studio",
+    section: "operations"
+  },
+  {
+    href: "/admin/resume-studio/templates",
+    label: "Templates",
+    icon: "resume-templates",
     section: "operations"
   },
   {
@@ -181,6 +207,24 @@ export const adminNavigation: AdminNavigationItem[] = [
     label: "Bookings",
     icon: "bookings",
     section: "operations"
+  },
+  {
+    href: "/admin/agent",
+    label: "Agent",
+    icon: "overview",
+    section: "ai"
+  },
+  {
+    href: "/admin/settings/reminders",
+    label: "Reminders",
+    icon: "settings-reminders",
+    section: "settings"
+  },
+  {
+    href: "/admin/settings/access",
+    label: "Access",
+    icon: "settings-access",
+    section: "settings"
   },
   {
     href: "/admin/settings/integrations",

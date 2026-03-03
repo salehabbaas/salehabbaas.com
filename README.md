@@ -25,6 +25,33 @@ He has helped organizations improve integration quality by up to **98%** and sup
 
 ---
 
+## Admin Systems (Internal)
+
+The admin panel includes production modules for:
+
+- Resume Studio (`/admin/resume-studio`) with in-place HTML canvas editing, ATS checks, AI improve, template gallery/builder/import, and on-demand PDF/TXT export
+- Job Tracker (`/admin/job-tracker`) with linked resumes and tailored-version generation
+- CMS, projects, bookings, creator workflows, and integrations
+
+---
+
+## Latest Release Updates (2026-02-28)
+
+- Fixed Firestore admin notification listener permission errors (`permission-denied`) by updating rules for:
+  - `users/{uid}/settings`
+  - `users/{uid}/notifications`
+  - `users/{uid}/notificationDevices`
+- Access to those paths now requires an active admin session and only allows each admin to access their own user-scoped documents.
+- Added explicit listener error handling in admin notification UI components to prevent uncaught snapshot listener runtime errors.
+- Improved admin client session recovery to avoid false `Unauthorized` states when an admin is already signed in.
+- Added browser-local admin auth persistence and session hint storage to reduce post-refresh/session-repair failures.
+- Updated admin shell behavior to auto-redirect to `/admin/login` when session validation fails instead of staying on an error message.
+- Added a conditional `Admin Panel` button in the public website header (desktop + mobile), visible only when the current signed-in user has valid admin access/session.
+- Updated admin access list rendering to show assigned project names instead of raw project IDs.
+- Fixed invitation onboarding/login flow so invited users can access `/admin` right after password setup and successful sign-in without being bounced back to login.
+
+---
+
 ## Career Highlights
 
 - **The Ottawa Hospital**: Clinical integration engineering for hospital and laboratory data exchange  

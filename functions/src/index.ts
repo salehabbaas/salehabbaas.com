@@ -15,6 +15,7 @@ import sharp from "sharp";
 import { adminAuth, adminDb, adminStorage } from "./lib/admin";
 import { createCalendarEvent } from "./lib/booking/google-calendar";
 import { getEmailAdapter } from "./lib/email/service";
+import { renderConfiguredEmailTemplate } from "./lib/email/templates";
 
 setGlobalOptions({
   region: "us-central1",
@@ -23,12 +24,27 @@ setGlobalOptions({
 
 const corsHandler = cors({ origin: true });
 
-async function sendEmailSafe(input: { to: string; subject: string; html: string; text?: string }) {
+async function sendTemplatedEmailSafe(input: {
+  to: string;
+  templateId: Parameters<typeof renderConfiguredEmailTemplate>[0];
+  variables: Record<string, unknown>;
+  trigger: string;
+}) {
   try {
-    const adapter = await getEmailAdapter();
-    await adapter.send(input);
+    const [adapter, rendered] = await Promise.all([getEmailAdapter(), renderConfiguredEmailTemplate(input.templateId, input.variables)]);
+    await adapter.send({
+      to: input.to,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      activity: {
+        module: String(input.variables.moduleName ?? "System"),
+        templateId: input.templateId,
+        trigger: input.trigger
+      }
+    });
   } catch (error) {
-    logger.error("Email send failed", error);
+    logger.error("Templated email send failed", error);
   }
 }
 
@@ -145,10 +161,25 @@ export const submitContact = onRequest(async (request, response) => {
       createdAt: new Date()
     });
 
-    await sendEmailSafe({
+    await sendTemplatedEmailSafe({
       to: process.env.CONTACT_RECEIVER_EMAIL || email,
-      subject: `New Contact Submission: ${subject}`,
-      html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p>${message}</p>`
+      templateId: "contactSubmission",
+      trigger: "contact_submission",
+      variables: {
+        moduleName: "Contact",
+        primaryActionLabel: "Open System Inbox",
+        primaryActionUrl: "/admin/system-inbox",
+        quickLinks: [
+          { label: "System Inbox", url: "/admin/system-inbox" },
+          { label: "Projects", url: "/admin/projects" },
+          { label: "Reminders", url: "/admin/settings/reminders" },
+          { label: "Bookings", url: "/admin/bookings" }
+        ],
+        name,
+        email,
+        subject,
+        message
+      }
     });
 
     response.status(200).json({ success: true });
@@ -191,19 +222,47 @@ export const bookMeeting = onRequest(async (request, response) => {
       const ownerEmail = process.env.CONTACT_RECEIVER_EMAIL || process.env.DEFAULT_SENDER_EMAIL || email;
 
       await Promise.all([
-        sendEmailSafe({
+        sendTemplatedEmailSafe({
           to: email,
-          subject: "Your meeting with Saleh Abbaas is confirmed",
-          html: `<p>Hi ${name},</p><p>Your meeting is confirmed for ${startAt} (${timezone}).</p><p>Meet link: ${
-            event.meetLink || "Will be shared shortly."
-          }</p>`
+          templateId: "bookingConfirmation",
+          trigger: "booking_confirmation",
+          variables: {
+            moduleName: "Bookings",
+            primaryActionLabel: event.meetLink ? "Open Meet Link" : "Book Another Meeting",
+            primaryActionUrl: event.meetLink || "/book-meeting",
+            quickLinks: [
+              { label: "Book Meeting", url: "/book-meeting" },
+              { label: "Contact", url: "/contact" },
+              { label: "Website", url: "/" }
+            ],
+            name,
+            meetingType: meetingTypeLabel || "Meeting",
+            startAt,
+            timezone,
+            meetLink: event.meetLink || "Will be shared shortly."
+          }
         }),
-        sendEmailSafe({
+        sendTemplatedEmailSafe({
           to: ownerEmail,
-          subject: `New Booking: ${name}`,
-          html: `<p><strong>Meeting:</strong> ${meetingTypeLabel || "Meeting"}</p><p><strong>When:</strong> ${startAt} (${timezone})</p><p><strong>Email:</strong> ${email}</p><p><strong>Reason:</strong> ${reason || "-"}</p><p><strong>Meet:</strong> ${
-            event.meetLink || "-"
-          }</p>`
+          templateId: "bookingOwnerNotification",
+          trigger: "booking_owner_notification",
+          variables: {
+            moduleName: "Bookings",
+            primaryActionLabel: "Open Bookings",
+            primaryActionUrl: "/admin/bookings",
+            quickLinks: [
+              { label: "Bookings", url: "/admin/bookings" },
+              { label: "System Inbox", url: "/admin/system-inbox" },
+              { label: "Reminders", url: "/admin/settings/reminders" }
+            ],
+            meetingType: meetingTypeLabel || "Meeting",
+            startAt,
+            timezone,
+            name,
+            email,
+            reason: reason || "-",
+            meetLink: event.meetLink || "-"
+          }
         })
       ]);
 
@@ -448,3 +507,5 @@ export const bootstrapAdminClaim = onRequest(async (request, response) => {
 });
 
 export { taskReminderSweep } from "./scheduled/taskReminders";
+export { unifiedReminderSweep } from "./scheduled/unifiedReminders";
+export { auditNotificationsOnCreate } from "./triggers/auditNotifications";

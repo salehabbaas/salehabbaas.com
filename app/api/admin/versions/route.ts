@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 
 import { toIso } from "@/lib/admin/audit";
 import { getAdminRequestContext } from "@/lib/admin/request-context";
-import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
+import { verifyAdminRequest } from "@/lib/auth/admin-api";
 import { captureSiteSnapshot } from "@/lib/admin/versioning";
 import { adminDb } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const session = await verifyAdminSessionFromCookie();
+  const session = await verifyAdminRequest({ requiredModule: "dashboard" });
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -38,7 +38,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await verifyAdminSessionFromCookie();
+  const session = await verifyAdminRequest({ requiredModule: "dashboard" });
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

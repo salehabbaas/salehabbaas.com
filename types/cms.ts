@@ -10,6 +10,7 @@ export interface ProfileContent {
 
 export interface ExperienceContent {
   id: string;
+  companyId?: string;
   company: string;
   role: string;
   startDate?: string;

@@ -122,28 +122,36 @@ export function CreatorManager() {
   const [ctas, setCtas] = useState<string[]>([]);
   const [statusMessage, setStatusMessage] = useState("");
 
+  function handleListenerError(error: { code?: string; message: string }) {
+    setStatusMessage(error.code === "permission-denied" ? "You do not have permission to read Creator data." : error.message);
+  }
+
   useEffect(() => {
     const q = query(collection(db, "contentItems"), orderBy("updatedAt", "desc"));
-    return onSnapshot(q, (snap) => {
-      const mapped = snap.docs.map((document) => {
-        const data = document.data();
-        return {
-          id: document.id,
-          title: data.title ?? "",
-          pillar: data.pillar ?? "Software",
-          type: data.type ?? "post",
-          status: data.status ?? "idea",
-          notes: data.notes ?? "",
-          tags: Array.isArray(data.tags) ? data.tags : [],
-          createdAt: timestampToIso(data.createdAt),
-          updatedAt: timestampToIso(data.updatedAt)
-        } satisfies ContentItem;
-      });
-      setContentItems(mapped);
-      if (!selectedContentId && mapped[0]?.id) {
-        setSelectedContentId(mapped[0].id);
-      }
-    });
+    return onSnapshot(
+      q,
+      (snap) => {
+        const mapped = snap.docs.map((document) => {
+          const data = document.data();
+          return {
+            id: document.id,
+            title: data.title ?? "",
+            pillar: data.pillar ?? "Software",
+            type: data.type ?? "post",
+            status: data.status ?? "idea",
+            notes: data.notes ?? "",
+            tags: Array.isArray(data.tags) ? data.tags : [],
+            createdAt: timestampToIso(data.createdAt),
+            updatedAt: timestampToIso(data.updatedAt)
+          } satisfies ContentItem;
+        });
+        setContentItems(mapped);
+        if (!selectedContentId && mapped[0]?.id) {
+          setSelectedContentId(mapped[0].id);
+        }
+      },
+      handleListenerError
+    );
   }, [selectedContentId]);
 
   useEffect(() => {
@@ -153,52 +161,14 @@ export function CreatorManager() {
     }
 
     const q = query(collection(db, "contentItems", selectedContentId, "variants"), orderBy("updatedAt", "desc"));
-    return onSnapshot(q, (snap) => {
-      const mapped = snap.docs.map((document) => {
-        const data = document.data();
-        return {
-          id: document.id,
-          contentItemId: data.contentItemId ?? selectedContentId,
-          contentTitle: data.contentTitle ?? "",
-          contentType: data.contentType ?? "post",
-          platform: data.platform ?? "linkedin",
-          slug: data.slug ?? "",
-          visibility: data.visibility ?? "private",
-          hook: data.hook ?? "",
-          body: data.body ?? "",
-          cta: data.cta ?? "",
-          hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
-          media: Array.isArray(data.media) ? data.media : [],
-          scheduledAt: timestampToIso(data.scheduledAt),
-          publishedAt: timestampToIso(data.publishedAt),
-          externalUrl: data.externalUrl ?? "",
-          seoTitle: data.seoTitle ?? "",
-          seoDesc: data.seoDesc ?? "",
-          ogImage: data.ogImage ?? "",
-          pillar: data.pillar ?? "Software",
-          tags: Array.isArray(data.tags) ? data.tags : [],
-          metrics: data.metrics ?? defaultVariant.metrics,
-          createdAt: timestampToIso(data.createdAt),
-          updatedAt: timestampToIso(data.updatedAt)
-        } satisfies ContentVariant;
-      });
-      setVariants(mapped);
-    });
-  }, [selectedContentId]);
-
-  useEffect(() => {
-    const q = query(
-      collectionGroup(db, "variants"),
-      where("visibility", "in", ["private", "unlisted", "public"]),
-      orderBy("publishedAt", "desc")
-    );
-    return onSnapshot(q, (snap) => {
-      setAllVariants(
-        snap.docs.map((document) => {
+    return onSnapshot(
+      q,
+      (snap) => {
+        const mapped = snap.docs.map((document) => {
           const data = document.data();
           return {
             id: document.id,
-            contentItemId: data.contentItemId ?? "",
+            contentItemId: data.contentItemId ?? selectedContentId,
             contentTitle: data.contentTitle ?? "",
             contentType: data.contentType ?? "post",
             platform: data.platform ?? "linkedin",
@@ -221,47 +191,109 @@ export function CreatorManager() {
             createdAt: timestampToIso(data.createdAt),
             updatedAt: timestampToIso(data.updatedAt)
           } satisfies ContentVariant;
-        })
-      );
-    });
+        });
+        setVariants(mapped);
+      },
+      handleListenerError
+    );
+  }, [selectedContentId]);
+
+  useEffect(() => {
+    const q = query(
+      collectionGroup(db, "variants"),
+      where("visibility", "in", ["private", "unlisted", "public"]),
+      orderBy("publishedAt", "desc")
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        setAllVariants(
+          snap.docs.map((document) => {
+            const data = document.data();
+            return {
+              id: document.id,
+              contentItemId: data.contentItemId ?? "",
+              contentTitle: data.contentTitle ?? "",
+              contentType: data.contentType ?? "post",
+              platform: data.platform ?? "linkedin",
+              slug: data.slug ?? "",
+              visibility: data.visibility ?? "private",
+              hook: data.hook ?? "",
+              body: data.body ?? "",
+              cta: data.cta ?? "",
+              hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+              media: Array.isArray(data.media) ? data.media : [],
+              scheduledAt: timestampToIso(data.scheduledAt),
+              publishedAt: timestampToIso(data.publishedAt),
+              externalUrl: data.externalUrl ?? "",
+              seoTitle: data.seoTitle ?? "",
+              seoDesc: data.seoDesc ?? "",
+              ogImage: data.ogImage ?? "",
+              pillar: data.pillar ?? "Software",
+              tags: Array.isArray(data.tags) ? data.tags : [],
+              metrics: data.metrics ?? defaultVariant.metrics,
+              createdAt: timestampToIso(data.createdAt),
+              updatedAt: timestampToIso(data.updatedAt)
+            } satisfies ContentVariant;
+          })
+        );
+      },
+      handleListenerError
+    );
   }, []);
 
   useEffect(() => {
-    const unsubscribeSettings = onSnapshot(doc(db, "creatorSettings", "default"), (snap) => {
-      if (!snap.exists()) return;
-      const data = snap.data();
-      setSettings((prev) => ({
-        ...prev,
-        pillars: data.pillars ?? prev.pillars,
-        platforms: data.platforms ?? prev.platforms,
-        pinnedVariantSlugs: data.pinnedVariantSlugs ?? prev.pinnedVariantSlugs,
-        newsletterEnabled: data.newsletterEnabled ?? prev.newsletterEnabled,
-        defaultVisibility: data.defaultVisibility ?? prev.defaultVisibility,
-        socialLinks: data.socialLinks ?? prev.socialLinks
-      }));
-    });
+    const unsubscribeSettings = onSnapshot(
+      doc(db, "creatorSettings", "default"),
+      (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        setSettings((prev) => ({
+          ...prev,
+          pillars: data.pillars ?? prev.pillars,
+          platforms: data.platforms ?? prev.platforms,
+          pinnedVariantSlugs: data.pinnedVariantSlugs ?? prev.pinnedVariantSlugs,
+          newsletterEnabled: data.newsletterEnabled ?? prev.newsletterEnabled,
+          defaultVisibility: data.defaultVisibility ?? prev.defaultVisibility,
+          socialLinks: data.socialLinks ?? prev.socialLinks
+        }));
+      },
+      handleListenerError
+    );
 
-    const unsubscribeTemplates = onSnapshot(collection(db, "creatorTemplates"), (snap) => {
-      setTemplates(
-        snap.docs.map((document) => ({
-          id: document.id,
-          name: document.data().name ?? "",
-          platform: document.data().platform ?? "linkedin",
-          hook: document.data().hook ?? "",
-          body: document.data().body ?? "",
-          cta: document.data().cta ?? "",
-          hashtags: document.data().hashtags ?? []
-        }))
-      );
-    });
+    const unsubscribeTemplates = onSnapshot(
+      collection(db, "creatorTemplates"),
+      (snap) => {
+        setTemplates(
+          snap.docs.map((document) => ({
+            id: document.id,
+            name: document.data().name ?? "",
+            platform: document.data().platform ?? "linkedin",
+            hook: document.data().hook ?? "",
+            body: document.data().body ?? "",
+            cta: document.data().cta ?? "",
+            hashtags: document.data().hashtags ?? []
+          }))
+        );
+      },
+      handleListenerError
+    );
 
-    const unsubscribeHooks = onSnapshot(collection(db, "hookLibrary"), (snap) => {
-      setHooks(snap.docs.map((document) => document.data().text).filter(Boolean));
-    });
+    const unsubscribeHooks = onSnapshot(
+      collection(db, "hookLibrary"),
+      (snap) => {
+        setHooks(snap.docs.map((document) => document.data().text).filter(Boolean));
+      },
+      handleListenerError
+    );
 
-    const unsubscribeCtas = onSnapshot(collection(db, "ctaLibrary"), (snap) => {
-      setCtas(snap.docs.map((document) => document.data().text).filter(Boolean));
-    });
+    const unsubscribeCtas = onSnapshot(
+      collection(db, "ctaLibrary"),
+      (snap) => {
+        setCtas(snap.docs.map((document) => document.data().text).filter(Boolean));
+      },
+      handleListenerError
+    );
 
     return () => {
       unsubscribeSettings();

@@ -126,6 +126,27 @@ export function CmsProfileManager() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Sections</CardTitle>
+          <CardDescription>Open and update key CMS pages quickly.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/admin/cms/experience">Edit Experience</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/admin/cms/services">Edit Services</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/admin/cms/projects">Edit Projects</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/admin/cms/blog">Edit Blog</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>

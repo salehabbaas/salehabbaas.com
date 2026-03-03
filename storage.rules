@@ -5,13 +5,41 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function isAdmin() {
+    function hasAdminClaim() {
       return isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    function adminProfile() {
+      return firestore.get(/databases/(default)/documents/adminUsers/$(request.auth.uid));
+    }
+
+    function isActiveAdmin() {
+      return hasAdminClaim() && adminProfile().data.status == 'active';
+    }
+
+    function hasModule(moduleKey) {
+      return isActiveAdmin() && (
+        adminProfile().data.role == 'owner'
+        || (moduleKey == 'dashboard' && adminProfile().data.moduleAccess.dashboard == true)
+        || (moduleKey == 'cms' && adminProfile().data.moduleAccess.cms == true)
+        || (moduleKey == 'creator' && adminProfile().data.moduleAccess.creator == true)
+        || (moduleKey == 'linkedin' && adminProfile().data.moduleAccess.linkedin == true)
+        || (moduleKey == 'projects' && adminProfile().data.moduleAccess.projects == true)
+        || (moduleKey == 'resume' && adminProfile().data.moduleAccess.resume == true)
+        || (moduleKey == 'jobs' && adminProfile().data.moduleAccess.jobs == true)
+        || (moduleKey == 'bookings' && adminProfile().data.moduleAccess.bookings == true)
+        || (moduleKey == 'settings' && adminProfile().data.moduleAccess.settings == true)
+        || (moduleKey == 'agent' && adminProfile().data.moduleAccess.agent == true)
+      );
+    }
+
+    function canAccessResumeOwner(ownerId) {
+      return hasModule('resume') && isAuthenticated() && request.auth.uid == ownerId;
     }
 
     function variantVisible(contentItemId, variantId) {
       let variant = firestore.get(
-        /databases/salehabbaas/documents/contentItems/$(contentItemId)/variants/$(variantId)
+        /databases/(default)/documents/contentItems/$(contentItemId)/variants/$(variantId)
       );
       return variant.data != null
         && (variant.data.visibility == 'public' || variant.data.visibility == 'unlisted')
@@ -19,27 +47,43 @@ service firebase.storage {
     }
 
     match /creator/{contentItemId}/{variantId}/{fileName} {
-      allow read: if isAdmin() || variantVisible(contentItemId, variantId);
-      allow write: if isAdmin();
+      allow read: if hasModule('creator') || variantVisible(contentItemId, variantId);
+      allow write: if hasModule('creator');
     }
 
     match /media/{fileName=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if hasModule('cms');
     }
 
     match /certificates/{fileName=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if hasModule('cms');
     }
 
     match /resume/{fileName=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if hasModule('resume');
+    }
+
+    match /exports/{ownerId}/{docId}/{fileName} {
+      allow read, write: if canAccessResumeOwner(ownerId);
+    }
+
+    match /resume-templates/{ownerId}/{allPaths=**} {
+      allow read, write: if canAccessResumeOwner(ownerId);
+    }
+
+    match /resume-template-imports/{ownerId}/{allPaths=**} {
+      allow read, write: if canAccessResumeOwner(ownerId);
+    }
+
+    match /resume-imports/{ownerId}/{allPaths=**} {
+      allow read, write: if canAccessResumeOwner(ownerId);
     }
 
     match /{allPaths=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if false;
     }
   }
 }

@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
 
 interface ServiceAccountFile {
@@ -76,10 +77,11 @@ function initializeAdminApp() {
 
 const adminApp = initializeAdminApp();
 
-const firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID;
+const firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID || "salehabbaas";
 
 export const adminAuth = getAuth(adminApp);
 export const adminDb = firestoreDatabaseId
   ? getFirestore(adminApp, firestoreDatabaseId)
   : getFirestore(adminApp);
+export const adminMessaging = getMessaging(adminApp);
 export const adminStorage = getStorage(adminApp);

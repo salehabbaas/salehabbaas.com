@@ -1,21 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
+import { canReadProject } from "@/lib/admin/access";
+import { verifyAdminRequest } from "@/lib/auth/admin-api";
 import { getTaskActivity } from "@/lib/firestore/project-management";
-import { adminDb } from "@/lib/firebase/admin";
-
-async function assertOwner(projectId: string, uid: string) {
-  const projectSnap = await adminDb.collection("projects").doc(projectId).get();
-  if (!projectSnap.exists) return false;
-  return String(projectSnap.data()?.ownerId ?? "") === uid;
-}
 
 export async function GET(request: Request, context: { params: Promise<{ projectId: string }> }) {
-  const user = await verifyAdminSessionFromCookie();
+  const user = await verifyAdminRequest({ requiredModule: "projects" });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { projectId } = await context.params;
-  const allowed = await assertOwner(projectId, user.uid);
+  const allowed = await canReadProject(user.uid, projectId);
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const url = new URL(request.url);

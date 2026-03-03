@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { writeAdminAuditLog } from "@/lib/admin/audit";
 import { getAdminRequestContext } from "@/lib/admin/request-context";
-import { verifyAdminSessionFromCookie } from "@/lib/auth/admin-api";
+import { verifyAdminRequest } from "@/lib/auth/admin-api";
 import {
   getPageVisibilitySettings,
   getPublicPageSettings,
@@ -62,7 +62,7 @@ const fullSettingsSchema = z.object({
 });
 
 export async function GET() {
-  const user = await verifyAdminSessionFromCookie();
+  const user = await verifyAdminRequest({ requiredModule: "settings" });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const [visibility, pages] = await Promise.all([getPageVisibilitySettings(), getPublicPageSettings()]);
@@ -70,7 +70,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const user = await verifyAdminSessionFromCookie();
+  const user = await verifyAdminRequest({ requiredModule: "settings" });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const requestContext = getAdminRequestContext(request);
 

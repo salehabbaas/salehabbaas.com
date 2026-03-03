@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { FirebaseError } from "firebase/app";
 import { signInWithEmailAndPassword } from "firebase/auth";
 
@@ -40,11 +39,28 @@ function getLoginErrorMessage(error: unknown) {
 }
 
 export function AdminLoginForm() {
-  const router = useRouter();
+  const adminSessionHintStorageKey = "sa-admin-session-active";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  function wait(ms: number) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  async function warmSessionCookie() {
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const response = await fetch("/api/admin/session", {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include"
+      });
+      if (response.ok) return true;
+      await wait(180);
+    }
+    return false;
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,25 +69,34 @@ export function AdminLoginForm() {
 
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password);
-      const tokenResult = await credential.user.getIdTokenResult(true);
-      if (tokenResult.claims.admin !== true) {
-        setError("Your account is authenticated but not an admin.");
-        return;
-      }
-
       const idToken = await credential.user.getIdToken();
       const sessionResponse = await fetch("/api/admin/session", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken })
       });
 
+      const sessionPayload = (await sessionResponse.json().catch(() => ({}))) as {
+        error?: string;
+        nextPath?: string;
+      };
       if (!sessionResponse.ok) {
-        const sessionPayload = await sessionResponse.json();
         throw new Error(sessionPayload.error ?? "Unable to establish admin session.");
       }
 
-      router.replace("/admin");
+      // Warm the session cookie read path to reduce first-load redirect loops.
+      await warmSessionCookie();
+
+      const nextPath =
+        typeof sessionPayload.nextPath === "string" && sessionPayload.nextPath.startsWith("/admin")
+          ? sessionPayload.nextPath
+          : "/admin";
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(adminSessionHintStorageKey, "1");
+        window.location.assign(nextPath);
+      }
     } catch (submitError) {
       console.error("Admin login failed", submitError);
       setError(getLoginErrorMessage(submitError));

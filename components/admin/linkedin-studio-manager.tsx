@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CirclePlus, Sparkles, WandSparkles } from "lucide-react";
 
 import { AdminFieldLabel } from "@/components/admin/admin-field-label";
+import { CompanyPicker } from "@/components/admin/company/company-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ensureCompanyByName } from "@/lib/company-directory/client";
 import { defaultStudioConfig } from "@/lib/linkedin-studio/defaults";
 import { formatDate } from "@/lib/utils";
 import type { StudioCompany, StudioConfig, StudioExperience, StudioPostRecord, StudioPostVersion } from "@/types/linkedin-studio";
@@ -43,6 +45,7 @@ function fromLines(input: string) {
 
 function defaultCompany(): StudioCompany {
   return {
+    companyId: "",
     name: "",
     website: "",
     notes: "",
@@ -54,6 +57,7 @@ function defaultCompany(): StudioCompany {
 function defaultExperience(): StudioExperience {
   return {
     roleTitle: "",
+    companyId: "",
     company: "",
     industry: "",
     startDate: "",
@@ -64,7 +68,7 @@ function defaultExperience(): StudioExperience {
   };
 }
 
-export function LinkedinStudioManager() {
+export function LinkedinStudioManager({ ownerId }: { ownerId: string }) {
   const [config, setConfig] = useState<StudioConfig>(defaultStudioConfig);
   const [industriesText, setIndustriesText] = useState("");
   const [technologiesText, setTechnologiesText] = useState("");
@@ -73,6 +77,7 @@ export function LinkedinStudioManager() {
   const [status, setStatus] = useState("");
 
   const [manualCompany, setManualCompany] = useState("");
+  const [manualCompanyId, setManualCompanyId] = useState("");
   const [manualTopic, setManualTopic] = useState("");
   const [manualPillar, setManualPillar] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -287,6 +292,7 @@ export function LinkedinStudioManager() {
 
   function openGenerateDialog() {
     setManualCompany(config.targeting.companies[0]?.name ?? "");
+    setManualCompanyId(config.targeting.companies[0]?.companyId ?? "");
     setManualPillar(config.targeting.pillars[0] ?? "");
     setManualTopic("");
     setGenerateOpen(true);
@@ -297,14 +303,26 @@ export function LinkedinStudioManager() {
     setCompanyOpen(true);
   }
 
-  function saveCompanyDraft(event: FormEvent<HTMLFormElement>) {
+  async function saveCompanyDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedName = companyDraft.name.trim();
     if (!normalizedName) return;
 
+    let linkedCompanyId = companyDraft.companyId?.trim() || "";
+    let linkedCompanyName = normalizedName;
+    try {
+      const linked = await ensureCompanyByName(ownerId, { name: normalizedName });
+      linkedCompanyId = linked.id;
+      linkedCompanyName = linked.name;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to create tracked company.");
+      return;
+    }
+
     const payload: StudioCompany = {
       ...companyDraft,
-      name: normalizedName,
+      companyId: linkedCompanyId,
+      name: linkedCompanyName,
       website: companyDraft.website?.trim() || "",
       notes: companyDraft.notes?.trim() || "",
       priority: Number(companyDraft.priority ?? 1),
@@ -330,16 +348,28 @@ export function LinkedinStudioManager() {
     setExperienceOpen(true);
   }
 
-  function saveExperienceDraft(event: FormEvent<HTMLFormElement>) {
+  async function saveExperienceDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const roleTitle = experienceDraft.roleTitle.trim();
     const company = experienceDraft.company.trim();
     if (!roleTitle || !company) return;
 
+    let linkedCompanyId = experienceDraft.companyId?.trim() || "";
+    let linkedCompanyName = company;
+    try {
+      const linked = await ensureCompanyByName(ownerId, { name: company });
+      linkedCompanyId = linked.id;
+      linkedCompanyName = linked.name;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to link tracked company.");
+      return;
+    }
+
     const payload: StudioExperience = {
       ...experienceDraft,
       roleTitle,
-      company,
+      companyId: linkedCompanyId,
+      company: linkedCompanyName,
       industry: experienceDraft.industry?.trim() || "",
       startDate: experienceDraft.startDate?.trim() || "",
       endDate: experienceDraft.endDate?.trim() || "",
@@ -370,6 +400,7 @@ export function LinkedinStudioManager() {
             .filter((company) => company.name.trim())
             .map((company) => ({
               ...company,
+              companyId: company.companyId?.trim() || "",
               name: company.name.trim(),
               website: company.website?.trim() || "",
               notes: company.notes?.trim() || "",
@@ -384,7 +415,13 @@ export function LinkedinStudioManager() {
           ...config.settings,
           cadenceDaysOfWeek: config.settings.cadenceDaysOfWeek.length ? config.settings.cadenceDaysOfWeek : ["TU", "TH"]
         },
-        experience: config.experience.filter((entry) => entry.roleTitle.trim() && entry.company.trim())
+        experience: config.experience
+          .filter((entry) => entry.roleTitle.trim() && entry.company.trim())
+          .map((entry) => ({
+            ...entry,
+            companyId: entry.companyId?.trim() || "",
+            company: entry.company.trim()
+          }))
       };
 
       const response = await fetch("/api/admin/linkedin/profile", {
@@ -419,11 +456,17 @@ export function LinkedinStudioManager() {
     setStatus("");
 
     try {
+      let companyOverride = manualCompany.trim() || "";
+      if (companyOverride) {
+        const linked = await ensureCompanyByName(ownerId, { name: companyOverride });
+        companyOverride = linked.name;
+      }
+
       const response = await fetch("/api/admin/linkedin/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          manualCompany: manualCompany.trim() || undefined,
+          manualCompany: companyOverride || undefined,
           manualTopic: manualTopic.trim() || undefined,
           manualPillar: manualPillar.trim() || undefined
         })
@@ -438,6 +481,7 @@ export function LinkedinStudioManager() {
       setPosts((prev) => [post, ...prev.filter((item) => item.id !== post.id)]);
       setSelectedPostId(post.id);
       setManualCompany("");
+      setManualCompanyId("");
       setManualTopic("");
       setManualPillar("");
       setGenerateOpen(false);
@@ -963,7 +1007,19 @@ export function LinkedinStudioManager() {
             <div className="space-y-3">
               {config.targeting.companies.map((company, index) => (
                 <div key={`${company.name}-${index}`} className="grid gap-2 rounded-xl border border-border/70 bg-card/70 p-3 md:grid-cols-5">
-                  <Input placeholder="Company" value={company.name} onChange={(event) => updateCompany(index, "name", event.target.value)} />
+                  <CompanyPicker
+                    ownerId={ownerId}
+                    companyId={company.companyId}
+                    companyName={company.name}
+                    onSelect={(linked) => {
+                      updateCompany(index, "companyId", linked.id);
+                      updateCompany(index, "name", linked.name);
+                    }}
+                    onNameChange={(name) => {
+                      updateCompany(index, "name", name);
+                      updateCompany(index, "companyId", "");
+                    }}
+                  />
                   <Input placeholder="Website" value={company.website || ""} onChange={(event) => updateCompany(index, "website", event.target.value)} />
                   <Input
                     placeholder="Priority 1-5"
@@ -1170,7 +1226,19 @@ export function LinkedinStudioManager() {
                 <div key={`${entry.roleTitle}-${index}`} className="space-y-2 rounded-xl border border-border/70 bg-card/70 p-3">
                   <div className="grid gap-2 md:grid-cols-3">
                     <Input placeholder="Role title" value={entry.roleTitle} onChange={(event) => updateExperience(index, "roleTitle", event.target.value)} />
-                    <Input placeholder="Company" value={entry.company} onChange={(event) => updateExperience(index, "company", event.target.value)} />
+                    <CompanyPicker
+                      ownerId={ownerId}
+                      companyId={entry.companyId}
+                      companyName={entry.company}
+                      onSelect={(linked) => {
+                        updateExperience(index, "companyId", linked.id);
+                        updateExperience(index, "company", linked.name);
+                      }}
+                      onNameChange={(name) => {
+                        updateExperience(index, "company", name);
+                        updateExperience(index, "companyId", "");
+                      }}
+                    />
                     <Input placeholder="Industry" value={entry.industry || ""} onChange={(event) => updateExperience(index, "industry", event.target.value)} />
                   </div>
                   <div className="grid gap-2 md:grid-cols-2">
@@ -1235,11 +1303,20 @@ export function LinkedinStudioManager() {
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <AdminFieldLabel htmlFor="linkedin-manual-company" label="Manual Company" helper="Optional override." />
-                <Input
-                  id="linkedin-manual-company"
+                <CompanyPicker
+                  ownerId={ownerId}
+                  companyId={manualCompanyId}
+                  companyName={manualCompany}
+                  inputId="linkedin-manual-company"
                   placeholder="Optional company"
-                  value={manualCompany}
-                  onChange={(event) => setManualCompany(event.target.value)}
+                  onSelect={(linked) => {
+                    setManualCompany(linked.name);
+                    setManualCompanyId(linked.id);
+                  }}
+                  onNameChange={(name) => {
+                    setManualCompany(name);
+                    setManualCompanyId("");
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -1287,11 +1364,14 @@ export function LinkedinStudioManager() {
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <AdminFieldLabel htmlFor="linkedin-company-name" label="Company Name" required />
-                <Input
-                  id="linkedin-company-name"
-                  value={companyDraft.name}
-                  onChange={(event) => setCompanyDraft((prev) => ({ ...prev, name: event.target.value }))}
+                <CompanyPicker
+                  ownerId={ownerId}
+                  companyId={companyDraft.companyId}
+                  companyName={companyDraft.name}
+                  inputId="linkedin-company-name"
                   required
+                  onSelect={(linked) => setCompanyDraft((prev) => ({ ...prev, companyId: linked.id, name: linked.name }))}
+                  onNameChange={(name) => setCompanyDraft((prev) => ({ ...prev, companyId: "", name }))}
                 />
               </div>
               <div className="space-y-2">
@@ -1369,11 +1449,14 @@ export function LinkedinStudioManager() {
               </div>
               <div className="space-y-2">
                 <AdminFieldLabel htmlFor="linkedin-experience-company" label="Company" required />
-                <Input
-                  id="linkedin-experience-company"
-                  value={experienceDraft.company}
-                  onChange={(event) => setExperienceDraft((prev) => ({ ...prev, company: event.target.value }))}
+                <CompanyPicker
+                  ownerId={ownerId}
+                  companyId={experienceDraft.companyId}
+                  companyName={experienceDraft.company}
+                  inputId="linkedin-experience-company"
                   required
+                  onSelect={(linked) => setExperienceDraft((prev) => ({ ...prev, companyId: linked.id, company: linked.name }))}
+                  onNameChange={(name) => setExperienceDraft((prev) => ({ ...prev, companyId: "", company: name }))}
                 />
               </div>
             </div>
