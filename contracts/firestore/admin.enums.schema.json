@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/firestore/admin.enums.schema.json",
+  "title": "Admin shared enums",
+  "type": "object",
+  "properties": {
+    "adminModuleKeys": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "dashboard",
+          "cms",
+          "creator",
+          "linkedin",
+          "projects",
+          "resume",
+          "jobs",
+          "bookings",
+          "settings",
+          "agent"
+        ]
+      }
+    },
+    "projectAccessRole": {
+      "type": "string",
+      "enum": [
+        "viewer",
+        "editor"
+      ]
+    },
+    "adminUserStatus": {
+      "type": "string",
+      "enum": [
+        "invited",
+        "active",
+        "revoked"
+      ]
+    }
+  },
+  "required": [
+    "adminModuleKeys",
+    "projectAccessRole",
+    "adminUserStatus"
+  ],
+  "additionalProperties": false
+}

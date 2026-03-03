@@ -1,0 +1,256 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "salehabbaas Admin BFF",
+    "version": "2026-03-01"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/api/admin/control-center": {
+      "get": {
+        "summary": "Control center summary",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "summary",
+                    "apiVersion"
+                  ],
+                  "properties": {
+                    "summary": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "apiVersion": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "apiVersion"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "apiVersion": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/system-inbox": {
+      "get": {
+        "summary": "System inbox summary",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "summary",
+                    "apiVersion"
+                  ],
+                  "properties": {
+                    "summary": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "apiVersion": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/systems-dashboard": {
+      "get": {
+        "summary": "Systems dashboard summary",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "summary",
+                    "apiVersion"
+                  ],
+                  "properties": {
+                    "summary": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "apiVersion": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/logs": {
+      "get": {
+        "summary": "Admin logs summary",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "summary",
+                    "apiVersion"
+                  ],
+                  "properties": {
+                    "summary": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "apiVersion": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/mobile/bootstrap": {
+      "post": {
+        "summary": "Mobile admin bootstrap",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bootstrap payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "apiVersion",
+                    "customToken",
+                    "uid",
+                    "email",
+                    "access",
+                    "nextPath"
+                  ],
+                  "properties": {
+                    "apiVersion": {
+                      "type": "string"
+                    },
+                    "customToken": {
+                      "type": "string"
+                    },
+                    "uid": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "access": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "nextPath": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Firebase ID Token"
+      },
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__session"
+      }
+    }
+  }
+}

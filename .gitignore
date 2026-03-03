@@ -21,3 +21,4 @@ functions/node_modules
 *firebase-adminsdk*.json
 
 .firebase/
+.spm-clones/
