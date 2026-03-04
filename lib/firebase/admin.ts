@@ -12,6 +12,22 @@ interface ServiceAccountFile {
   private_key: string;
 }
 
+function normalizeServiceAccountPayload(raw: string) {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  try {
+    return JSON.parse(trimmed) as Partial<ServiceAccountFile>;
+  } catch {
+    try {
+      const decoded = Buffer.from(trimmed, "base64").toString("utf8");
+      return JSON.parse(decoded) as Partial<ServiceAccountFile>;
+    } catch {
+      return null;
+    }
+  }
+}
+
 function getPrivateKey() {
   const key = process.env.FIREBASE_PRIVATE_KEY;
   if (!key) return undefined;
@@ -56,7 +72,23 @@ function getCredentialFromEnvironment() {
   });
 }
 
-const credential = getCredentialFromServiceAccountFile() ?? getCredentialFromEnvironment();
+function getCredentialFromServiceAccountBlob() {
+  const raw = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT;
+  if (!raw) return null;
+
+  const parsed = normalizeServiceAccountPayload(raw);
+  if (!parsed?.project_id || !parsed.client_email || !parsed.private_key) {
+    return null;
+  }
+
+  return cert({
+    projectId: parsed.project_id,
+    clientEmail: parsed.client_email,
+    privateKey: parsed.private_key
+  });
+}
+
+const credential = getCredentialFromServiceAccountFile() ?? getCredentialFromServiceAccountBlob() ?? getCredentialFromEnvironment();
 
 function initializeAdminApp() {
   const existingApp = getApps()[0];

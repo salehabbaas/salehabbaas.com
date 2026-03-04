@@ -5,7 +5,6 @@ import {
   doc,
   getDocs,
   limit,
-  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -30,6 +29,37 @@ function toIso(value: unknown): string | undefined {
 
 function notificationsCollection(uid: string) {
   return collection(db, "users", uid, "notifications");
+}
+
+function observeByPolling<T>(input: {
+  run: () => Promise<T>;
+  onData: (value: T) => void;
+  onError?: (error: FirestoreError) => void;
+  intervalMs?: number;
+}) {
+  let active = true;
+  const intervalMs = input.intervalMs ?? 10000;
+
+  const tick = async () => {
+    try {
+      const value = await input.run();
+      if (!active) return;
+      input.onData(value);
+    } catch (error) {
+      if (!active) return;
+      input.onError?.(error as FirestoreError);
+    }
+  };
+
+  void tick();
+  const timer = window.setInterval(() => {
+    void tick();
+  }, intervalMs);
+
+  return () => {
+    active = false;
+    window.clearInterval(timer);
+  };
 }
 
 function mapNotification(id: string, data: Record<string, unknown>): NotificationDoc {
@@ -77,17 +107,14 @@ export function observeRecentNotifications(
   onError?: (error: FirestoreError) => void
 ) {
   const notificationsQuery = query(notificationsCollection(uid), orderBy("createdAt", "desc"), limit(maxItems));
-
-  return onSnapshot(
-    notificationsQuery,
-    (snap) => {
-      const items = snap.docs.map((entry) => mapNotification(entry.id, entry.data() as Record<string, unknown>));
-      onData(items);
+  return observeByPolling({
+    run: async () => {
+      const snap = await getDocs(notificationsQuery);
+      return snap.docs.map((entry) => mapNotification(entry.id, entry.data() as Record<string, unknown>));
     },
-    (error) => {
-      if (onError) onError(error);
-    }
-  );
+    onData,
+    onError
+  });
 }
 
 export function observeUnreadNotifications(
@@ -102,31 +129,26 @@ export function observeUnreadNotifications(
     orderBy("createdAt", "desc"),
     limit(maxItems)
   );
-
-  return onSnapshot(
-    unreadQuery,
-    (snap) => {
-      const items = snap.docs.map((entry) => mapNotification(entry.id, entry.data() as Record<string, unknown>));
-      onData(items);
+  return observeByPolling({
+    run: async () => {
+      const snap = await getDocs(unreadQuery);
+      return snap.docs.map((entry) => mapNotification(entry.id, entry.data() as Record<string, unknown>));
     },
-    (error) => {
-      if (onError) onError(error);
-    }
-  );
+    onData,
+    onError
+  });
 }
 
 export function observeUnreadCount(uid: string, onData: (count: number) => void, onError?: (error: FirestoreError) => void) {
   const unreadQuery = query(notificationsCollection(uid), where("state", "==", "unread"), limit(100));
-
-  return onSnapshot(
-    unreadQuery,
-    (snap) => {
-      onData(snap.size);
+  return observeByPolling({
+    run: async () => {
+      const snap = await getDocs(unreadQuery);
+      return snap.size;
     },
-    (error) => {
-      if (onError) onError(error);
-    }
-  );
+    onData,
+    onError
+  });
 }
 
 export async function markNotificationRead(uid: string, notificationId: string) {

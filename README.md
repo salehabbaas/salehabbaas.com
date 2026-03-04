@@ -33,6 +33,61 @@ The admin panel includes production modules for:
 - Job Tracker (`/admin/job-tracker`) with linked resumes and tailored-version generation
 - CMS, projects, bookings, creator workflows, and integrations
 
+### Job Tracker System (v2)
+
+Production routes:
+
+- `/admin/job-tracker/dashboard`
+- `/admin/job-tracker/companies`
+- `/admin/job-tracker/jobs`
+- `/admin/job-tracker/intake`
+- `/admin/job-tracker/emails`
+- `/admin/job-tracker/exports`
+- `/r/company/[companyId]` (redirect logging route for career-page checks)
+
+Core Firebase collections:
+
+- `users`
+- `companyCategories`
+- `companies`
+- `companyVisits`
+- `jobs`
+- `jobStatusHistory`
+- `interviews`
+- `tasks`
+- `documents`
+- `emailMessages`
+- `emailAiResults`
+- `notifications`
+- `companyJobSnapshots`
+- `monthlyExports`
+
+Cloud Functions included:
+
+- `redirectTrackCompanyVisit`
+- `aiExtractFromInput`
+- `classifyEmail`
+- `scheduledTaskReminders`
+- `scheduledCompanyWatchScan`
+- `exportMonthlyXlsx`
+
+### Job Tracker Env Vars
+
+Required:
+
+- `NEXT_PUBLIC_FIREBASE_API_KEY`
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `NEXT_PUBLIC_FIREBASE_APP_ID`
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_PRIVATE_KEY`
+- `FIREBASE_SERVICE_ACCOUNT_PATH` (or equivalent admin credential setup)
+- `OPENAI_API_KEY`
+- `SENDGRID_API_KEY` (recommended) or SMTP provider vars
+
 ---
 
 ## Latest Release Updates (2026-02-28)

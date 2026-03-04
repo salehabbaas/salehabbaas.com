@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import {
   onAuthStateChanged,
+  signOut,
   signInWithCustomToken,
   type User,
 } from "firebase/auth";
@@ -1536,12 +1537,16 @@ export function AdminShell({
           window.localStorage.getItem(adminSessionHintStorageKey) === "1";
 
         const existingUser = await getCurrentFirebaseUser();
-        if (existingUser) {
+        if (existingUser && existingUser.uid === actorUid) {
           markReady();
           if (hasAdminSessionHint) {
             void repairServerSessionFromClientUser(existingUser);
           }
           return;
+        }
+
+        if (existingUser && existingUser.uid !== actorUid) {
+          await signOut(auth);
         }
 
         if (await signInWithServerSessionToken()) {
@@ -1551,7 +1556,7 @@ export function AdminShell({
 
         if (hasAdminSessionHint) {
           const lateUser = await waitForFirebaseUser(1800);
-          if (lateUser) {
+          if (lateUser && lateUser.uid === actorUid) {
             markReady();
             void repairServerSessionFromClientUser(lateUser);
             return;

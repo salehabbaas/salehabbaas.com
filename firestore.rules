@@ -51,6 +51,18 @@ service cloud.firestore {
       return data.ownerId is string && data.ownerId == request.auth.uid;
     }
 
+    function isUserOwnedByRequester(data) {
+      return data.userId is string && data.userId == request.auth.uid;
+    }
+
+    function isJobTrackerTask(data) {
+      return isUserOwnedByRequester(data) && data.jobId is string;
+    }
+
+    function canUseJobTracker() {
+      return hasModule('jobs') || isAuthenticated();
+    }
+
     function isPmProject(data) {
       return data.module == 'project-management'
         && data.ownerId is string
@@ -226,6 +238,109 @@ service cloud.firestore {
         && request.resource.data.ownerId == resource.data.ownerId;
     }
 
+    match /companyCategories/{categoryId} {
+      allow read, write: if canUseJobTracker();
+    }
+
+    match /companies/{companyId} {
+      allow read, delete: if canUseJobTracker() && isUserOwnedByRequester(resource.data);
+      allow create: if canUseJobTracker() && isUserOwnedByRequester(request.resource.data);
+      allow update: if canUseJobTracker()
+        && isUserOwnedByRequester(resource.data)
+        && isUserOwnedByRequester(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /companyVisits/{visitId} {
+      allow read, delete: if canUseJobTracker() && isUserOwnedByRequester(resource.data);
+      allow create: if canUseJobTracker() && isUserOwnedByRequester(request.resource.data);
+      allow update: if canUseJobTracker()
+        && isUserOwnedByRequester(resource.data)
+        && isUserOwnedByRequester(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /jobs/{jobId} {
+      allow read, delete: if canUseJobTracker() && isUserOwnedByRequester(resource.data);
+      allow create: if canUseJobTracker() && isUserOwnedByRequester(request.resource.data);
+      allow update: if canUseJobTracker()
+        && isUserOwnedByRequester(resource.data)
+        && isUserOwnedByRequester(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /jobStatusHistory/{historyId} {
+      allow read, delete: if canUseJobTracker() && isUserOwnedByRequester(resource.data);
+      allow create: if canUseJobTracker() && isUserOwnedByRequester(request.resource.data);
+      allow update: if canUseJobTracker()
+        && isUserOwnedByRequester(resource.data)
+        && isUserOwnedByRequester(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /interviews/{interviewId} {
+      allow read, delete: if canUseJobTracker() && isUserOwnedByRequester(resource.data);
+      allow create: if canUseJobTracker() && isUserOwnedByRequester(request.resource.data);
+      allow update: if canUseJobTracker()
+        && isUserOwnedByRequester(resource.data)
+        && isUserOwnedByRequester(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /documents/{docId} {
+      allow read, delete: if canUseJobTracker() && isUserOwnedByRequester(resource.data);
+      allow create: if canUseJobTracker() && isUserOwnedByRequester(request.resource.data);
+      allow update: if canUseJobTracker()
+        && isUserOwnedByRequester(resource.data)
+        && isUserOwnedByRequester(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /emailMessages/{emailId} {
+      allow read, delete: if canUseJobTracker() && isUserOwnedByRequester(resource.data);
+      allow create: if canUseJobTracker() && isUserOwnedByRequester(request.resource.data);
+      allow update: if canUseJobTracker()
+        && isUserOwnedByRequester(resource.data)
+        && isUserOwnedByRequester(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /emailAiResults/{resultId} {
+      allow read, delete: if canUseJobTracker() && isUserOwnedByRequester(resource.data);
+      allow create: if canUseJobTracker() && isUserOwnedByRequester(request.resource.data);
+      allow update: if canUseJobTracker()
+        && isUserOwnedByRequester(resource.data)
+        && isUserOwnedByRequester(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /notifications/{notificationId} {
+      allow read, delete: if canUseJobTracker() && isUserOwnedByRequester(resource.data);
+      allow create: if canUseJobTracker() && isUserOwnedByRequester(request.resource.data);
+      allow update: if canUseJobTracker()
+        && isUserOwnedByRequester(resource.data)
+        && isUserOwnedByRequester(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /companyJobSnapshots/{snapshotId} {
+      allow read, delete: if canUseJobTracker() && isUserOwnedByRequester(resource.data);
+      allow create: if canUseJobTracker() && isUserOwnedByRequester(request.resource.data);
+      allow update: if canUseJobTracker()
+        && isUserOwnedByRequester(resource.data)
+        && isUserOwnedByRequester(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /monthlyExports/{exportId} {
+      allow read, delete: if canUseJobTracker() && isUserOwnedByRequester(resource.data);
+      allow create: if canUseJobTracker() && isUserOwnedByRequester(request.resource.data);
+      allow update: if canUseJobTracker()
+        && isUserOwnedByRequester(resource.data)
+        && isUserOwnedByRequester(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
     match /newsletterSubscribers/{subscriberId} {
       allow create: if request.resource.data.email is string
         && request.resource.data.status == 'pending'
@@ -323,18 +438,49 @@ service cloud.firestore {
     }
 
     match /tasks/{docId} {
-      allow read: if hasModule('projects') && canReadPmProject(resource.data.projectId);
-      allow create: if hasModule('projects') && canWritePmProject(request.resource.data.projectId);
-      allow update: if hasModule('projects')
-        && canWritePmProject(resource.data.projectId)
-        && request.resource.data.projectId == resource.data.projectId
-        && canWritePmProject(request.resource.data.projectId);
-      allow delete: if hasModule('projects') && canWritePmProject(resource.data.projectId);
+      allow read: if (
+          hasModule('projects')
+          && canReadPmProject(resource.data.projectId)
+        ) || (
+          canUseJobTracker()
+          && isJobTrackerTask(resource.data)
+        );
+
+      allow create: if (
+          hasModule('projects')
+          && canWritePmProject(request.resource.data.projectId)
+        ) || (
+          canUseJobTracker()
+          && isJobTrackerTask(request.resource.data)
+        );
+
+      allow update: if (
+          hasModule('projects')
+          && canWritePmProject(resource.data.projectId)
+          && request.resource.data.projectId == resource.data.projectId
+          && canWritePmProject(request.resource.data.projectId)
+        ) || (
+          canUseJobTracker()
+          && isJobTrackerTask(resource.data)
+          && isJobTrackerTask(request.resource.data)
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.jobId == resource.data.jobId
+        );
+
+      allow delete: if (
+          hasModule('projects')
+          && canWritePmProject(resource.data.projectId)
+        ) || (
+          canUseJobTracker()
+          && isJobTrackerTask(resource.data)
+        );
 
       match /notificationsSent/{notificationId} {
         allow read: if hasModule('projects')
+          && get(/databases/$(database)/documents/tasks/$(docId)).data.projectId is string
           && canReadPmProject(get(/databases/$(database)/documents/tasks/$(docId)).data.projectId);
         allow write: if hasModule('projects')
+          && get(/databases/$(database)/documents/tasks/$(docId)).data.projectId is string
           && canWritePmProject(get(/databases/$(database)/documents/tasks/$(docId)).data.projectId);
       }
     }
@@ -375,6 +521,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
+      allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+
       match /settings/{docId} {
         allow read, write: if isActiveAdmin() && request.auth.uid == userId;
       }

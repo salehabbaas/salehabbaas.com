@@ -4,6 +4,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { browserLocalPersistence, getAuth, setPersistence } from "firebase/auth";
 import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getFunctions } from "firebase/functions";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
@@ -102,19 +103,17 @@ function createFirestore() {
 
   try {
     // WebKit/Safari can fail Firestore WebChannel streaming with CORS-like
-    // listen channel errors. Auto long-polling + disabled fetch streams avoids it.
+    // listen channel errors. Force long-polling to avoid unstable watch streams.
     return firestoreDatabaseId
       ? initializeFirestore(
           app,
           {
             experimentalForceLongPolling: true,
-            experimentalAutoDetectLongPolling: true,
           },
           firestoreDatabaseId
         )
       : initializeFirestore(app, {
           experimentalForceLongPolling: true,
-          experimentalAutoDetectLongPolling: true,
         });
   } catch {
     // If Firestore was already initialized during HMR, reuse existing instance.
@@ -124,6 +123,7 @@ function createFirestore() {
 
 export const db = createFirestore();
 export const storage = app ? getStorage(app) : (null as unknown as ReturnType<typeof getStorage>);
+export const cloudFunctions = app ? getFunctions(app, "us-central1") : (null as unknown as ReturnType<typeof getFunctions>);
 
 let analyticsPromise: Promise<ReturnType<typeof getAnalytics> | null> | null = null;
 const ANALYTICS_SESSION_KEY = "saleh_analytics_session";
