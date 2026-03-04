@@ -1,6 +1,16 @@
 "use client";
 
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+  writeBatch
+} from "firebase/firestore";
 import { getToken, isSupported, onMessage, type MessagePayload } from "firebase/messaging";
 
 import { db } from "@/lib/firebase/client";
@@ -123,6 +133,48 @@ async function upsertDevice(input: {
     updatePayload,
     { merge: true }
   );
+
+  const duplicateIds = new Set<string>();
+
+  if (normalizedToken) {
+    const tokenMatches = await getDocs(
+      query(collection(db, "users", input.uid, "notificationDevices"), where("token", "==", normalizedToken))
+    );
+    tokenMatches.docs.forEach((entry) => {
+      const data = entry.data() as Record<string, unknown>;
+      if (entry.id !== deviceId && data.enabled === true) {
+        duplicateIds.add(entry.id);
+      }
+    });
+  }
+
+  if (normalizedSubscription?.endpoint) {
+    const endpointMatches = await getDocs(
+      query(collection(db, "users", input.uid, "notificationDevices"), where("endpoint", "==", normalizedSubscription.endpoint))
+    );
+    endpointMatches.docs.forEach((entry) => {
+      const data = entry.data() as Record<string, unknown>;
+      if (entry.id !== deviceId && data.enabled === true) {
+        duplicateIds.add(entry.id);
+      }
+    });
+  }
+
+  if (duplicateIds.size) {
+    const batch = writeBatch(db);
+    duplicateIds.forEach((id) => {
+      batch.set(
+        doc(db, "users", input.uid, "notificationDevices", id),
+        {
+          enabled: false,
+          updatedAt: serverTimestamp(),
+          disabledAt: serverTimestamp()
+        },
+        { merge: true }
+      );
+    });
+    await batch.commit();
+  }
 }
 
 type PushStatus = {
@@ -161,7 +213,20 @@ export async function requestPushPermissionAndRegister(uid: string) {
 
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {
-    return { ok: false, message: "Push permission was not granted.", permission };
+    if (permission === "denied") {
+      return {
+        ok: false,
+        message:
+          "Push permission is blocked by browser settings. Enable notifications for this site in Safari/Chrome and macOS Notification Center, then try again.",
+        permission
+      };
+    }
+
+    return {
+      ok: false,
+      message: "Push permission prompt was dismissed. Click Enable Push and choose Allow.",
+      permission
+    };
   }
 
   const registration = await navigator.serviceWorker.register(buildServiceWorkerUrl());

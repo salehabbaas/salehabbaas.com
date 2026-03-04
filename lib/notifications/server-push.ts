@@ -113,14 +113,37 @@ export async function sendBrowserPushToUser(input: {
 
   const staleTokenDeviceIds = new Set<string>();
   const staleSubscriptionDeviceIds = new Set<string>();
+  const vapid = resolveVapidConfig();
+  const canSendWebPush = Boolean(vapid.publicKey && vapid.privateKey);
+
+  const endpointToDevices = new Map<string, PushDeviceRecord[]>();
+  const subscriptionBackedTokens = new Set<string>();
+
+  devices.forEach((device) => {
+    const endpoint = device.subscription?.endpoint?.trim() ?? "";
+    if (!endpoint || !canSendWebPush) return;
+
+    const rows = endpointToDevices.get(endpoint) ?? [];
+    rows.push(device);
+    endpointToDevices.set(endpoint, rows);
+
+    if (device.token) {
+      subscriptionBackedTokens.add(device.token);
+    }
+  });
 
   const tokenToDevices = new Map<string, PushDeviceRecord[]>();
   devices.forEach((device) => {
-    if (!device.token) return;
-    const refs = tokenToDevices.get(device.token) ?? [];
-    refs.push(device);
-    tokenToDevices.set(device.token, refs);
+    if (!device.token || subscriptionBackedTokens.has(device.token)) return;
+    const rows = tokenToDevices.get(device.token) ?? [];
+    rows.push(device);
+    tokenToDevices.set(device.token, rows);
   });
+
+  const undeliverableSubscriptionCount = devices.filter(
+    (device) => Boolean(device.subscription) && !device.token && !canSendWebPush
+  ).length;
+  failed += undeliverableSubscriptionCount;
 
   const tokens = Array.from(tokenToDevices.keys());
   if (tokens.length) {
@@ -154,45 +177,41 @@ export async function sendBrowserPushToUser(input: {
     });
   }
 
-  const subscriptionDevices = devices.filter((device) => Boolean(device.subscription));
-  if (subscriptionDevices.length) {
-    const vapid = resolveVapidConfig();
-    if (!vapid.publicKey || !vapid.privateKey) {
-      failed += subscriptionDevices.length;
-    } else {
-      webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
-      const payload = JSON.stringify({
-        notification: {
-          title: input.title,
-          body: input.body
-        },
-        data: {
-          ...data,
-          _provider: "webpush"
-        }
-      });
+  if (endpointToDevices.size && canSendWebPush) {
+    webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
+    const payload = JSON.stringify({
+      notification: {
+        title: input.title,
+        body: input.body
+      },
+      data: {
+        ...data,
+        _provider: "webpush"
+      }
+    });
 
-      await Promise.all(
-        subscriptionDevices.map(async (device) => {
-          if (!device.subscription) return;
-          try {
-            await webpush.sendNotification(device.subscription, payload, {
-              TTL: 60 * 60
-            });
-            sent += 1;
-          } catch (error) {
-            failed += 1;
-            const statusCode =
-              typeof error === "object" && error && "statusCode" in error
-                ? Number((error as { statusCode?: number }).statusCode)
-                : 0;
-            if (statusCode === 404 || statusCode === 410) {
-              staleSubscriptionDeviceIds.add(device.id);
-            }
+    await Promise.all(
+      Array.from(endpointToDevices.entries()).map(async ([endpoint, endpointDevices]) => {
+        const subscription = endpointDevices[0]?.subscription;
+        if (!subscription) return;
+        try {
+          await webpush.sendNotification(subscription, payload, {
+            TTL: 60 * 60
+          });
+          sent += 1;
+        } catch (error) {
+          failed += 1;
+          const statusCode =
+            typeof error === "object" && error && "statusCode" in error
+              ? Number((error as { statusCode?: number }).statusCode)
+              : 0;
+          if (statusCode === 404 || statusCode === 410) {
+            const staleGroup = endpointToDevices.get(endpoint) ?? [];
+            staleGroup.forEach((device) => staleSubscriptionDeviceIds.add(device.id));
           }
-        })
-      );
-    }
+        }
+      })
+    );
   }
 
   if (staleTokenDeviceIds.size || staleSubscriptionDeviceIds.size) {

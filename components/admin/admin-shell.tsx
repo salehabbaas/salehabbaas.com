@@ -170,10 +170,6 @@ type FavoriteNavItem = {
   icon: AdminNavIcon;
 };
 
-const favoriteStorageKey = "sa-admin-nav-favorites";
-const projectSubmenuVisibilityStorageKey = "sa-admin-project-submenu-visible";
-const favoriteProjectsExpandedStorageKey =
-  "sa-admin-favorite-projects-expanded";
 const adminSessionHintStorageKey = "sa-admin-session-active";
 const projectsRootHref = "/admin/projects";
 const maxProjectNameCharacters = 22;
@@ -474,6 +470,10 @@ function AdminNavigationList({
   projectNavItems,
   onToggleFavorite,
   onReorderFavorites,
+  projectsVisible,
+  onProjectsVisibleChange,
+  favoriteProjectsExpanded,
+  onFavoriteProjectsExpandedChange,
 }: {
   pathname: string;
   onNavigate?: () => void;
@@ -483,6 +483,10 @@ function AdminNavigationList({
   projectNavItems: AdminProjectNavItem[];
   onToggleFavorite: (href: string) => void;
   onReorderFavorites: (next: string[]) => void;
+  projectsVisible: boolean;
+  onProjectsVisibleChange: (next: boolean) => void;
+  favoriteProjectsExpanded: boolean;
+  onFavoriteProjectsExpandedChange: (next: boolean) => void;
 }) {
   const visibleNavigation = useMemo(
     () =>
@@ -601,56 +605,16 @@ function AdminNavigationList({
       settings: false,
     };
   });
-  const [projectsVisible, setProjectsVisible] = useState(true);
-  const [favoriteProjectsExpanded, setFavoriteProjectsExpanded] =
-    useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(
-      projectSubmenuVisibilityStorageKey,
-    );
-    if (stored === "0") setProjectsVisible(false);
-    if (stored === "1") setProjectsVisible(true);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(
-      favoriteProjectsExpandedStorageKey,
-    );
-    if (stored === "0") setFavoriteProjectsExpanded(false);
-    if (stored === "1") setFavoriteProjectsExpanded(true);
-  }, []);
-
   function toggleSection(sectionId: AdminNavSectionId) {
     setOpenSections((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
   }
 
   function toggleProjectVisibility() {
-    setProjectsVisible((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(
-          projectSubmenuVisibilityStorageKey,
-          next ? "1" : "0",
-        );
-      }
-      return next;
-    });
+    onProjectsVisibleChange(!projectsVisible);
   }
 
   function toggleFavoriteProjectsExpanded() {
-    setFavoriteProjectsExpanded((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(
-          favoriteProjectsExpandedStorageKey,
-          next ? "1" : "0",
-        );
-      }
-      return next;
-    });
+    onFavoriteProjectsExpandedChange(!favoriteProjectsExpanded);
   }
 
   function onFavoriteNavigate() {
@@ -1215,12 +1179,14 @@ function AdminNavigationList({
 export function AdminShell({
   children,
   actorEmail,
+  actorUid,
   actorRole: _actorRole,
   actorModuleAccess,
   actorProjects = [],
 }: {
   children: React.ReactNode;
   actorEmail?: string;
+  actorUid?: string;
   actorRole?: string;
   actorModuleAccess?: Partial<ModuleAccessMap>;
   actorProjects?: AdminProjectNavItem[];
@@ -1232,6 +1198,10 @@ export function AdminShell({
   const [clientAuthReady, setClientAuthReady] = useState(false);
   const [clientAuthError, setClientAuthError] = useState("");
   const [favoriteHrefs, setFavoriteHrefs] = useState<string[]>([]);
+  const [projectsVisible, setProjectsVisible] = useState(true);
+  const [favoriteProjectsExpanded, setFavoriteProjectsExpanded] =
+    useState(false);
+  const [preferencesHydrated, setPreferencesHydrated] = useState(false);
   const moduleAccess = useMemo(
     () =>
       adminModuleKeys.reduce((acc, key) => {
@@ -1266,13 +1236,7 @@ export function AdminShell({
 
   const updateFavorites = useCallback(
     (updater: (prev: string[]) => string[]) => {
-      setFavoriteHrefs((prev) => {
-        const next = updater(prev);
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(favoriteStorageKey, JSON.stringify(next));
-        }
-        return next;
-      });
+      setFavoriteHrefs((prev) => updater(prev));
     },
     [],
   );
@@ -1333,19 +1297,77 @@ export function AdminShell({
   );
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem(favoriteStorageKey);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return;
-      setFavoriteHrefs(
-        parsed.filter((item): item is string => typeof item === "string"),
-      );
-    } catch {
-      setFavoriteHrefs([]);
+    if (!clientAuthReady || !actorUid) return;
+    let cancelled = false;
+    setPreferencesHydrated(false);
+
+    async function loadNavigationPreferences() {
+      let loaded = false;
+      try {
+        const response = await fetch("/api/admin/navigation/preferences", {
+          method: "GET",
+          cache: "no-store",
+          credentials: "include",
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          favorites?: unknown;
+          projectSubmenuVisible?: unknown;
+          favoriteProjectsExpanded?: unknown;
+        };
+        if (!response.ok) return;
+        if (cancelled) return;
+
+        if (Array.isArray(data.favorites)) {
+          setFavoriteHrefs(
+            data.favorites.filter(
+              (item): item is string => typeof item === "string",
+            ),
+          );
+        }
+        if (typeof data.projectSubmenuVisible === "boolean") {
+          setProjectsVisible(data.projectSubmenuVisible);
+        }
+        if (typeof data.favoriteProjectsExpanded === "boolean") {
+          setFavoriteProjectsExpanded(data.favoriteProjectsExpanded);
+        }
+        loaded = true;
+      } finally {
+        if (!cancelled && loaded) {
+          setPreferencesHydrated(true);
+        }
+      }
     }
-  }, []);
+
+    void loadNavigationPreferences();
+    return () => {
+      cancelled = true;
+    };
+  }, [actorUid, clientAuthReady]);
+
+  useEffect(() => {
+    if (!clientAuthReady || !preferencesHydrated || !actorUid) return;
+    const timer = window.setTimeout(() => {
+      void fetch("/api/admin/navigation/preferences", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          favorites: favoriteHrefs,
+          projectSubmenuVisible: projectsVisible,
+          favoriteProjectsExpanded,
+        }),
+      });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    actorUid,
+    clientAuthReady,
+    favoriteHrefs,
+    favoriteProjectsExpanded,
+    preferencesHydrated,
+    projectsVisible,
+  ]);
 
   useEffect(() => {
     updateFavorites((prev) => {
@@ -1634,6 +1656,12 @@ export function AdminShell({
                     projectNavItems={projectNavItems}
                     onToggleFavorite={toggleFavorite}
                     onReorderFavorites={reorderFavorites}
+                    projectsVisible={projectsVisible}
+                    onProjectsVisibleChange={setProjectsVisible}
+                    favoriteProjectsExpanded={favoriteProjectsExpanded}
+                    onFavoriteProjectsExpandedChange={
+                      setFavoriteProjectsExpanded
+                    }
                   />
                 </div>
               </SheetContent>
@@ -1714,6 +1742,10 @@ export function AdminShell({
             projectNavItems={projectNavItems}
             onToggleFavorite={toggleFavorite}
             onReorderFavorites={reorderFavorites}
+            projectsVisible={projectsVisible}
+            onProjectsVisibleChange={setProjectsVisible}
+            favoriteProjectsExpanded={favoriteProjectsExpanded}
+            onFavoriteProjectsExpandedChange={setFavoriteProjectsExpanded}
           />
         </aside>
 

@@ -38,6 +38,7 @@ export function NotificationCenter({ uid: uidProp, maxItems = 40 }: { uid?: stri
   const [status, setStatus] = useState("");
   const [busyId, setBusyId] = useState("");
   const [pushEnabledOnBrowser, setPushEnabledOnBrowser] = useState(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | "unsupported">("unsupported");
   const [checkingPushStatus, setCheckingPushStatus] = useState(false);
   const [togglingPush, setTogglingPush] = useState(false);
 
@@ -99,15 +100,22 @@ export function NotificationCenter({ uid: uidProp, maxItems = 40 }: { uid?: stri
     async function loadPushStatus() {
       if (!uid) {
         setPushEnabledOnBrowser(false);
+        setPushPermission("unsupported");
         setCheckingPushStatus(false);
         return;
       }
       setCheckingPushStatus(true);
       try {
         const pushStatus = await getPushStatus(uid);
-        if (active) setPushEnabledOnBrowser(pushStatus.enabled);
+        if (active) {
+          setPushEnabledOnBrowser(pushStatus.enabled);
+          setPushPermission(pushStatus.permission);
+        }
       } catch {
-        if (active) setPushEnabledOnBrowser(false);
+        if (active) {
+          setPushEnabledOnBrowser(false);
+          setPushPermission("unsupported");
+        }
       } finally {
         if (active) setCheckingPushStatus(false);
       }
@@ -129,6 +137,7 @@ export function NotificationCenter({ uid: uidProp, maxItems = 40 }: { uid?: stri
       setStatus(result.message);
       const pushStatus = await getPushStatus(uid);
       setPushEnabledOnBrowser(pushStatus.enabled);
+      setPushPermission(pushStatus.permission);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to update push notification setting.");
     } finally {
@@ -204,6 +213,25 @@ export function NotificationCenter({ uid: uidProp, maxItems = 40 }: { uid?: stri
             Mark All Read
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Browser permission: <span className="font-semibold text-foreground">{pushPermission}</span> · Device push:{" "}
+          <span className="font-semibold text-foreground">{pushEnabledOnBrowser ? "enabled" : "disabled"}</span>.
+        </p>
+        {pushPermission === "default" ? (
+          <p className="text-xs text-warning">
+            Click Enable Push to trigger the macOS alert and press Allow.
+          </p>
+        ) : null}
+        {pushPermission === "denied" ? (
+          <p className="text-xs text-destructive">
+            Notification permission is blocked. Safari: Settings → Websites → Notifications → Allow this site, then macOS
+            System Settings → Notifications → Safari → Allow Notifications. Chrome: Site Settings → Notifications → Allow,
+            then macOS System Settings → Notifications → Google Chrome → Allow Notifications.
+          </p>
+        ) : null}
+        {pushPermission === "unsupported" ? (
+          <p className="text-xs text-destructive">This browser does not currently expose web push support for this page.</p>
+        ) : null}
 
         {notifications.map((item) => (
           <div key={item.id} className="rounded-xl border border-border/70 bg-card/70 p-3">

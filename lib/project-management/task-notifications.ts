@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { getConfiguredEmailAdapter } from "@/lib/email/service";
 import { adminDb } from "@/lib/firebase/admin";
 import { normalizeReminderSettings, normalizeUserNotificationPreferences } from "@/lib/notifications/settings";
+import { sendBrowserPushToUser } from "@/lib/notifications/server-push";
 import type { NotificationPriority, ReminderSettings, UserNotificationPreferences } from "@/types/notifications";
 
 type TaskNotificationRecipientProfile = {
@@ -239,6 +240,7 @@ export async function sendInAppTaskNotification(input: InAppTaskNotificationInpu
 
   const now = new Date();
   const ctaUrl = toAbsoluteLink(input.ctaPath || "/admin/system-inbox");
+  const pushEnabled = context.runtimeSettings.channels.pushEnabled && profile.preferences.pushEnabled;
 
   await ref.set({
     module: "tasks",
@@ -251,7 +253,7 @@ export async function sendInAppTaskNotification(input: InAppTaskNotificationInpu
     channels: {
       inApp: true,
       banner: context.runtimeSettings.channels.bannerEnabled && profile.preferences.bannerEnabled,
-      push: false
+      push: pushEnabled
     },
     ctaUrl,
     metadata: input.metadata ?? {},
@@ -260,6 +262,39 @@ export async function sendInAppTaskNotification(input: InAppTaskNotificationInpu
     readAt: null,
     dismissedAt: null
   });
+
+  if (pushEnabled) {
+    try {
+      const response = await sendBrowserPushToUser({
+        uid: input.recipientUid,
+        title: input.title,
+        body: input.body,
+        link: ctaUrl || "/admin/system-inbox",
+        data: {
+          notificationId,
+          ctaUrl: ctaUrl || "/admin/system-inbox",
+          module: "tasks",
+          sourceType: input.sourceType,
+          sourceId: input.sourceId
+        }
+      });
+
+      if (response.failed > 0) {
+        console.warn("Task notification push had delivery failures", {
+          recipientUid: input.recipientUid,
+          notificationId,
+          sent: response.sent,
+          failed: response.failed
+        });
+      }
+    } catch (error) {
+      console.error("Task notification push send failed", {
+        recipientUid: input.recipientUid,
+        notificationId,
+        message: error instanceof Error ? error.message : "unknown"
+      });
+    }
+  }
 
   return {
     created: true,

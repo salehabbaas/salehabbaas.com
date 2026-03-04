@@ -1,20 +1,39 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { onAuthStateChanged } from "firebase/auth";
+import { Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { auth } from "@/lib/firebase/client";
-import { disablePushOnThisBrowser, getPushStatus, requestPushPermissionAndRegister } from "@/lib/notifications/push";
+import {
+  disablePushOnThisBrowser,
+  getPushStatus,
+  requestPushPermissionAndRegister,
+} from "@/lib/notifications/push";
+import { cn } from "@/lib/utils";
 import {
   DEFAULT_REMINDER_SETTINGS,
   DEFAULT_USER_NOTIFICATION_PREFERENCES,
   type ReminderSettings,
-  type UserNotificationPreferences
+  type UserNotificationPreferences,
 } from "@/types/notifications";
 
 type SettingsPayload = {
@@ -74,9 +93,11 @@ function parseWindowsInput(value: string) {
       value
         .split(",")
         .map((item) => Number(item.trim()))
-        .filter((item) => Number.isFinite(item) && item > 0 && item <= 14 * 24 * 60)
-        .map((item) => Math.floor(item))
-    )
+        .filter(
+          (item) => Number.isFinite(item) && item > 0 && item <= 14 * 24 * 60,
+        )
+        .map((item) => Math.floor(item)),
+    ),
   ).sort((a, b) => b - a);
 
   return parsed.length ? parsed : [1440, 60];
@@ -90,10 +111,67 @@ function SaveButton({ saving, label }: { saving: boolean; label: string }) {
   );
 }
 
+function ReminderCheckboxField({
+  checked,
+  label,
+  description,
+  onChange,
+  className,
+}: {
+  checked: boolean;
+  label: string;
+  description?: string;
+  onChange: (next: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <label
+      className={cn(
+        "group flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors",
+        checked
+          ? "border-primary/45 bg-primary/10"
+          : "border-border/65 bg-card/60 hover:border-primary/35 hover:bg-primary/5",
+        className,
+      )}
+    >
+      <Checkbox
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="sr-only"
+      />
+      <span
+        className={cn(
+          "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition",
+          checked
+            ? "border-primary bg-primary text-primary-foreground shadow-[0_0_0_1px_rgba(59,130,246,0.35)]"
+            : "border-border/80 bg-background text-transparent group-hover:border-primary/40",
+        )}
+      >
+        <Check
+          className={cn(
+            "h-3.5 w-3.5 transition-transform",
+            checked ? "scale-100" : "scale-75",
+          )}
+        />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium leading-tight text-foreground">
+          {label}
+        </span>
+        {description ? (
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            {description}
+          </span>
+        ) : null}
+      </span>
+    </label>
+  );
+}
+
 function CollapsibleReminderGroup({
   title,
   description,
-  children
+  children,
 }: {
   title: string;
   description: string;
@@ -111,24 +189,45 @@ function CollapsibleReminderGroup({
 }
 
 export function SettingsReminders() {
-  const [settings, setSettings] = useState<ReminderSettings>(DEFAULT_REMINDER_SETTINGS);
-  const [userPreferences, setUserPreferences] = useState<UserNotificationPreferences>(DEFAULT_USER_NOTIFICATION_PREFERENCES);
+  const [settings, setSettings] = useState<ReminderSettings>(
+    DEFAULT_REMINDER_SETTINGS,
+  );
+  const [userPreferences, setUserPreferences] =
+    useState<UserNotificationPreferences>(
+      DEFAULT_USER_NOTIFICATION_PREFERENCES,
+    );
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingSection, setSavingSection] = useState("");
   const [currentUid, setCurrentUid] = useState("");
-  const [diagnostics, setDiagnostics] = useState<ReminderDiagnostics | null>(null);
+  const [diagnostics, setDiagnostics] = useState<ReminderDiagnostics | null>(
+    null,
+  );
   const [testingPush, setTestingPush] = useState(false);
   const [pushEnabledOnBrowser, setPushEnabledOnBrowser] = useState(false);
+  const [pushPermission, setPushPermission] = useState<
+    NotificationPermission | "unsupported"
+  >("unsupported");
   const [checkingPushStatus, setCheckingPushStatus] = useState(false);
   const [togglingPush, setTogglingPush] = useState(false);
 
-  const [bookingsWindowsInput, setBookingsWindowsInput] = useState(windowsToInput(DEFAULT_REMINDER_SETTINGS.bookings.windowsMinutes));
-  const [linkedinWindowsInput, setLinkedinWindowsInput] = useState(windowsToInput(DEFAULT_REMINDER_SETTINGS.linkedin.windowsMinutes));
-  const [jobsWindowsInput, setJobsWindowsInput] = useState(windowsToInput(DEFAULT_REMINDER_SETTINGS.jobs.windowsMinutes));
-  const [goalsWindowsInput, setGoalsWindowsInput] = useState(windowsToInput(DEFAULT_REMINDER_SETTINGS.goals.windowsMinutes));
+  const [bookingsWindowsInput, setBookingsWindowsInput] = useState(
+    windowsToInput(DEFAULT_REMINDER_SETTINGS.bookings.windowsMinutes),
+  );
+  const [linkedinWindowsInput, setLinkedinWindowsInput] = useState(
+    windowsToInput(DEFAULT_REMINDER_SETTINGS.linkedin.windowsMinutes),
+  );
+  const [jobsWindowsInput, setJobsWindowsInput] = useState(
+    windowsToInput(DEFAULT_REMINDER_SETTINGS.jobs.windowsMinutes),
+  );
+  const [goalsWindowsInput, setGoalsWindowsInput] = useState(
+    windowsToInput(DEFAULT_REMINDER_SETTINGS.goals.windowsMinutes),
+  );
 
-  const hasPrimaryAdmin = useMemo(() => Boolean(settings.channels.primaryAdminUid.trim()), [settings.channels.primaryAdminUid]);
+  const hasPrimaryAdmin = useMemo(
+    () => Boolean(settings.channels.primaryAdminUid.trim()),
+    [settings.channels.primaryAdminUid],
+  );
   const enabledPipelineCount = useMemo(
     () =>
       [
@@ -137,9 +236,9 @@ export function SettingsReminders() {
         settings.linkedin.enabled,
         settings.jobs.enabled,
         settings.goals.enabled,
-        settings.audit.enabled
+        settings.audit.enabled,
       ].filter(Boolean).length,
-    [settings]
+    [settings],
   );
   const enabledChannelCount = useMemo(
     () =>
@@ -147,13 +246,18 @@ export function SettingsReminders() {
         settings.channels.inAppEnabled,
         settings.channels.bannerEnabled,
         settings.channels.pushEnabled,
-        settings.channels.emailEnabled
+        settings.channels.emailEnabled,
       ].filter(Boolean).length,
-    [settings]
+    [settings],
   );
   const enabledPersonalChannelCount = useMemo(
-    () => [userPreferences.inAppEnabled, userPreferences.bannerEnabled, userPreferences.pushEnabled].filter(Boolean).length,
-    [userPreferences]
+    () =>
+      [
+        userPreferences.inAppEnabled,
+        userPreferences.bannerEnabled,
+        userPreferences.pushEnabled,
+      ].filter(Boolean).length,
+    [userPreferences],
   );
   const totalWindowRules = useMemo(
     () =>
@@ -161,38 +265,47 @@ export function SettingsReminders() {
       settings.linkedin.windowsMinutes.length +
       settings.jobs.windowsMinutes.length +
       settings.goals.windowsMinutes.length,
-    [settings]
+    [settings],
   );
 
   const loadDiagnostics = useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/settings/reminders/test-push", { cache: "no-store" });
+      const response = await fetch("/api/admin/settings/reminders/test-push", {
+        cache: "no-store",
+      });
       const payload = (await response.json()) as TestPushPayload;
-      if (!response.ok) throw new Error(payload.error ?? "Unable to load diagnostics");
+      if (!response.ok)
+        throw new Error(payload.error ?? "Unable to load diagnostics");
       setDiagnostics(payload.diagnostics ?? null);
     } catch {
       setDiagnostics(null);
     }
   }, []);
 
-  const loadPushStatus = useCallback(async (uidOverride?: string) => {
-    const uid = uidOverride ?? currentUid;
-    if (!uid) {
-      setPushEnabledOnBrowser(false);
-      setCheckingPushStatus(false);
-      return;
-    }
+  const loadPushStatus = useCallback(
+    async (uidOverride?: string) => {
+      const uid = uidOverride ?? currentUid;
+      if (!uid) {
+        setPushEnabledOnBrowser(false);
+        setPushPermission("unsupported");
+        setCheckingPushStatus(false);
+        return;
+      }
 
-    setCheckingPushStatus(true);
-    try {
-      const status = await getPushStatus(uid);
-      setPushEnabledOnBrowser(status.enabled);
-    } catch {
-      setPushEnabledOnBrowser(false);
-    } finally {
-      setCheckingPushStatus(false);
-    }
-  }, [currentUid]);
+      setCheckingPushStatus(true);
+      try {
+        const status = await getPushStatus(uid);
+        setPushEnabledOnBrowser(status.enabled);
+        setPushPermission(status.permission);
+      } catch {
+        setPushEnabledOnBrowser(false);
+        setPushPermission("unsupported");
+      } finally {
+        setCheckingPushStatus(false);
+      }
+    },
+    [currentUid],
+  );
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -213,21 +326,36 @@ export function SettingsReminders() {
       setLoading(true);
       setStatus("");
       try {
-        const response = await fetch("/api/admin/settings/reminders", { cache: "no-store" });
+        const response = await fetch("/api/admin/settings/reminders", {
+          cache: "no-store",
+        });
         const payload = (await response.json()) as SettingsPayload;
-        if (!response.ok) throw new Error(payload.error ?? "Unable to load reminder settings");
+        if (!response.ok)
+          throw new Error(payload.error ?? "Unable to load reminder settings");
         if (!mounted) return;
 
         setSettings(payload.settings);
         setUserPreferences(payload.userPreferences);
-        setBookingsWindowsInput(windowsToInput(payload.settings.bookings.windowsMinutes));
-        setLinkedinWindowsInput(windowsToInput(payload.settings.linkedin.windowsMinutes));
-        setJobsWindowsInput(windowsToInput(payload.settings.jobs.windowsMinutes));
-        setGoalsWindowsInput(windowsToInput(payload.settings.goals.windowsMinutes));
+        setBookingsWindowsInput(
+          windowsToInput(payload.settings.bookings.windowsMinutes),
+        );
+        setLinkedinWindowsInput(
+          windowsToInput(payload.settings.linkedin.windowsMinutes),
+        );
+        setJobsWindowsInput(
+          windowsToInput(payload.settings.jobs.windowsMinutes),
+        );
+        setGoalsWindowsInput(
+          windowsToInput(payload.settings.goals.windowsMinutes),
+        );
         void loadDiagnostics();
       } catch (error) {
         if (!mounted) return;
-        setStatus(error instanceof Error ? error.message : "Unable to load reminder settings");
+        setStatus(
+          error instanceof Error
+            ? error.message
+            : "Unable to load reminder settings",
+        );
       } finally {
         if (mounted) setLoading(false);
       }
@@ -240,7 +368,10 @@ export function SettingsReminders() {
     };
   }, [loadDiagnostics]);
 
-  async function saveSection(section: string, payload: Record<string, unknown>) {
+  async function saveSection(
+    section: string,
+    payload: Record<string, unknown>,
+  ) {
     setSavingSection(section);
     setStatus("");
 
@@ -248,18 +379,24 @@ export function SettingsReminders() {
       const response = await fetch("/api/admin/settings/reminders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
-      const data = (await response.json()) as SettingsPayload & { success?: boolean; error?: string };
-      if (!response.ok) throw new Error(data.error ?? "Unable to save settings");
+      const data = (await response.json()) as SettingsPayload & {
+        success?: boolean;
+        error?: string;
+      };
+      if (!response.ok)
+        throw new Error(data.error ?? "Unable to save settings");
 
       setSettings(data.settings);
       setUserPreferences(data.userPreferences);
       setStatus(`Saved ${section}.`);
       void loadDiagnostics();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to save settings");
+      setStatus(
+        error instanceof Error ? error.message : "Unable to save settings",
+      );
     } finally {
       setSavingSection("");
     }
@@ -275,8 +412,8 @@ export function SettingsReminders() {
     await saveSection("bookings reminders", {
       bookings: {
         ...settings.bookings,
-        windowsMinutes: parseWindowsInput(bookingsWindowsInput)
-      }
+        windowsMinutes: parseWindowsInput(bookingsWindowsInput),
+      },
     });
   }
 
@@ -285,8 +422,8 @@ export function SettingsReminders() {
     await saveSection("LinkedIn reminders", {
       linkedin: {
         ...settings.linkedin,
-        windowsMinutes: parseWindowsInput(linkedinWindowsInput)
-      }
+        windowsMinutes: parseWindowsInput(linkedinWindowsInput),
+      },
     });
   }
 
@@ -295,8 +432,8 @@ export function SettingsReminders() {
     await saveSection("job tracker reminders", {
       jobs: {
         ...settings.jobs,
-        windowsMinutes: parseWindowsInput(jobsWindowsInput)
-      }
+        windowsMinutes: parseWindowsInput(jobsWindowsInput),
+      },
     });
   }
 
@@ -305,8 +442,8 @@ export function SettingsReminders() {
     await saveSection("goal reminders", {
       goals: {
         ...settings.goals,
-        windowsMinutes: parseWindowsInput(goalsWindowsInput)
-      }
+        windowsMinutes: parseWindowsInput(goalsWindowsInput),
+      },
     });
   }
 
@@ -339,7 +476,11 @@ export function SettingsReminders() {
       setStatus(result.message);
       await Promise.all([loadDiagnostics(), loadPushStatus(currentUid)]);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to update push notification setting.");
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to update push notification setting.",
+      );
     } finally {
       setTogglingPush(false);
     }
@@ -352,22 +493,31 @@ export function SettingsReminders() {
       const response = await fetch("/api/admin/settings/reminders/test-push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
       });
       const payload = (await response.json()) as TestPushPayload;
-      if (!response.ok) throw new Error(payload.error ?? "Unable to send test reminder notification");
+      if (!response.ok)
+        throw new Error(
+          payload.error ?? "Unable to send test reminder notification",
+        );
       setDiagnostics(payload.diagnostics ?? null);
       if (!payload.testResult) {
-        setStatus("Test notification was created, but push status was unavailable.");
+        setStatus(
+          "Test notification was created, but push status was unavailable.",
+        );
         return;
       }
       setStatus(
         payload.testResult.pushAttempted
           ? `Test sent. Push success: ${payload.testResult.pushSent}, failed: ${payload.testResult.pushFailed}.`
-          : "Test notification created in-app. Push was not attempted because reminder prerequisites are currently blocked."
+          : "Test notification created in-app. Push was not attempted because reminder prerequisites are currently blocked.",
       );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to send test reminder notification");
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to send test reminder notification",
+      );
     } finally {
       setTestingPush(false);
     }
@@ -378,15 +528,25 @@ export function SettingsReminders() {
       <Card>
         <CardHeader>
           <CardTitle>Reminder Settings Hub</CardTitle>
-          <CardDescription>Independent controls for tasks, bookings, LinkedIn, jobs, goals, audit, and channels.</CardDescription>
+          <CardDescription>
+            Independent controls for tasks, bookings, LinkedIn, jobs, goals,
+            audit, and channels.
+          </CardDescription>
           {status ? <p className="text-sm text-primary">{status}</p> : null}
-          {!hasPrimaryAdmin ? <p className="text-sm text-destructive">Set Primary Admin UID in channels to route booking and audit reminders.</p> : null}
+          {!hasPrimaryAdmin ? (
+            <p className="text-sm text-destructive">
+              Set Primary Admin UID in channels to route booking and audit
+              reminders.
+            </p>
+          ) : null}
         </CardHeader>
       </Card>
 
       {loading ? (
         <Card>
-          <CardContent className="pt-6 text-sm text-muted-foreground">Loading reminder settings...</CardContent>
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            Loading reminder settings...
+          </CardContent>
         </Card>
       ) : null}
 
@@ -396,23 +556,34 @@ export function SettingsReminders() {
             <CardHeader>
               <CardTitle>Setup Assistant</CardTitle>
               <CardDescription>
-                Reminders are generated by background sweeps, then delivered through in-app/banner/push channels.
+                Reminders are generated by background sweeps, then delivered
+                through in-app/banner/push channels.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="rounded-xl border border-border/70 bg-card/70 p-3">
                 <p className="font-medium">How reminders work</p>
                 <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
-                  <li>The scheduler checks due and overdue records every 15 minutes.</li>
-                  <li>Matching items create notification documents for your admin account.</li>
-                  <li>Push is sent only when push channels are enabled, device is registered, and not in quiet hours.</li>
+                  <li>
+                    The scheduler checks due and overdue records every 15
+                    minutes.
+                  </li>
+                  <li>
+                    Matching items create notification documents for your admin
+                    account.
+                  </li>
+                  <li>
+                    Push is sent only when push channels are enabled, device is
+                    registered, and not in quiet hours.
+                  </li>
                 </ol>
               </div>
 
               <div className="rounded-xl border border-border/70 bg-card/70 p-3">
                 <p className="font-medium">Quick test</p>
                 <p className="mt-1 text-muted-foreground">
-                  Register this browser for push, then send a test reminder notification using your current configuration.
+                  Register this browser for push, then send a test reminder
+                  notification using your current configuration.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button
@@ -431,8 +602,15 @@ export function SettingsReminders() {
                           ? "Disable Push On This Browser"
                           : "Enable Push On This Browser"}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => void sendTestPushReminder()} disabled={testingPush}>
-                    {testingPush ? "Sending Test..." : "Send Test Reminder Push"}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void sendTestPushReminder()}
+                    disabled={testingPush}
+                  >
+                    {testingPush
+                      ? "Sending Test..."
+                      : "Send Test Reminder Push"}
                   </Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -440,6 +618,32 @@ export function SettingsReminders() {
                     ? "Push is active on this browser. You can disable it anytime."
                     : "Push is currently disabled on this browser."}
                 </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Browser permission:{" "}
+                  <span className="font-semibold text-foreground">
+                    {pushPermission}
+                  </span>
+                </p>
+                {pushPermission === "default" ? (
+                  <p className="mt-1 text-xs text-warning">
+                    Click Enable Push and allow the macOS browser prompt.
+                  </p>
+                ) : null}
+                {pushPermission === "denied" ? (
+                  <p className="mt-1 text-xs text-destructive">
+                    Permission is blocked. Safari: Settings → Websites →
+                    Notifications → Allow this site, then macOS System Settings
+                    → Notifications → Safari → Allow Notifications. Chrome: Site
+                    Settings → Notifications → Allow, then macOS System Settings
+                    → Notifications → Google Chrome → Allow Notifications.
+                  </p>
+                ) : null}
+                {pushPermission === "unsupported" ? (
+                  <p className="mt-1 text-xs text-destructive">
+                    Browser support is unavailable for this page. Use latest
+                    Safari/Chrome on HTTPS.
+                  </p>
+                ) : null}
               </div>
 
               <div className="rounded-xl border border-border/70 bg-card/70 p-3">
@@ -447,22 +651,39 @@ export function SettingsReminders() {
                 {diagnostics ? (
                   <div className="mt-2 space-y-2 text-muted-foreground">
                     <p>
-                      {diagnostics.sweepCadence} Current timezone: <span className="font-medium text-foreground">{diagnostics.timezone}</span>.
+                      {diagnostics.sweepCadence} Current timezone:{" "}
+                      <span className="font-medium text-foreground">
+                        {diagnostics.timezone}
+                      </span>
+                      .
                     </p>
                     <p>
-                      Goals overdue: <span className="font-medium text-foreground">{diagnostics.goals.overdueCount}</span> (lookback{" "}
-                      {diagnostics.goals.overdueLookbackDays} days).
+                      Goals overdue:{" "}
+                      <span className="font-medium text-foreground">
+                        {diagnostics.goals.overdueCount}
+                      </span>{" "}
+                      (lookback {diagnostics.goals.overdueLookbackDays} days).
                     </p>
                     <p>
-                      Push devices: <span className="font-medium text-foreground">{diagnostics.channels.enabledDeviceCount}</span> · Quiet hours now:{" "}
-                      <span className={`font-medium ${diagnostics.quietHours.activeNow ? "text-warning" : "text-success"}`}>
-                        {diagnostics.quietHours.activeNow ? "active" : "inactive"}
+                      Push devices:{" "}
+                      <span className="font-medium text-foreground">
+                        {diagnostics.channels.enabledDeviceCount}
+                      </span>{" "}
+                      · Quiet hours now:{" "}
+                      <span
+                        className={`font-medium ${diagnostics.quietHours.activeNow ? "text-warning" : "text-success"}`}
+                      >
+                        {diagnostics.quietHours.activeNow
+                          ? "active"
+                          : "inactive"}
                       </span>
                       .
                     </p>
                     {diagnostics.blockers.length ? (
                       <div className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-xs">
-                        <p className="font-semibold text-foreground">Why reminders might not appear:</p>
+                        <p className="font-semibold text-foreground">
+                          Why reminders might not appear:
+                        </p>
                         <ul className="mt-1 list-disc space-y-1 pl-4">
                           {diagnostics.blockers.map((item) => (
                             <li key={item}>{item}</li>
@@ -476,7 +697,10 @@ export function SettingsReminders() {
                     )}
                   </div>
                 ) : (
-                  <p className="mt-1 text-muted-foreground">Diagnostics unavailable right now. Save any section or refresh the page.</p>
+                  <p className="mt-1 text-muted-foreground">
+                    Diagnostics unavailable right now. Save any section or
+                    refresh the page.
+                  </p>
                 )}
               </div>
             </CardContent>
@@ -485,32 +709,58 @@ export function SettingsReminders() {
           <Card>
             <CardHeader>
               <CardTitle>Quick Overview</CardTitle>
-              <CardDescription>Current snapshot of reminder pipelines, channels, windows, and routing.</CardDescription>
+              <CardDescription>
+                Current snapshot of reminder pipelines, channels, windows, and
+                routing.
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-xl border border-border/70 bg-card/70 p-3">
-                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Pipelines</p>
-                <p className="mt-1 text-sm font-semibold">{enabledPipelineCount}/6 enabled</p>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-card/70 p-3">
-                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Delivery Channels</p>
-                <p className="mt-1 text-sm font-semibold">{enabledChannelCount}/4 enabled</p>
-                <p className="text-xs text-muted-foreground">Personal: {enabledPersonalChannelCount}/3</p>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-card/70 p-3">
-                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Window Rules</p>
-                <p className="mt-1 text-sm font-semibold">{totalWindowRules} configured</p>
-                <p className="text-xs text-muted-foreground">
-                  Bookings {settings.bookings.windowsMinutes.length} · LinkedIn {settings.linkedin.windowsMinutes.length}
+                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                  Pipelines
+                </p>
+                <p className="mt-1 text-sm font-semibold">
+                  {enabledPipelineCount}/6 enabled
                 </p>
               </div>
               <div className="rounded-xl border border-border/70 bg-card/70 p-3">
-                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Routing</p>
-                <p className={`mt-1 text-sm font-semibold ${hasPrimaryAdmin ? "text-success" : "text-destructive"}`}>
-                  {hasPrimaryAdmin ? "Primary admin set" : "Primary admin missing"}
+                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                  Delivery Channels
+                </p>
+                <p className="mt-1 text-sm font-semibold">
+                  {enabledChannelCount}/4 enabled
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Quiet hours {settings.channels.quietHoursStart}-{settings.channels.quietHoursEnd} ({settings.channels.timezone})
+                  Personal: {enabledPersonalChannelCount}/3
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card/70 p-3">
+                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                  Window Rules
+                </p>
+                <p className="mt-1 text-sm font-semibold">
+                  {totalWindowRules} configured
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Bookings {settings.bookings.windowsMinutes.length} · LinkedIn{" "}
+                  {settings.linkedin.windowsMinutes.length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card/70 p-3">
+                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                  Routing
+                </p>
+                <p
+                  className={`mt-1 text-sm font-semibold ${hasPrimaryAdmin ? "text-success" : "text-destructive"}`}
+                >
+                  {hasPrimaryAdmin
+                    ? "Primary admin set"
+                    : "Primary admin missing"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Quiet hours {settings.channels.quietHoursStart}-
+                  {settings.channels.quietHoursEnd} (
+                  {settings.channels.timezone})
                 </p>
               </div>
             </CardContent>
@@ -521,46 +771,50 @@ export function SettingsReminders() {
             description="Default rules used by task reminder sweeps. Task-level overrides still apply."
           >
             <form className="space-y-3" onSubmit={saveTasks}>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.tasks.enabled}
-                  onChange={(event) =>
-                    setSettings((prev) => ({ ...prev, tasks: { ...prev.tasks, enabled: event.target.checked } }))
-                  }
-                />
-                Enable task reminder pipeline
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.tasks.default24h}
-                  onChange={(event) =>
-                    setSettings((prev) => ({ ...prev, tasks: { ...prev.tasks, default24h: event.target.checked } }))
-                  }
-                />
-                Default 24h reminder
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.tasks.default1h}
-                  onChange={(event) =>
-                    setSettings((prev) => ({ ...prev, tasks: { ...prev.tasks, default1h: event.target.checked } }))
-                  }
-                />
-                Default 1h reminder
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.tasks.defaultDailyOverdue}
-                  onChange={(event) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      tasks: { ...prev.tasks, defaultDailyOverdue: event.target.checked }
-                    }))
-                  }
-                />
-                Default daily overdue reminder
-              </label>
-              <SaveButton saving={savingSection === "task reminders"} label="Save Tasks" />
+              <ReminderCheckboxField
+                checked={settings.tasks.enabled}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    tasks: { ...prev.tasks, enabled: next },
+                  }))
+                }
+                label="Enable task reminder pipeline"
+              />
+              <ReminderCheckboxField
+                checked={settings.tasks.default24h}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    tasks: { ...prev.tasks, default24h: next },
+                  }))
+                }
+                label="Default 24h reminder"
+              />
+              <ReminderCheckboxField
+                checked={settings.tasks.default1h}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    tasks: { ...prev.tasks, default1h: next },
+                  }))
+                }
+                label="Default 1h reminder"
+              />
+              <ReminderCheckboxField
+                checked={settings.tasks.defaultDailyOverdue}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    tasks: { ...prev.tasks, defaultDailyOverdue: next },
+                  }))
+                }
+                label="Default daily overdue reminder"
+              />
+              <SaveButton
+                saving={savingSection === "task reminders"}
+                label="Save Tasks"
+              />
             </form>
           </CollapsibleReminderGroup>
 
@@ -569,20 +823,29 @@ export function SettingsReminders() {
             description="Reminder windows in minutes before booking start (example: 1440, 60)."
           >
             <form className="space-y-3" onSubmit={saveBookings}>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.bookings.enabled}
-                  onChange={(event) =>
-                    setSettings((prev) => ({ ...prev, bookings: { ...prev.bookings, enabled: event.target.checked } }))
-                  }
-                />
-                Enable booking reminders
-              </label>
+              <ReminderCheckboxField
+                checked={settings.bookings.enabled}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    bookings: { ...prev.bookings, enabled: next },
+                  }))
+                }
+                label="Enable booking reminders"
+              />
               <div className="space-y-2">
                 <Label>Windows (minutes)</Label>
-                <Input value={bookingsWindowsInput} onChange={(event) => setBookingsWindowsInput(event.target.value)} />
+                <Input
+                  value={bookingsWindowsInput}
+                  onChange={(event) =>
+                    setBookingsWindowsInput(event.target.value)
+                  }
+                />
               </div>
-              <SaveButton saving={savingSection === "bookings reminders"} label="Save Bookings" />
+              <SaveButton
+                saving={savingSection === "bookings reminders"}
+                label="Save Bookings"
+              />
             </form>
           </CollapsibleReminderGroup>
 
@@ -591,50 +854,67 @@ export function SettingsReminders() {
             description="Reminder windows before scheduled post time."
           >
             <form className="space-y-3" onSubmit={saveLinkedin}>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.linkedin.enabled}
-                  onChange={(event) =>
-                    setSettings((prev) => ({ ...prev, linkedin: { ...prev.linkedin, enabled: event.target.checked } }))
-                  }
-                />
-                Enable LinkedIn reminders
-              </label>
+              <ReminderCheckboxField
+                checked={settings.linkedin.enabled}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    linkedin: { ...prev.linkedin, enabled: next },
+                  }))
+                }
+                label="Enable LinkedIn reminders"
+              />
               <div className="space-y-2">
                 <Label>Windows (minutes)</Label>
-                <Input value={linkedinWindowsInput} onChange={(event) => setLinkedinWindowsInput(event.target.value)} />
+                <Input
+                  value={linkedinWindowsInput}
+                  onChange={(event) =>
+                    setLinkedinWindowsInput(event.target.value)
+                  }
+                />
               </div>
-              <SaveButton saving={savingSection === "LinkedIn reminders"} label="Save LinkedIn" />
+              <SaveButton
+                saving={savingSection === "LinkedIn reminders"}
+                label="Save LinkedIn"
+              />
             </form>
           </CollapsibleReminderGroup>
 
-          <CollapsibleReminderGroup title="Job Tracker Reminders" description="Follow-up windows and overdue cadence.">
+          <CollapsibleReminderGroup
+            title="Job Tracker Reminders"
+            description="Follow-up windows and overdue cadence."
+          >
             <form className="space-y-3" onSubmit={saveJobs}>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.jobs.enabled}
-                  onChange={(event) =>
-                    setSettings((prev) => ({ ...prev, jobs: { ...prev.jobs, enabled: event.target.checked } }))
-                  }
-                />
-                Enable job reminders
-              </label>
+              <ReminderCheckboxField
+                checked={settings.jobs.enabled}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    jobs: { ...prev.jobs, enabled: next },
+                  }))
+                }
+                label="Enable job reminders"
+              />
               <div className="space-y-2">
                 <Label>Follow-up windows (minutes)</Label>
-                <Input value={jobsWindowsInput} onChange={(event) => setJobsWindowsInput(event.target.value)} />
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.jobs.overdue.enabled}
-                  onChange={(event) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      jobs: { ...prev.jobs, overdue: { ...prev.jobs.overdue, enabled: event.target.checked } }
-                    }))
-                  }
+                <Input
+                  value={jobsWindowsInput}
+                  onChange={(event) => setJobsWindowsInput(event.target.value)}
                 />
-                Enable overdue reminders
-              </label>
+              </div>
+              <ReminderCheckboxField
+                checked={settings.jobs.overdue.enabled}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    jobs: {
+                      ...prev.jobs,
+                      overdue: { ...prev.jobs.overdue, enabled: next },
+                    },
+                  }))
+                }
+                label="Enable overdue reminders"
+              />
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Overdue cadence (hours)</Label>
@@ -647,8 +927,11 @@ export function SettingsReminders() {
                         ...prev,
                         jobs: {
                           ...prev.jobs,
-                          overdue: { ...prev.jobs.overdue, cadenceHours: Number(event.target.value || 24) }
-                        }
+                          overdue: {
+                            ...prev.jobs.overdue,
+                            cadenceHours: Number(event.target.value || 24),
+                          },
+                        },
                       }))
                     }
                   />
@@ -664,14 +947,20 @@ export function SettingsReminders() {
                         ...prev,
                         jobs: {
                           ...prev.jobs,
-                          overdue: { ...prev.jobs.overdue, lookbackDays: Number(event.target.value || 30) }
-                        }
+                          overdue: {
+                            ...prev.jobs.overdue,
+                            lookbackDays: Number(event.target.value || 30),
+                          },
+                        },
                       }))
                     }
                   />
                 </div>
               </div>
-              <SaveButton saving={savingSection === "job tracker reminders"} label="Save Jobs" />
+              <SaveButton
+                saving={savingSection === "job tracker reminders"}
+                label="Save Jobs"
+              />
             </form>
           </CollapsibleReminderGroup>
 
@@ -682,37 +971,44 @@ export function SettingsReminders() {
             <form className="space-y-3" onSubmit={saveGoals}>
               <div className="rounded-lg border border-border/70 bg-card/60 p-3 text-xs text-muted-foreground">
                 <p>
-                  Overdue reminders are created when: goal is not completed, deadline is in the past, and deadline is within lookback days.
+                  Overdue reminders are created when: goal is not completed,
+                  deadline is in the past, and deadline is within lookback days.
                 </p>
                 <p className="mt-1">
-                  If your goal deadline is very old, increase lookback days. Scheduler runs every 15 minutes.
+                  If your goal deadline is very old, increase lookback days.
+                  Scheduler runs every 15 minutes.
                 </p>
               </div>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.goals.enabled}
-                  onChange={(event) =>
-                    setSettings((prev) => ({ ...prev, goals: { ...prev.goals, enabled: event.target.checked } }))
-                  }
-                />
-                Enable goals reminders
-              </label>
+              <ReminderCheckboxField
+                checked={settings.goals.enabled}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    goals: { ...prev.goals, enabled: next },
+                  }))
+                }
+                label="Enable goals reminders"
+              />
               <div className="space-y-2">
                 <Label>Deadline windows (minutes)</Label>
-                <Input value={goalsWindowsInput} onChange={(event) => setGoalsWindowsInput(event.target.value)} />
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.goals.overdue.enabled}
-                  onChange={(event) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      goals: { ...prev.goals, overdue: { ...prev.goals.overdue, enabled: event.target.checked } }
-                    }))
-                  }
+                <Input
+                  value={goalsWindowsInput}
+                  onChange={(event) => setGoalsWindowsInput(event.target.value)}
                 />
-                Enable overdue reminders
-              </label>
+              </div>
+              <ReminderCheckboxField
+                checked={settings.goals.overdue.enabled}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    goals: {
+                      ...prev.goals,
+                      overdue: { ...prev.goals.overdue, enabled: next },
+                    },
+                  }))
+                }
+                label="Enable overdue reminders"
+              />
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Overdue cadence (hours)</Label>
@@ -725,8 +1021,11 @@ export function SettingsReminders() {
                         ...prev,
                         goals: {
                           ...prev.goals,
-                          overdue: { ...prev.goals.overdue, cadenceHours: Number(event.target.value || 24) }
-                        }
+                          overdue: {
+                            ...prev.goals.overdue,
+                            cadenceHours: Number(event.target.value || 24),
+                          },
+                        },
                       }))
                     }
                   />
@@ -742,14 +1041,20 @@ export function SettingsReminders() {
                         ...prev,
                         goals: {
                           ...prev.goals,
-                          overdue: { ...prev.goals.overdue, lookbackDays: Number(event.target.value || 60) }
-                        }
+                          overdue: {
+                            ...prev.goals.overdue,
+                            lookbackDays: Number(event.target.value || 60),
+                          },
+                        },
                       }))
                     }
                   />
                 </div>
               </div>
-              <SaveButton saving={savingSection === "goal reminders"} label="Save Goals" />
+              <SaveButton
+                saving={savingSection === "goal reminders"}
+                label="Save Goals"
+              />
             </form>
           </CollapsibleReminderGroup>
 
@@ -758,25 +1063,30 @@ export function SettingsReminders() {
             description="Control alert behavior for audit log events."
           >
             <form className="space-y-3" onSubmit={saveAudit}>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.audit.enabled}
-                  onChange={(event) =>
-                    setSettings((prev) => ({ ...prev, audit: { ...prev.audit, enabled: event.target.checked } }))
-                  }
-                />
-                Enable audit alerts
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.audit.highRiskOnly}
-                  onChange={(event) =>
-                    setSettings((prev) => ({ ...prev, audit: { ...prev.audit, highRiskOnly: event.target.checked } }))
-                  }
-                />
-                High-risk only
-              </label>
-              <SaveButton saving={savingSection === "audit reminders"} label="Save Audit" />
+              <ReminderCheckboxField
+                checked={settings.audit.enabled}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    audit: { ...prev.audit, enabled: next },
+                  }))
+                }
+                label="Enable audit alerts"
+              />
+              <ReminderCheckboxField
+                checked={settings.audit.highRiskOnly}
+                onChange={(next) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    audit: { ...prev.audit, highRiskOnly: next },
+                  }))
+                }
+                label="High-risk only"
+              />
+              <SaveButton
+                saving={savingSection === "audit reminders"}
+                label="Save Audit"
+              />
             </form>
           </CollapsibleReminderGroup>
 
@@ -787,64 +1097,61 @@ export function SettingsReminders() {
             <form className="space-y-3" onSubmit={saveChannels}>
               <div className="rounded-lg border border-border/70 bg-card/60 p-3 text-xs text-muted-foreground">
                 <p>
-                  Push requires all of these: global push enabled, your personal push enabled, at least one registered device, and outside quiet hours.
+                  Push requires all of these: global push enabled, your personal
+                  push enabled, at least one registered device, and outside
+                  quiet hours.
                 </p>
                 {diagnostics ? (
                   <p className="mt-1">
                     Registered devices detected:{" "}
-                    <span className="font-semibold text-foreground">{diagnostics.channels.enabledDeviceCount}</span>.
+                    <span className="font-semibold text-foreground">
+                      {diagnostics.channels.enabledDeviceCount}
+                    </span>
+                    .
                   </p>
                 ) : null}
               </div>
               <div className="grid gap-2 text-sm sm:grid-cols-2">
-                <label className="flex items-center gap-2">
-                  <Checkbox
-                    checked={settings.channels.inAppEnabled}
-                    onChange={(event) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        channels: { ...prev.channels, inAppEnabled: event.target.checked }
-                      }))
-                    }
-                  />
-                  In-app enabled
-                </label>
-                <label className="flex items-center gap-2">
-                  <Checkbox
-                    checked={settings.channels.bannerEnabled}
-                    onChange={(event) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        channels: { ...prev.channels, bannerEnabled: event.target.checked }
-                      }))
-                    }
-                  />
-                  Banner enabled
-                </label>
-                <label className="flex items-center gap-2">
-                  <Checkbox
-                    checked={settings.channels.pushEnabled}
-                    onChange={(event) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        channels: { ...prev.channels, pushEnabled: event.target.checked }
-                      }))
-                    }
-                  />
-                  Push enabled
-                </label>
-                <label className="flex items-center gap-2">
-                  <Checkbox
-                    checked={settings.channels.emailEnabled}
-                    onChange={(event) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        channels: { ...prev.channels, emailEnabled: event.target.checked }
-                      }))
-                    }
-                  />
-                  Email enabled
-                </label>
+                <ReminderCheckboxField
+                  checked={settings.channels.inAppEnabled}
+                  onChange={(next) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      channels: { ...prev.channels, inAppEnabled: next },
+                    }))
+                  }
+                  label="In-app enabled"
+                />
+                <ReminderCheckboxField
+                  checked={settings.channels.bannerEnabled}
+                  onChange={(next) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      channels: { ...prev.channels, bannerEnabled: next },
+                    }))
+                  }
+                  label="Banner enabled"
+                />
+                <ReminderCheckboxField
+                  checked={settings.channels.pushEnabled}
+                  onChange={(next) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      channels: { ...prev.channels, pushEnabled: next },
+                    }))
+                  }
+                  label="Push enabled"
+                />
+                <ReminderCheckboxField
+                  checked={settings.channels.emailEnabled}
+                  onChange={(next) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      channels: { ...prev.channels, emailEnabled: next },
+                    }))
+                  }
+                  label="Email enabled"
+                />
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -855,7 +1162,10 @@ export function SettingsReminders() {
                     onChange={(event) =>
                       setSettings((prev) => ({
                         ...prev,
-                        channels: { ...prev.channels, quietHoursStart: event.target.value }
+                        channels: {
+                          ...prev.channels,
+                          quietHoursStart: event.target.value,
+                        },
                       }))
                     }
                   />
@@ -867,7 +1177,10 @@ export function SettingsReminders() {
                     onChange={(event) =>
                       setSettings((prev) => ({
                         ...prev,
-                        channels: { ...prev.channels, quietHoursEnd: event.target.value }
+                        channels: {
+                          ...prev.channels,
+                          quietHoursEnd: event.target.value,
+                        },
                       }))
                     }
                   />
@@ -880,7 +1193,13 @@ export function SettingsReminders() {
                   <Input
                     value={settings.channels.timezone}
                     onChange={(event) =>
-                      setSettings((prev) => ({ ...prev, channels: { ...prev.channels, timezone: event.target.value } }))
+                      setSettings((prev) => ({
+                        ...prev,
+                        channels: {
+                          ...prev.channels,
+                          timezone: event.target.value,
+                        },
+                      }))
                     }
                   />
                 </div>
@@ -891,7 +1210,10 @@ export function SettingsReminders() {
                     onChange={(event) =>
                       setSettings((prev) => ({
                         ...prev,
-                        channels: { ...prev.channels, primaryAdminUid: event.target.value.trim() }
+                        channels: {
+                          ...prev.channels,
+                          primaryAdminUid: event.target.value.trim(),
+                        },
                       }))
                     }
                     placeholder="admin uid"
@@ -899,7 +1221,10 @@ export function SettingsReminders() {
                 </div>
               </div>
 
-              <SaveButton saving={savingSection === "channel settings"} label="Save Channels" />
+              <SaveButton
+                saving={savingSection === "channel settings"}
+                label="Save Channels"
+              />
             </form>
           </CollapsibleReminderGroup>
 
@@ -912,39 +1237,50 @@ export function SettingsReminders() {
                 <Label>Timezone</Label>
                 <Input
                   value={userPreferences.timezone}
-                  onChange={(event) => setUserPreferences((prev) => ({ ...prev, timezone: event.target.value }))}
+                  onChange={(event) =>
+                    setUserPreferences((prev) => ({
+                      ...prev,
+                      timezone: event.target.value,
+                    }))
+                  }
                 />
               </div>
               <div className="grid gap-2 text-sm sm:grid-cols-3">
-                <label className="flex items-center gap-2">
-                  <Checkbox
-                    checked={userPreferences.inAppEnabled}
-                    onChange={(event) =>
-                      setUserPreferences((prev) => ({ ...prev, inAppEnabled: event.target.checked }))
-                    }
-                  />
-                  In-app
-                </label>
-                <label className="flex items-center gap-2">
-                  <Checkbox
-                    checked={userPreferences.bannerEnabled}
-                    onChange={(event) =>
-                      setUserPreferences((prev) => ({ ...prev, bannerEnabled: event.target.checked }))
-                    }
-                  />
-                  Banner
-                </label>
-                <label className="flex items-center gap-2">
-                  <Checkbox
-                    checked={userPreferences.pushEnabled}
-                    onChange={(event) =>
-                      setUserPreferences((prev) => ({ ...prev, pushEnabled: event.target.checked }))
-                    }
-                  />
-                  Push
-                </label>
+                <ReminderCheckboxField
+                  checked={userPreferences.inAppEnabled}
+                  onChange={(next) =>
+                    setUserPreferences((prev) => ({
+                      ...prev,
+                      inAppEnabled: next,
+                    }))
+                  }
+                  label="In-app"
+                />
+                <ReminderCheckboxField
+                  checked={userPreferences.bannerEnabled}
+                  onChange={(next) =>
+                    setUserPreferences((prev) => ({
+                      ...prev,
+                      bannerEnabled: next,
+                    }))
+                  }
+                  label="Banner"
+                />
+                <ReminderCheckboxField
+                  checked={userPreferences.pushEnabled}
+                  onChange={(next) =>
+                    setUserPreferences((prev) => ({
+                      ...prev,
+                      pushEnabled: next,
+                    }))
+                  }
+                  label="Push"
+                />
               </div>
-              <SaveButton saving={savingSection === "personal preferences"} label="Save Personal Preferences" />
+              <SaveButton
+                saving={savingSection === "personal preferences"}
+                label="Save Personal Preferences"
+              />
             </form>
           </CollapsibleReminderGroup>
         </>
