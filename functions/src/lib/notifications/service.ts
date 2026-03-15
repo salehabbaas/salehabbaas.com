@@ -337,6 +337,7 @@ export async function createNotification(input: NotificationWriteInput) {
 
   const id = notificationIdFromDedupe(input.dedupeKey);
   const ref = adminDb.collection("users").doc(input.recipientId).collection("notifications").doc(id);
+  const eventRef = adminDb.collection("users").doc(input.recipientId).collection("notificationEvents").doc(id);
   const existing = await ref.get();
   if (existing.exists) {
     return { created: false, id };
@@ -344,7 +345,7 @@ export async function createNotification(input: NotificationWriteInput) {
 
   const absoluteLink = toAbsoluteLink(input.ctaUrl || "/admin/system-inbox");
 
-  await ref.set({
+  const payload = {
     module: input.module,
     sourceType: input.sourceType,
     sourceId: input.sourceId,
@@ -364,7 +365,9 @@ export async function createNotification(input: NotificationWriteInput) {
     updatedAt: now,
     readAt: null,
     dismissedAt: null
-  });
+  };
+
+  await Promise.all([ref.set(payload), eventRef.set(payload)]);
 
   if (pushEnabled) {
     try {

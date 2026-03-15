@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertCircle, CheckCircle2, Copy, Expand, Trash2, Users, X } from "lucide-react";
+import { AlertCircle, CalendarPlus2, CheckCircle2, Copy, Expand, Trash2, Users, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ type TaskHeaderProps = {
   onSaveTitle: (title: string) => void;
   onOpenFullPage?: () => void;
   onOpenWatchers?: () => void;
+  onAddToPlan?: () => void;
   onDelete?: () => void;
   deleting?: boolean;
   onClose: () => void;
@@ -32,6 +33,7 @@ export function TaskHeader({
   onSaveTitle,
   onOpenFullPage,
   onOpenWatchers,
+  onAddToPlan,
   onDelete,
   deleting = false,
   onClose
@@ -119,6 +121,11 @@ export function TaskHeader({
         <Button type="button" size="icon" variant="outline" title="Watchers" onClick={onOpenWatchers}>
           <Users className="h-4 w-4" />
         </Button>
+        {onAddToPlan ? (
+          <Button type="button" size="icon" variant="outline" title="Add to day plan" onClick={onAddToPlan}>
+            <CalendarPlus2 className="h-4 w-4" />
+          </Button>
+        ) : null}
         <Button
           type="button"
           size="icon"

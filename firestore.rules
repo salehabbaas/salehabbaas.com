@@ -534,6 +534,50 @@ service cloud.firestore {
       match /notificationDevices/{deviceId} {
         allow read, write: if isActiveAdmin() && request.auth.uid == userId;
       }
+
+      match /goalsBoards/{boardId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /stickers/{stickerId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /dayPlans/{dateId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /weekPlans/{weekId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /learningPlans/{planId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /learningSessions/{sessionId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /learningStats/{statsId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /pointsLedger/{entryId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /badges/{badgeId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /reminderRules/{ruleId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
+
+      match /notificationEvents/{eventId} {
+        allow read, write: if isActiveAdmin() && request.auth.uid == userId;
+      }
     }
 
     match /blogPosts/{docId} {

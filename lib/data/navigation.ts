@@ -47,6 +47,7 @@ export type AdminNavIcon =
   | "creator"
   | "linkedin"
   | "project-management"
+  | "goals"
   | "resume-studio"
   | "resume-templates"
   | "job-tracker"
@@ -182,6 +183,12 @@ export const adminNavigation: AdminNavigationItem[] = [
     href: "/admin/projects",
     label: "Projects",
     icon: "project-management",
+    section: "operations"
+  },
+  {
+    href: "/admin/goals",
+    label: "Goals",
+    icon: "goals",
     section: "operations"
   },
   {

@@ -10,6 +10,7 @@ import { DetailsPanel } from "@/components/task/DetailsPanel";
 import { RelatedWork } from "@/components/task/RelatedWork";
 import { TaskDescription } from "@/components/task/TaskDescription";
 import { TaskHeader } from "@/components/task/TaskHeader";
+import { todayDateId } from "@/lib/goals/date";
 import { extractCommentMentionUids } from "@/lib/project-management/comment-mentions";
 import { fromDatetimeLocalInput, parseTagInput, toDatetimeLocalInput } from "@/lib/project-management/utils";
 import { type ActivityDoc, type BoardColumn, type TaskDoc, type TaskLinkRelationType, type TaskSubtask } from "@/types/project-management";
@@ -54,6 +55,10 @@ export function TaskDrawer({
   const [deleting, setDeleting] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [watchersDialogOpen, setWatchersDialogOpen] = useState(false);
+  const [addToPlanDialogOpen, setAddToPlanDialogOpen] = useState(false);
+  const [addToPlanDate, setAddToPlanDate] = useState(todayDateId("America/Montreal"));
+  const [addToPlanStatus, setAddToPlanStatus] = useState<"today" | "this_week" | "inbox">("today");
+  const [addingToPlan, setAddingToPlan] = useState(false);
   const [status, setStatus] = useState("");
   const [activity, setActivity] = useState<ActivityDoc[]>([]);
 
@@ -109,6 +114,9 @@ export function TaskDrawer({
     setCommentInput("");
     setSubtaskInput("");
     setWatchersDialogOpen(false);
+    setAddToPlanDialogOpen(false);
+    setAddToPlanDate(todayDateId("America/Montreal"));
+    setAddToPlanStatus("today");
     setStatus("");
   }, [task]);
 
@@ -376,6 +384,35 @@ export function TaskDrawer({
     }
   }
 
+  async function addTaskToGoalsPlan() {
+    if (!task) return;
+
+    setAddingToPlan(true);
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/admin/goals/project-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          taskId: task.id,
+          dateId: addToPlanDate || undefined,
+          status: addToPlanStatus
+        })
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error ?? "Unable to add task to day plan");
+
+      setAddToPlanDialogOpen(false);
+      setStatus("Task added to Goals plan.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to add task to day plan");
+    } finally {
+      setAddingToPlan(false);
+    }
+  }
+
   const taskContent = task ? (
     <motion.div
       className="flex h-full flex-col gap-4"
@@ -393,6 +430,7 @@ export function TaskDrawer({
           void commitField("title", nextTitle);
         }}
         onOpenWatchers={() => setWatchersDialogOpen(true)}
+        onAddToPlan={() => setAddToPlanDialogOpen(true)}
         onOpenFullPage={mode === "dialog" && onOpenFullPage ? () => onOpenFullPage(task.id) : undefined}
         onDelete={canWrite ? () => setConfirmDeleteOpen(true) : undefined}
         deleting={deleting}
@@ -581,6 +619,52 @@ export function TaskDrawer({
             </Button>
             <Button type="button" variant="destructive" onClick={() => void deleteTask()} disabled={deleting}>
               {deleting ? "Deleting..." : "Delete task"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addToPlanDialogOpen} onOpenChange={setAddToPlanDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>Add to Day Plan</DialogTitle>
+          <DialogDescription>
+            Create a linked sticker in Goals from this project task.
+          </DialogDescription>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label htmlFor="add-to-plan-date" className="text-sm font-medium">
+                Date
+              </label>
+              <input
+                id="add-to-plan-date"
+                type="date"
+                value={addToPlanDate}
+                onChange={(event) => setAddToPlanDate(event.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="add-to-plan-status" className="text-sm font-medium">
+                Initial status
+              </label>
+              <select
+                id="add-to-plan-status"
+                value={addToPlanStatus}
+                onChange={(event) => setAddToPlanStatus(event.target.value as "today" | "this_week" | "inbox")}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="inbox">Inbox</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setAddToPlanDialogOpen(false)} disabled={addingToPlan}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void addTaskToGoalsPlan()} disabled={addingToPlan}>
+              {addingToPlan ? "Adding..." : "Add to Plan"}
             </Button>
           </DialogFooter>
         </DialogContent>

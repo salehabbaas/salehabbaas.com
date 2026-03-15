@@ -508,5 +508,6 @@ export const bootstrapAdminClaim = onRequest(async (request, response) => {
 
 export { taskReminderSweep } from "./scheduled/taskReminders";
 export { unifiedReminderSweep } from "./scheduled/unifiedReminders";
+export { goalsDailyBriefScheduler, goalsWeeklyPlanningScheduler, goalsWrapUpScheduler } from "./scheduled/goalsPlanner";
 export { auditNotificationsOnCreate } from "./triggers/auditNotifications";
 export { aiExtractFromInput, classifyEmail, exportMonthlyXlsx, redirectTrackCompanyVisit, scheduledTaskReminders, scheduledCompanyWatchScan } from "./job-tracker";

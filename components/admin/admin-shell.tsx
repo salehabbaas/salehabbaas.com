@@ -11,6 +11,7 @@ import {
   BookOpenCheck,
   BriefcaseBusiness,
   CalendarRange,
+  Target,
   ChevronsLeft,
   ChevronsRight,
   CircleUserRound,
@@ -101,6 +102,7 @@ const navIconMap: Record<AdminNavIcon, LucideIcon> = {
   creator: ActivitySquare,
   linkedin: Linkedin,
   "project-management": FolderKanban,
+  goals: Target,
   "resume-studio": FileText,
   "resume-templates": LayoutTemplate,
   "job-tracker": BriefcaseBusiness,
@@ -147,6 +149,7 @@ const navIconToneMap: Record<AdminNavIcon, NavTone> = {
   creator: "accent",
   linkedin: "primary",
   "project-management": "warning",
+  goals: "warning",
   "resume-studio": "warning",
   "resume-templates": "warning",
   "job-tracker": "warning",
@@ -196,6 +199,7 @@ function moduleForPath(href: string): AdminModuleKey {
   if (href.startsWith("/admin/creator")) return "creator";
   if (href.startsWith("/admin/linkedin-studio")) return "linkedin";
   if (href.startsWith(projectsRootHref)) return "projects";
+  if (href.startsWith("/admin/goals")) return "projects";
   if (href.startsWith("/admin/resume-studio")) return "resume";
   if (href.startsWith("/admin/job-tracker") || href === "/admin/jobs")
     return "jobs";
@@ -1416,7 +1420,7 @@ export function AdminShell({
     if (typeof window === "undefined") return;
     const saved = window.localStorage.getItem("sa-admin-sidebar-compact");
     setSidebarCompact(saved === "1");
-  }, []);
+  }, [actorUid]);
 
   function toggleSidebarCompact() {
     setSidebarCompact((prev) => {
@@ -1585,7 +1589,7 @@ export function AdminShell({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [actorUid]);
 
   useEffect(() => {
     if (clientAuthReady) return;
