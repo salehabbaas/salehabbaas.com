@@ -94,10 +94,8 @@ export function mapSectionsToRegions(doc: ResumeDocumentRecord, template: Resume
 }
 
 export function sectionTitle(section: ResumeSectionBlock) {
-  if (section.kind === "custom") {
-    const title = typeof (section.data as Record<string, unknown>).title === "string" ? String((section.data as Record<string, unknown>).title) : "";
-    if (title.trim()) return title.trim();
-  }
+  const title = typeof (section.data as Record<string, unknown>).title === "string" ? String((section.data as Record<string, unknown>).title) : "";
+  if (title.trim()) return title.trim();
   return section.kind.charAt(0).toUpperCase() + section.kind.slice(1);
 }
 
@@ -170,7 +168,7 @@ export function normalizeDocForTemplate(doc: ResumeDocumentRecord, template: Res
     ...doc,
     page: {
       ...doc.page,
-      size: "A4",
+      size: doc.page.size,
       marginBox,
       margins: Math.round(((marginBox.top + marginBox.right + marginBox.bottom + marginBox.left) / 4) * 100) / 100
     }
@@ -178,12 +176,16 @@ export function normalizeDocForTemplate(doc: ResumeDocumentRecord, template: Res
 }
 
 export function toA4Pixels(size: ResumeDocumentRecord["page"]["size"]) {
-  void size;
+  if (size === "Letter") {
+    return { width: 816, height: 1056 };
+  }
   return { width: 794, height: 1122 };
 }
 
 export function toA4Millimeters(size: ResumeDocumentRecord["page"]["size"]) {
-  void size;
+  if (size === "Letter") {
+    return { width: "215.9mm", height: "279.4mm" };
+  }
   return { width: "210mm", height: "297mm" };
 }
 

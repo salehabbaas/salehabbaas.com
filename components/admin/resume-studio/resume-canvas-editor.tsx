@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -14,6 +14,7 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, v
 import { CSS as DndCSS } from "@dnd-kit/utilities";
 import { GripVertical, List, Plus, Sparkles, Trash2 } from "lucide-react";
 
+import { ResumeRichTextEditor } from "@/components/admin/resume-studio/editor-v2/resume-rich-text-editor";
 import {
   mapSectionsToRegions,
   resolveDocumentMarginBox,
@@ -22,30 +23,39 @@ import {
   toA4Pixels,
   useTwoColumnLayout
 } from "@/lib/resume-studio/layout";
+import { syncResumeSectionContent } from "@/lib/resume-studio/editor-v2/content";
 import { marginBoxToCssPadding } from "@/lib/resume-studio/normalize";
 import { stripHtmlMarkup } from "@/lib/resume-studio/text";
 import { cn } from "@/lib/utils";
+import { Toolbar, type ToolbarAction, type ToolbarAlignment } from "@/components/ui/toolbar";
 import type { ResumeDocumentRecord, ResumeSectionBlock, ResumeTemplateRecord } from "@/types/resume-studio";
 
 type ItemRecord = Record<string, unknown>;
-const FONT_OPTIONS = [
-  "Arial",
-  "Calibri",
-  "Inter",
-  "Arimo",
-  "Helvetica",
-  "Verdana",
-  "Georgia",
-  "Times New Roman",
-  "Merriweather",
-  "Source Sans Pro",
-  "Poppins",
-  "Lato",
-  "Roboto",
-  "Cambria"
-];
-const RICH_ALLOWED_TAGS = new Set(["B", "STRONG", "I", "EM", "U", "SPAN", "BR"]);
-const RICH_ALLOWED_STYLES = new Set(["color", "font-family", "font-size", "font-weight", "font-style", "text-decoration"]);
+const HIGHLIGHT_COLOR = "#fef08a";
+const RICH_ALLOWED_TAGS = new Set(["B", "STRONG", "I", "EM", "U", "S", "STRIKE", "SPAN", "BR", "DIV", "P"]);
+const RICH_ALLOWED_STYLES = new Set([
+  "background-color",
+  "color",
+  "font-family",
+  "font-size",
+  "font-style",
+  "font-weight",
+  "text-align",
+  "text-decoration"
+]);
+
+function legacyFontSizeToCss(value: string) {
+  const sizeMap: Record<string, string> = {
+    "1": "10px",
+    "2": "12px",
+    "3": "14px",
+    "4": "16px",
+    "5": "18px",
+    "6": "24px",
+    "7": "32px"
+  };
+  return sizeMap[value.trim()] ?? "";
+}
 
 function sanitizeStyleValue(property: string, value: string) {
   const trimmed = value.trim();
@@ -62,6 +72,10 @@ function sanitizeStyleValue(property: string, value: string) {
     if (/^#[0-9a-f]{3,8}$/i.test(trimmed) || /^rgb(a?)\([^)]+\)$/i.test(trimmed) || /^hsl(a?)\([^)]+\)$/i.test(trimmed)) return trimmed;
     return "";
   }
+  if (property === "background-color") {
+    if (/^#[0-9a-f]{3,8}$/i.test(trimmed) || /^rgb(a?)\([^)]+\)$/i.test(trimmed) || /^hsl(a?)\([^)]+\)$/i.test(trimmed)) return trimmed;
+    return "";
+  }
   if (property === "font-weight") {
     if (/^(normal|bold|[1-9]00)$/i.test(trimmed)) return trimmed;
     return "";
@@ -72,6 +86,10 @@ function sanitizeStyleValue(property: string, value: string) {
   }
   if (property === "text-decoration") {
     if (/^(none|underline|line-through)$/i.test(trimmed)) return trimmed;
+    return "";
+  }
+  if (property === "text-align") {
+    if (/^(left|center|right|justify)$/i.test(trimmed)) return trimmed;
     return "";
   }
   return "";
@@ -88,6 +106,29 @@ function sanitizeRichHtml(input: string) {
   }
 
   for (const node of nodes) {
+    if (node.tagName === "FONT") {
+      const parent = node.parentNode;
+      if (!parent) continue;
+
+      const span = document.createElement("span");
+      const styleEntries: string[] = [];
+      const color = sanitizeStyleValue("color", node.getAttribute("color") ?? "");
+      const fontFamily = sanitizeStyleValue("font-family", node.getAttribute("face") ?? "");
+      const fontSize = sanitizeStyleValue("font-size", legacyFontSizeToCss(node.getAttribute("size") ?? ""));
+
+      if (color) styleEntries.push(`color:${color}`);
+      if (fontFamily) styleEntries.push(`font-family:${fontFamily}`);
+      if (fontSize) styleEntries.push(`font-size:${fontSize}`);
+      if (styleEntries.length) span.setAttribute("style", styleEntries.join(";"));
+
+      while (node.firstChild) {
+        span.appendChild(node.firstChild);
+      }
+
+      parent.replaceChild(span, node);
+      continue;
+    }
+
     if (!RICH_ALLOWED_TAGS.has(node.tagName)) {
       const parent = node.parentNode;
       if (!parent) continue;
@@ -96,6 +137,7 @@ function sanitizeRichHtml(input: string) {
       continue;
     }
 
+    const alignValue = sanitizeStyleValue("text-align", node.getAttribute("align") ?? "");
     for (const attr of [...node.attributes]) {
       if (attr.name !== "style") {
         node.removeAttribute(attr.name);
@@ -119,11 +161,17 @@ function sanitizeRichHtml(input: string) {
         safeStyles.push(`${prop}:${value}`);
       }
 
+      if (alignValue) {
+        safeStyles.push(`text-align:${alignValue}`);
+      }
+
       if (safeStyles.length) {
         node.setAttribute("style", safeStyles.join(";"));
       } else {
         node.removeAttribute("style");
       }
+    } else if (alignValue) {
+      node.setAttribute("style", `text-align:${alignValue}`);
     }
   }
 
@@ -140,10 +188,8 @@ function toHexColor(color: string) {
 }
 
 function sectionTitle(section: ResumeSectionBlock) {
-  if (section.kind === "custom") {
-    const title = typeof (section.data as Record<string, unknown>).title === "string" ? String((section.data as Record<string, unknown>).title) : "";
-    if (title.trim()) return title.trim();
-  }
+  const title = typeof (section.data as Record<string, unknown>).title === "string" ? String((section.data as Record<string, unknown>).title) : "";
+  if (title.trim()) return title.trim();
   return section.kind.charAt(0).toUpperCase() + section.kind.slice(1);
 }
 
@@ -165,6 +211,27 @@ function EditableText({
   const ref = useRef<HTMLDivElement | null>(null);
   const hasValue = stripHtmlMarkup(value).length > 0;
 
+  function commitElementValue(element: HTMLDivElement) {
+    const plain = (multiline ? element.innerText : element.textContent || "").trim();
+    if (!rich) {
+      if (!hasValue && placeholder && plain === placeholder.trim()) {
+        onCommit("");
+        return;
+      }
+      onCommit(plain);
+      return;
+    }
+
+    if (!hasValue && placeholder && plain === placeholder.trim()) {
+      onCommit("");
+      return;
+    }
+
+    const html = sanitizeRichHtml(element.innerHTML);
+    const hasContent = stripHtmlMarkup(html).length > 0;
+    onCommit(hasContent ? html : "");
+  }
+
   useEffect(() => {
     if (!ref.current) return;
     if (document.activeElement === ref.current) return;
@@ -183,24 +250,10 @@ function EditableText({
         className,
         !hasValue ? "text-muted-foreground" : ""
       )}
-      onBlur={(event) => {
-        const plain = (multiline ? event.currentTarget.innerText : event.currentTarget.textContent || "").trim();
-        if (!rich) {
-          if (!hasValue && placeholder && plain === placeholder.trim()) {
-            onCommit("");
-            return;
-          }
-          onCommit(plain);
-          return;
-        }
-
-        if (!hasValue && placeholder && plain === placeholder.trim()) {
-          onCommit("");
-          return;
-        }
-        const html = sanitizeRichHtml(event.currentTarget.innerHTML);
-        const hasContent = stripHtmlMarkup(html).length > 0;
-        onCommit(hasContent ? html : "");
+      onBlur={(event) => commitElementValue(event.currentTarget)}
+      onInput={(event) => {
+        if (!rich) return;
+        commitElementValue(event.currentTarget as HTMLDivElement);
       }}
       onKeyDown={(event) => {
         if (!multiline && event.key === "Enter") {
@@ -304,6 +357,80 @@ function SortableItemRow({
   );
 }
 
+function hasRenderableText(value: unknown) {
+  return typeof value === "string" && stripHtmlMarkup(value).length > 0;
+}
+
+function joinRenderableParts(parts: unknown[], separator: string) {
+  const seen = new Set<string>();
+  return parts
+    .filter(hasRenderableText)
+    .map((part) => String(part).trim())
+    .filter((part) => {
+      const key = stripHtmlMarkup(part).replace(/\s+/g, " ").trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(` <span class="opacity-60">${separator}</span> `);
+}
+
+function StaticRichBlock({
+  html,
+  className
+}: {
+  html: string;
+  className?: string;
+}) {
+  if (!hasRenderableText(html)) return null;
+  return <div className={cn("resume-static-rich whitespace-pre-wrap break-words", className)} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+function StaticLine({
+  html,
+  className
+}: {
+  html: string;
+  className?: string;
+}) {
+  if (!hasRenderableText(html)) return null;
+  return <p className={cn("break-words whitespace-pre-wrap", className)} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+function StaticItemRow({ record }: { record: ItemRecord }) {
+  const heading = joinRenderableParts(
+    [record.role, record.name, record.title, record.degree, record.company, record.school, record.organization, record.venue],
+    " - "
+  );
+  const meta = [record.startDate, record.endDate, record.location, record.year]
+    .filter((value) => typeof value === "string" && stripHtmlMarkup(String(value)).length > 0)
+    .join(" | ");
+  const description = typeof record.description === "string" ? record.description : "";
+  const details = typeof record.details === "string" ? record.details : "";
+  const bullets = Array.isArray(record.bullets)
+    ? record.bullets.filter((bullet) => typeof bullet === "string" && stripHtmlMarkup(String(bullet)).length > 0)
+    : [];
+
+  if (!heading && !meta && !hasRenderableText(description) && !hasRenderableText(details) && !bullets.length) {
+    return null;
+  }
+
+  return (
+    <article className="grid gap-1.5">
+      {heading ? <StaticLine html={heading} className="text-sm font-semibold" /> : null}
+      {meta ? <p className="text-[11px] text-muted-foreground">{meta}</p> : null}
+      <StaticLine html={description} className="text-xs" />
+      <StaticLine html={details} className="text-xs" />
+      {bullets.map((bullet, bulletIndex) => (
+        <p key={`${String(record.id ?? bulletIndex)}-${bulletIndex}`} className="text-xs leading-relaxed">
+          {"• "}
+          {String(bullet)}
+        </p>
+      ))}
+    </article>
+  );
+}
+
 function SectionCard({
   section,
   active,
@@ -341,10 +468,10 @@ function SectionCard({
   const items = Array.isArray(data.items) ? (data.items as ItemRecord[]) : [];
 
   function patchData(nextData: Record<string, unknown>) {
-    onUpdate({
+    onUpdate(syncResumeSectionContent({
       ...section,
       data: nextData
-    });
+    }));
   }
 
   function patchItem(index: number, patch: ItemRecord) {
@@ -364,21 +491,192 @@ function SectionCard({
     onReorderItems(fromIndex, toIndex);
   }
 
+  let content: ReactNode = null;
+
+  if (section.kind === "header") {
+    content = active ? (
+      <div className="space-y-1">
+        <EditableText
+          className="text-2xl font-semibold tracking-tight"
+          value={String(data.fullName ?? "")}
+          placeholder="Your Name"
+          rich
+          onCommit={(value) => patchData({ ...data, fullName: value })}
+        />
+        <EditableText
+          className="text-sm text-muted-foreground"
+          value={String(data.headline ?? "")}
+          placeholder="Professional Headline"
+          rich
+          onCommit={(value) => patchData({ ...data, headline: value })}
+        />
+        <EditableText
+          className="text-xs text-muted-foreground"
+          value={[data.email, data.phone, data.location].filter((v) => typeof v === "string" && v).join(" | ")}
+          placeholder="email@domain.com | +1 555 | City"
+          onCommit={(value) => {
+            const parts = value.split("|").map((part) => part.trim());
+            patchData({
+              ...data,
+              email: parts[0] ?? "",
+              phone: parts[1] ?? "",
+              location: parts[2] ?? ""
+            });
+          }}
+        />
+      </div>
+    ) : (
+      <div className="space-y-1">
+        <StaticLine html={String(data.fullName ?? "")} className="text-2xl font-semibold tracking-tight" />
+        <StaticLine html={String(data.headline ?? "")} className="text-sm text-muted-foreground" />
+        <p className="text-xs text-muted-foreground">
+          {[data.email, data.phone, data.location]
+            .filter((value) => typeof value === "string" && stripHtmlMarkup(String(value)).length > 0)
+            .join(" | ")}
+        </p>
+      </div>
+    );
+  }
+
+  if (section.kind === "summary") {
+    content = active ? (
+      <ResumeRichTextEditor
+        className="text-sm"
+        value={section.contentDoc}
+        fallbackHtml={String(data.text ?? section.contentHtmlLegacy ?? "")}
+        placeholder="Write a concise professional summary..."
+        minHeight={112}
+        onChange={({ doc: nextDoc, html }) =>
+          onUpdate({
+            ...section,
+            data: { ...data, text: html },
+            contentDoc: nextDoc,
+            contentHtmlLegacy: html || undefined
+          })
+        }
+      />
+    ) : (
+      <StaticRichBlock html={String(data.text ?? section.contentHtmlLegacy ?? "")} className="text-sm" />
+    );
+  }
+
+  if (
+    section.kind === "experience" ||
+    section.kind === "education" ||
+    section.kind === "projects" ||
+    section.kind === "skills" ||
+    section.kind === "volunteering" ||
+    section.kind === "publications" ||
+    section.kind === "research" ||
+    section.kind === "awards"
+  ) {
+    content = active ? (
+      <DndContext sensors={itemSensors} collisionDetection={closestCenter} onDragEnd={onItemDragEnd}>
+        <SortableContext
+          items={items.map((item, index) => String(item.id ?? `${section.id}-${index}`))}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-2">
+            {items.map((item, index) => {
+              const itemId = String(item.id ?? `${section.id}-${index}`);
+              const record = item as ItemRecord;
+              return (
+                <SortableItemRow
+                  key={itemId}
+                  itemId={itemId}
+                  record={record}
+                  index={index}
+                  onRemove={() => onRemoveItem(index)}
+                  onPatch={(patch) => patchItem(index, patch)}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
+    ) : (
+      <div className="space-y-2.5">
+        {items.map((item, index) => (
+          <StaticItemRow key={String((item as ItemRecord).id ?? `${section.id}-${index}`)} record={item as ItemRecord} />
+        ))}
+      </div>
+    );
+  }
+
+  if (section.kind === "languages" || section.kind === "interests") {
+    content = active ? (
+      <EditableText
+        multiline
+        className="text-sm"
+        value={Array.isArray(data.items) ? data.items.join("\n") : ""}
+        placeholder="One entry per line"
+        onCommit={(value) => patchData({
+          ...data,
+          items: value
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean)
+        })}
+      />
+    ) : (
+      <p className="text-sm leading-relaxed">
+        {Array.isArray(data.items) ? data.items.filter((item) => typeof item === "string" && stripHtmlMarkup(item).length > 0).join(", ") : ""}
+      </p>
+    );
+  }
+
+  if (section.kind === "custom") {
+    content = active ? (
+      <>
+        <ResumeRichTextEditor
+          className="text-sm"
+          value={section.contentDoc}
+          fallbackHtml={String(data.text ?? section.contentHtmlLegacy ?? "")}
+          placeholder="Custom section content"
+          minHeight={112}
+          onChange={({ doc: nextDoc, html }) =>
+            onUpdate({
+              ...section,
+              data: { ...data, text: html },
+              contentDoc: nextDoc,
+              contentHtmlLegacy: html || undefined
+            })
+          }
+        />
+      </>
+    ) : (
+      <>
+        <StaticRichBlock html={String(data.text ?? section.contentHtmlLegacy ?? "")} className="text-sm" />
+      </>
+    );
+  }
+
   return (
     <section
       ref={setNodeRef}
       style={{ transform: DndCSS.Transform.toString(transform), transition }}
       className={cn(
-        "group rounded-xl border bg-white/90 p-2",
-        active ? "border-primary/45 shadow-sm" : "border-transparent hover:border-border/70"
+        "group rounded-xl transition",
+        active ? "border border-primary/45 bg-white/95 p-2 shadow-sm" : "border border-transparent bg-transparent p-1.5"
       )}
       onMouseDown={onSelect}
     >
       <div className="mb-1 flex items-center justify-between gap-2">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: accent }}>
-          {sectionTitle(section)}
-        </h3>
-        <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100">
+        {section.kind !== "header" ? (
+          active ? (
+            <EditableText
+              className="text-[11px] font-semibold uppercase tracking-[0.16em]"
+              value={String(data.title ?? sectionTitle(section))}
+              placeholder={section.kind.charAt(0).toUpperCase() + section.kind.slice(1)}
+              onCommit={(value) => patchData({ ...data, title: value.trim() })}
+            />
+          ) : (
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: accent }}>
+              {sectionTitle(section)}
+            </h3>
+          )
+        ) : <div />}
+        <div className={cn("items-center gap-1", active ? "flex" : "hidden")}>
           <button
             type="button"
             className="inline-flex h-6 w-6 items-center justify-center rounded border border-border/70"
@@ -436,112 +734,9 @@ function SectionCard({
         </div>
       </div>
 
-      {section.kind === "header" ? (
-        <div className="space-y-1">
-          <EditableText
-            className="text-2xl font-semibold tracking-tight"
-            value={String(data.fullName ?? "")}
-            placeholder="Your Name"
-            rich
-            onCommit={(value) => patchData({ ...data, fullName: value })}
-          />
-          <EditableText
-            className="text-sm text-muted-foreground"
-            value={String(data.headline ?? "")}
-            placeholder="Professional Headline"
-            rich
-            onCommit={(value) => patchData({ ...data, headline: value })}
-          />
-          <EditableText
-            className="text-xs text-muted-foreground"
-            value={[data.email, data.phone, data.location].filter((v) => typeof v === "string" && v).join(" | ")}
-            placeholder="email@domain.com | +1 555 | City"
-            onCommit={(value) => {
-              const parts = value.split("|").map((part) => part.trim());
-              patchData({
-                ...data,
-                email: parts[0] ?? "",
-                phone: parts[1] ?? "",
-                location: parts[2] ?? ""
-              });
-            }}
-          />
-        </div>
-      ) : null}
+      {content}
 
-      {section.kind === "summary" ? (
-        <EditableText
-          multiline
-          className="min-h-10 whitespace-pre-wrap text-sm"
-          value={String(data.text ?? "")}
-          placeholder="Write a concise professional summary..."
-          rich
-          onCommit={(value) => patchData({ ...data, text: value })}
-        />
-      ) : null}
-
-      {(section.kind === "experience" || section.kind === "education" || section.kind === "projects" || section.kind === "skills" || section.kind === "volunteering" || section.kind === "publications" || section.kind === "research" || section.kind === "awards") ? (
-        <DndContext sensors={itemSensors} collisionDetection={closestCenter} onDragEnd={onItemDragEnd}>
-          <SortableContext
-            items={items.map((item, index) => String(item.id ?? `${section.id}-${index}`))}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="space-y-2">
-              {items.map((item, index) => {
-                const itemId = String(item.id ?? `${section.id}-${index}`);
-                const record = item as ItemRecord;
-                return (
-                  <SortableItemRow
-                    key={itemId}
-                    itemId={itemId}
-                    record={record}
-                    index={index}
-                    onRemove={() => onRemoveItem(index)}
-                    onPatch={(patch) => patchItem(index, patch)}
-                  />
-                );
-              })}
-            </div>
-          </SortableContext>
-        </DndContext>
-      ) : null}
-
-      {(section.kind === "languages" || section.kind === "interests") ? (
-        <EditableText
-          multiline
-          className="text-sm"
-          value={Array.isArray(data.items) ? data.items.join("\n") : ""}
-          placeholder="One entry per line"
-          onCommit={(value) => patchData({
-            ...data,
-            items: value
-              .split(/\r?\n/)
-              .map((line) => line.trim())
-              .filter(Boolean)
-          })}
-        />
-      ) : null}
-
-      {section.kind === "custom" ? (
-        <>
-          <EditableText
-            className="text-sm font-medium"
-            value={String(data.title ?? "Custom Section")}
-            rich
-            onCommit={(value) => patchData({ ...data, title: value })}
-          />
-          <EditableText
-            multiline
-            className="text-sm"
-            value={String(data.text ?? "")}
-            placeholder="Custom section content"
-            rich
-            onCommit={(value) => patchData({ ...data, text: value })}
-          />
-        </>
-      ) : null}
-
-      {Array.isArray(data.items) && section.kind !== "languages" && section.kind !== "interests" ? (
+      {active && Array.isArray(data.items) && section.kind !== "languages" && section.kind !== "interests" ? (
         <button
           type="button"
           className="mt-2 inline-flex items-center gap-1 rounded border border-border/70 px-2 py-1 text-xs"
@@ -577,28 +772,33 @@ export function ResumeCanvasEditor({
 }) {
   const effectiveTemplate = resolveTemplateForDocument(doc, template);
   const canvasRootRef = useRef<HTMLDivElement | null>(null);
+  const pageFrameRef = useRef<HTMLDivElement | null>(null);
+  const savedSelectionRangeRef = useRef<Range | null>(null);
+  const pageContentRef = useRef<HTMLDivElement | null>(null);
+  const { width, height } = toA4Pixels(doc.page.size);
   const [supportsNativeZoom, setSupportsNativeZoom] = useState(true);
+  const [, setViewportSize] = useState({ width: 0, height: 0 });
+  const [contentHeight, setContentHeight] = useState(0);
   const [selectionToolbar, setSelectionToolbar] = useState<{
     open: boolean;
     x: number;
     y: number;
-    fontFamily: string;
-    fontSize: string;
     color: string;
+    activeButtons: ToolbarAction[];
+    textAlign: ToolbarAlignment;
   }>({
     open: false,
     x: 0,
     y: 0,
-    fontFamily: "Arial",
-    fontSize: "3",
-    color: "#111827"
+    color: "#111827",
+    activeButtons: [],
+    textAlign: "left"
   });
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const { width, height } = toA4Pixels(doc.page.size);
   const twoColumn = useTwoColumnLayout(effectiveTemplate);
   const marginBox = resolveDocumentMarginBox(doc, effectiveTemplate);
   const styles = resolveDocumentStyles(doc, effectiveTemplate);
@@ -613,62 +813,120 @@ export function ResumeCanvasEditor({
     setSupportsNativeZoom(CSS.supports("zoom", "1"));
   }, []);
 
-  useEffect(() => {
-    function hideToolbar() {
-      setSelectionToolbar((current) => (current.open ? { ...current, open: false } : current));
-    }
+  useLayoutEffect(() => {
+    const root = canvasRootRef.current;
+    if (!root || typeof ResizeObserver === "undefined") return;
 
-    function syncSelectionToolbar() {
-      const selection = window.getSelection();
-      const root = canvasRootRef.current;
-      if (!selection || !root || selection.rangeCount === 0 || selection.isCollapsed) {
-        hideToolbar();
-        return;
-      }
-
-      const anchorNode = selection.anchorNode;
-      if (!anchorNode || !root.contains(anchorNode)) {
-        hideToolbar();
-        return;
-      }
-
-      const anchorElement = anchorNode instanceof Element ? anchorNode : anchorNode.parentElement;
-      const editableRoot = anchorElement?.closest?.("[data-resume-editable='1'][data-resume-rich='1']");
-      if (!editableRoot) {
-        hideToolbar();
-        return;
-      }
-
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      const rootRect = root.getBoundingClientRect();
-      if (!rect.width && !rect.height) {
-        hideToolbar();
-        return;
-      }
-
-      const x = Math.max(120, Math.min(rootRect.width - 120, rect.left - rootRect.left + rect.width / 2));
-      const y = Math.max(16, rect.top - rootRect.top - 10);
-      const fontName = String(document.queryCommandValue("fontName") || "").replace(/['"]/g, "").trim();
-      const fontSize = String(document.queryCommandValue("fontSize") || "3").trim();
-      const color = String(document.queryCommandValue("foreColor") || "#111827");
-      setSelectionToolbar({
-        open: true,
-        x,
-        y,
-        fontFamily: FONT_OPTIONS.includes(fontName) ? fontName : "Arial",
-        fontSize: /^[1-7]$/.test(fontSize) ? fontSize : "3",
-        color: toHexColor(color)
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      setViewportSize({
+        width: entry.contentRect.width,
+        height: entry.contentRect.height
       });
+    });
+
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
+    const content = pageContentRef.current;
+    if (!content || typeof ResizeObserver === "undefined") return;
+
+    const measure = () => {
+      setContentHeight(Math.max(height, Math.ceil(content.scrollHeight)));
+    };
+
+    measure();
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [doc, height, effectiveTemplate, marginBox, styles]);
+
+  const hideSelectionToolbar = useCallback(() => {
+    setSelectionToolbar((current) => (current.open ? { ...current, open: false } : current));
+  }, []);
+
+  const syncSelectionToolbar = useCallback(() => {
+    const selection = window.getSelection();
+    const root = canvasRootRef.current;
+    if (!selection || !root || selection.rangeCount === 0 || selection.isCollapsed) {
+      hideSelectionToolbar();
+      return;
     }
 
+    const anchorNode = selection.anchorNode;
+    if (!anchorNode || !root.contains(anchorNode)) {
+      hideSelectionToolbar();
+      return;
+    }
+
+    const anchorElement = anchorNode instanceof Element ? anchorNode : anchorNode.parentElement;
+    const editableRoot = anchorElement?.closest?.("[data-resume-editable='1'][data-resume-rich='1']") as HTMLElement | null;
+    if (!editableRoot) {
+      hideSelectionToolbar();
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    const rootRect = root.getBoundingClientRect();
+    if (!rect.width && !rect.height) {
+      hideSelectionToolbar();
+      return;
+    }
+
+    savedSelectionRangeRef.current = range.cloneRange();
+
+    const activeButtons: ToolbarAction[] = [];
+    if (document.queryCommandState("bold")) activeButtons.push("bold");
+    if (document.queryCommandState("italic")) activeButtons.push("italic");
+    if (document.queryCommandState("underline")) activeButtons.push("underline");
+    if (document.queryCommandState("strikeThrough")) activeButtons.push("strikethrough");
+
+    const highlightValue = String(document.queryCommandValue("hiliteColor") || document.queryCommandValue("backColor") || "").trim();
+    if (highlightValue && !/transparent|rgba?\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)/i.test(highlightValue)) {
+      activeButtons.push("highlight");
+    }
+
+    const computedStyle = window.getComputedStyle(anchorElement ?? editableRoot);
+    const nextAlign: ToolbarAlignment = document.queryCommandState("justifyCenter")
+      ? "center"
+      : document.queryCommandState("justifyRight")
+        ? "right"
+        : document.queryCommandState("justifyFull")
+          ? "justify"
+        : computedStyle.textAlign === "center"
+          ? "center"
+          : computedStyle.textAlign === "right"
+            ? "right"
+            : computedStyle.textAlign === "justify"
+              ? "justify"
+            : "left";
+
+    const x = Math.max(120, Math.min(rootRect.width - 120, rect.left - rootRect.left + rect.width / 2));
+    const y = Math.max(16, rect.top - rootRect.top - 10);
+    const rawColor = String(document.queryCommandValue("foreColor") || computedStyle.color || "#111827");
+
+    setSelectionToolbar({
+      open: true,
+      x,
+      y,
+      color: toHexColor(rawColor),
+      activeButtons,
+      textAlign: nextAlign
+    });
+  }, [hideSelectionToolbar]);
+
+  useEffect(() => {
     document.addEventListener("selectionchange", syncSelectionToolbar);
-    window.addEventListener("resize", hideToolbar);
+    window.addEventListener("resize", hideSelectionToolbar);
     return () => {
       document.removeEventListener("selectionchange", syncSelectionToolbar);
-      window.removeEventListener("resize", hideToolbar);
+      window.removeEventListener("resize", hideSelectionToolbar);
     };
-  }, []);
+  }, [hideSelectionToolbar, syncSelectionToolbar]);
 
   function patchSection(sectionId: string, updater: (section: ResumeSectionBlock) => ResumeSectionBlock) {
     onChange({
@@ -693,13 +951,13 @@ export function ResumeCanvasEditor({
       const data = current.data as Record<string, unknown>;
       const items = Array.isArray(data.items) ? [...(data.items as ItemRecord[])] : [];
       items.push({ id: `${section.kind}-${Date.now()}`, title: "", name: "", role: "", company: "", school: "", description: "", details: "", bullets: [] });
-      return {
+      return syncResumeSectionContent({
         ...current,
         data: {
           ...data,
           items
         }
-      };
+      });
     });
   }
 
@@ -708,13 +966,13 @@ export function ResumeCanvasEditor({
       const data = current.data as Record<string, unknown>;
       const items = Array.isArray(data.items) ? [...(data.items as ItemRecord[])] : [];
       items.splice(index, 1);
-      return {
+      return syncResumeSectionContent({
         ...current,
         data: {
           ...data,
           items
         }
-      };
+      });
     });
   }
 
@@ -722,13 +980,13 @@ export function ResumeCanvasEditor({
     patchSection(section.id, (current) => {
       const data = current.data as Record<string, unknown>;
       const items = Array.isArray(data.items) ? [...(data.items as ItemRecord[])] : [];
-      return {
+      return syncResumeSectionContent({
         ...current,
         data: {
           ...data,
           items: arrayMove(items, fromIndex, toIndex)
         }
-      };
+      });
     });
   }
 
@@ -758,7 +1016,7 @@ export function ResumeCanvasEditor({
           return next;
         });
       }
-      return { ...current, data };
+      return syncResumeSectionContent({ ...current, data });
     });
   }
 
@@ -793,231 +1051,194 @@ export function ResumeCanvasEditor({
           return next;
         });
       }
-      return { ...current, data };
+      return syncResumeSectionContent({ ...current, data });
     });
   }
 
-  function runSelectionCommand(command: string, value?: string) {
+  function restoreSavedSelection() {
     const selection = window.getSelection();
     const root = canvasRootRef.current;
-    if (!selection || selection.rangeCount === 0 || !root) return;
-    const anchorNode = selection.anchorNode;
-    if (!anchorNode || !root.contains(anchorNode)) return;
-    const anchorElement = anchorNode instanceof Element ? anchorNode : anchorNode.parentElement;
-    if (!anchorElement?.closest?.("[data-resume-editable='1'][data-resume-rich='1']")) return;
+    const savedRange = savedSelectionRangeRef.current;
+    if (!selection || !root || !savedRange || !root.contains(savedRange.startContainer)) return null;
 
-    document.execCommand("styleWithCSS", false, "true");
-    document.execCommand(command, false, value);
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+
+    const anchorNode = selection.anchorNode;
+    if (!anchorNode || !root.contains(anchorNode)) return null;
+    const anchorElement = anchorNode instanceof Element ? anchorNode : anchorNode.parentElement;
+    return anchorElement?.closest?.("[data-resume-editable='1'][data-resume-rich='1']") as HTMLElement | null;
   }
 
-  const zoomedStyle: CSSProperties = supportsNativeZoom
-    ? ({ width, zoom } as CSSProperties)
-    : ({ width, transform: `scale(${zoom})`, transformOrigin: "top left" } as CSSProperties);
+  function runSelectionCommand(command: string, value?: string) {
+    const editableRoot = restoreSavedSelection();
+    if (!editableRoot) return;
+    document.execCommand("styleWithCSS", false, "true");
+    const applied = document.execCommand(command, false, value);
+    if (!applied && command === "hiliteColor") {
+      document.execCommand("backColor", false, value);
+    }
+    editableRoot.dispatchEvent(new Event("input", { bubbles: true }));
+    window.requestAnimationFrame(syncSelectionToolbar);
+  }
 
-  const scaledWidth = Math.round(width * zoom);
-  const scaledHeight = Math.round(height * zoom);
+  const effectiveZoom = Math.max(0.45, Math.min(zoom, 2.25));
+  const contentVisualHeight = Math.max(height, contentHeight);
+  const pageCount = Math.max(1, Math.ceil(contentVisualHeight / height));
+
+  const zoomedStyle: CSSProperties = supportsNativeZoom
+    ? ({ width, zoom: effectiveZoom } as CSSProperties)
+    : ({ width, transform: `scale(${effectiveZoom})`, transformOrigin: "top left" } as CSSProperties);
+
+  const scaledWidth = Math.round(width * effectiveZoom);
+  const scaledHeight = Math.round(contentVisualHeight * effectiveZoom);
 
   return (
     <div
-      className="h-[calc(100vh-9.5rem)] overflow-auto rounded-3xl border border-border/70 bg-muted/20 p-4"
+      className="h-[calc(100vh-9.5rem)] overflow-auto rounded-3xl border border-border/70 bg-[radial-gradient(circle_at_top,#f8fafc,rgba(241,245,249,0.92)_42%,rgba(226,232,240,0.9)_100%)] p-1 sm:p-2"
+      onMouseDown={(event) => {
+        const pageFrame = pageFrameRef.current;
+        if (pageFrame?.contains(event.target as Node)) return;
+        onActiveSectionIdChange("");
+        hideSelectionToolbar();
+        savedSelectionRangeRef.current = null;
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+      }}
       onScroll={() => setSelectionToolbar((current) => (current.open ? { ...current, open: false } : current))}
     >
       <div
         ref={canvasRootRef}
-        className="relative mx-auto"
+        className="relative flex min-h-full w-full justify-center"
         style={{
-          width: scaledWidth,
           minHeight: scaledHeight
         }}
       >
         {selectionToolbar.open ? (
           <div
-            className="absolute z-40 flex items-center gap-1 rounded-xl border border-border/70 bg-card/95 px-2 py-1 shadow-elev2 backdrop-blur"
+            className="absolute z-40"
             style={{
               left: selectionToolbar.x,
               top: selectionToolbar.y,
               transform: "translate(-50%, -100%)"
             }}
           >
-            <button
-              type="button"
-              className="rounded border border-border/70 px-2 py-0.5 text-xs"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                runSelectionCommand("bold");
+            <Toolbar
+              activeButtons={selectionToolbar.activeButtons}
+              availableActions={["bold", "italic", "underline", "strikethrough", "highlight", "color"]}
+              currentColor={selectionToolbar.color}
+              textAlign={selectionToolbar.textAlign}
+              onAction={(action) => {
+                if (action === "bold") runSelectionCommand("bold");
+                if (action === "italic") runSelectionCommand("italic");
+                if (action === "underline") runSelectionCommand("underline");
+                if (action === "strikethrough") runSelectionCommand("strikeThrough");
+                if (action === "highlight") runSelectionCommand("hiliteColor", HIGHLIGHT_COLOR);
               }}
-              title="Bold"
-            >
-              B
-            </button>
-            <button
-              type="button"
-              className="rounded border border-border/70 px-2 py-0.5 text-xs"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                runSelectionCommand("italic");
+              onColorChange={(color) => {
+                runSelectionCommand("foreColor", color);
+                setSelectionToolbar((current) => ({ ...current, color }));
               }}
-              title="Italic"
-            >
-              I
-            </button>
-            <button
-              type="button"
-              className="rounded border border-border/70 px-2 py-0.5 text-xs"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                runSelectionCommand("underline");
+              onTextAlignChange={(alignment) => {
+                if (alignment === "left") runSelectionCommand("justifyLeft");
+                if (alignment === "center") runSelectionCommand("justifyCenter");
+                if (alignment === "right") runSelectionCommand("justifyRight");
+                if (alignment === "justify") runSelectionCommand("justifyFull");
               }}
-              title="Underline"
-            >
-              U
-            </button>
-            <button
-              type="button"
-              className="rounded border border-border/70 px-2 py-0.5 text-xs"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                runSelectionCommand("insertUnorderedList");
-              }}
-              title="Bullet list"
-            >
-              •
-            </button>
-            <button
-              type="button"
-              className="rounded border border-border/70 px-2 py-0.5 text-xs"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                runSelectionCommand("removeFormat");
-              }}
-              title="Clear formatting"
-            >
-              Tx
-            </button>
-            <select
-              className="h-7 rounded border border-border/70 bg-background px-2 text-xs"
-              value={selectionToolbar.fontFamily}
-              onMouseDown={(event) => event.preventDefault()}
-              onChange={(event) => {
-                runSelectionCommand("fontName", event.target.value);
-                setSelectionToolbar((current) => ({ ...current, fontFamily: event.target.value }));
-              }}
-              title="Font family"
-            >
-              {FONT_OPTIONS.map((font) => (
-                <option key={font} value={font}>
-                  {font}
-                </option>
-              ))}
-            </select>
-            <select
-              className="h-7 rounded border border-border/70 bg-background px-2 text-xs"
-              value={selectionToolbar.fontSize}
-              onMouseDown={(event) => event.preventDefault()}
-              onChange={(event) => {
-                runSelectionCommand("fontSize", event.target.value);
-                setSelectionToolbar((current) => ({ ...current, fontSize: event.target.value }));
-              }}
-              title="Text size"
-            >
-              <option value="1">10px</option>
-              <option value="2">12px</option>
-              <option value="3">14px</option>
-              <option value="4">16px</option>
-              <option value="5">18px</option>
-              <option value="6">24px</option>
-              <option value="7">32px</option>
-            </select>
-            <input
-              type="color"
-              className="h-7 w-8 rounded border border-border/70 bg-background p-0.5"
-              value={selectionToolbar.color}
-              onMouseDown={(event) => event.preventDefault()}
-              onChange={(event) => {
-                runSelectionCommand("foreColor", event.target.value);
-                setSelectionToolbar((current) => ({ ...current, color: event.target.value }));
-              }}
-              title="Text color"
             />
           </div>
         ) : null}
 
-        <div className="origin-top-left" style={zoomedStyle}>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={(event) => {
-              const activeId = String(event.active.id);
-              const overId = event.over ? String(event.over.id) : "";
-              if (!overId || activeId === overId) return;
-              moveSection(activeId, overId);
-            }}
-          >
-            <SortableContext items={doc.sections.map((section) => section.id)} strategy={verticalListSortingStrategy}>
-              <article
-                className="relative overflow-hidden rounded-2xl border border-border/70 bg-white shadow-elev3"
-                style={{
-                  minHeight: height,
-                  padding: marginBoxToCssPadding(marginBox),
-                  color: styles.colors.text,
-                  fontFamily: styles.fonts.body,
-                  lineHeight: styles.spacing.line,
-                  fontSize: `${styles.sizes.body}px`,
-                  textRendering: "optimizeLegibility",
-                  backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${height - 1}px, rgba(148,163,184,0.35) ${height - 1}px, rgba(148,163,184,0.35) ${height}px)`
-                }}
-              >
-                <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-slate-300/45" />
-                <div
-                  className="grid"
+        <div
+          ref={pageFrameRef}
+          className="relative"
+          style={{
+            width: scaledWidth,
+            minHeight: scaledHeight
+          }}
+        >
+          <div className="origin-top-left" style={zoomedStyle}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={(event) => {
+                const activeId = String(event.active.id);
+                const overId = event.over ? String(event.over.id) : "";
+                if (!overId || activeId === overId) return;
+                moveSection(activeId, overId);
+              }}
+            >
+              <SortableContext items={doc.sections.map((section) => section.id)} strategy={verticalListSortingStrategy}>
+                <article
+                  className="relative overflow-hidden rounded-2xl border border-slate-300/70 bg-white shadow-elev3"
                   style={{
-                    gridTemplateColumns: twoColumn ? effectiveTemplate.layout.grid.columns : "1fr",
-                    gridTemplateRows: effectiveTemplate.layout.grid.rows || "auto",
-                    gap: effectiveTemplate.layout.grid.gap
+                    minHeight: contentVisualHeight,
+                    color: styles.colors.text,
+                    fontFamily: styles.fonts.body,
+                    lineHeight: styles.spacing.line,
+                    fontSize: `${styles.sizes.body}px`,
+                    textRendering: "optimizeLegibility",
+                    backgroundImage: pageCount > 1
+                      ? `repeating-linear-gradient(to bottom, transparent 0, transparent ${height - 1}px, rgba(148,163,184,0.3) ${height - 1}px, rgba(148,163,184,0.3) ${height}px)`
+                      : undefined
                   }}
                 >
-                  {regionOrder.map((regionName) => {
-                    const regionConfig = effectiveTemplate.layout.regions.find((entry) => entry.region === regionName);
-                    const sections = regionMap.get(regionName) ?? [];
-                    if (!regionConfig || !sections.length) return null;
+                  <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-slate-300/45" />
 
-                    const isSidebar = regionName === "sidebar";
-                    const isHeaderOrFooter = regionName === "header" || regionName === "footer";
+                  <div
+                    ref={pageContentRef}
+                    className="relative z-10 grid"
+                    style={{
+                      minHeight: contentVisualHeight,
+                      padding: marginBoxToCssPadding(marginBox),
+                      gridTemplateColumns: twoColumn ? effectiveTemplate.layout.grid.columns : "1fr",
+                      gridTemplateRows: effectiveTemplate.layout.grid.rows || "auto",
+                      gap: effectiveTemplate.layout.grid.gap
+                    }}
+                  >
+                    {regionOrder.map((regionName) => {
+                      const regionConfig = effectiveTemplate.layout.regions.find((entry) => entry.region === regionName);
+                      const sections = regionMap.get(regionName) ?? [];
+                      if (!regionConfig || !sections.length) return null;
 
-                    return (
-                      <div
-                        key={regionName}
-                        className="grid content-start"
-                        style={{
-                          gridColumn: isHeaderOrFooter ? "1 / -1" : twoColumn && isSidebar ? "2 / 3" : "1 / 2",
-                          gridTemplateColumns: regionConfig.columns,
-                          gap: regionConfig.gap
-                        }}
-                      >
-                        {sections.map((section) => (
-                          <SectionCard
-                            key={section.id}
-                            section={section}
-                            active={activeSectionId === section.id}
-                            accent={styles.colors.accent}
-                            onSelect={() => onActiveSectionIdChange(section.id)}
-                            onUpdate={(next) => patchSection(section.id, () => next)}
-                            onRemove={() => onChange({ ...doc, sections: doc.sections.filter((entry) => entry.id !== section.id) })}
-                            onAddItem={() => addItem(section)}
-                            onRemoveItem={(index) => removeItem(section, index)}
-                            onReorderItems={(fromIndex, toIndex) => reorderItems(section, fromIndex, toIndex)}
-                            onRequestAi={() => onRequestAi?.(section.id)}
-                            onBulletize={() => bulletizeSection(section)}
-                            onNormalizeText={() => normalizeSectionText(section)}
-                          />
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            </SortableContext>
-          </DndContext>
+                      const isSidebar = regionName === "sidebar";
+                      const isHeaderOrFooter = regionName === "header" || regionName === "footer";
+
+                      return (
+                        <div
+                          key={regionName}
+                          className="grid content-start"
+                          style={{
+                            gridColumn: isHeaderOrFooter ? "1 / -1" : twoColumn && isSidebar ? "2 / 3" : "1 / 2",
+                            gridTemplateColumns: regionConfig.columns,
+                            gap: regionConfig.gap
+                          }}
+                        >
+                          {sections.map((section) => (
+                            <SectionCard
+                              key={section.id}
+                              section={section}
+                              active={activeSectionId === section.id}
+                              accent={styles.colors.accent}
+                              onSelect={() => onActiveSectionIdChange(section.id)}
+                              onUpdate={(next) => patchSection(section.id, () => next)}
+                              onRemove={() => onChange({ ...doc, sections: doc.sections.filter((entry) => entry.id !== section.id) })}
+                              onAddItem={() => addItem(section)}
+                              onRemoveItem={(index) => removeItem(section, index)}
+                              onReorderItems={(fromIndex, toIndex) => reorderItems(section, fromIndex, toIndex)}
+                              onRequestAi={() => onRequestAi?.(section.id)}
+                              onBulletize={() => bulletizeSection(section)}
+                              onNormalizeText={() => normalizeSectionText(section)}
+                            />
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+              </SortableContext>
+            </DndContext>
+          </div>
         </div>
       </div>
     </div>

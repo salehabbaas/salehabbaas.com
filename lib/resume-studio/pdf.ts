@@ -3,6 +3,7 @@ import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 
 import type { ResumeDocumentRecord } from "@/types/resume-studio";
+import { resumeRichTextDocToPlainText } from "@/lib/resume-studio/editor-v2/content";
 import { resolveMarginBox } from "@/lib/resume-studio/normalize";
 import { stripHtmlMarkup } from "@/lib/resume-studio/text";
 
@@ -18,7 +19,9 @@ function hexToRgb(hex: string) {
 }
 
 function getPageSize(size: ResumeDocumentRecord["page"]["size"]) {
-  void size;
+  if (size === "Letter") {
+    return { width: 612, height: 792 };
+  }
   return { width: 595.28, height: 841.89 };
 }
 
@@ -136,7 +139,17 @@ export function resumeToText(doc: ResumeDocumentRecord) {
 
   for (const section of doc.sections) {
     lines.push(sectionTitle(section.kind, section.data as Record<string, unknown>).toUpperCase());
-    lines.push(...sectionToLines(section.kind, section.data as Record<string, unknown>));
+    const structuredText = section.contentDoc ? resumeRichTextDocToPlainText(section.contentDoc) : "";
+    if ((section.kind === "summary" || section.kind === "custom" || section.kind === "languages" || section.kind === "interests") && structuredText) {
+      lines.push(
+        ...structuredText
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+      );
+    } else {
+      lines.push(...sectionToLines(section.kind, section.data as Record<string, unknown>));
+    }
     lines.push("");
   }
 

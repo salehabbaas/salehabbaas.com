@@ -3,6 +3,8 @@
 import { FormEvent, useState } from "react";
 import { FirebaseError } from "firebase/app";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowRight, LockKeyhole, Mail } from "lucide-react";
 
 import { auth } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
@@ -106,24 +108,67 @@ export function AdminLoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        <Label htmlFor="email" className="sr-only">
+          Email
+        </Label>
+        <div className="relative">
+          <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" aria-hidden />
+          <Input
+            id="email"
+            type="email"
+            autoComplete="username"
+            placeholder="Admin email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+            className="h-14 rounded-full border-white/10 bg-white/[0.04] pl-11 text-white placeholder:text-white/30 focus-visible:border-white/30 focus-visible:ring-1 focus-visible:ring-white/20"
+          />
+        </div>
       </div>
+
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          required
-        />
+        <Label htmlFor="password" className="sr-only">
+          Password
+        </Label>
+        <div className="relative">
+          <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" aria-hidden />
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="Password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+            className="h-14 rounded-full border-white/10 bg-white/[0.04] pl-11 text-white placeholder:text-white/30 focus-visible:border-white/30 focus-visible:ring-1 focus-visible:ring-white/20"
+          />
+        </div>
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Signing in..." : "Sign in"}
+
+      <AnimatePresence initial={false}>
+        {error ? (
+          <motion.p
+            key="login-error"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-100"
+          >
+            {error}
+          </motion.p>
+        ) : null}
+      </AnimatePresence>
+
+      <Button
+        type="submit"
+        className="group h-14 w-full rounded-full bg-white text-base font-medium text-black transition hover:bg-white/90"
+        disabled={loading}
+      >
+        <span>{loading ? "Signing in..." : "Sign in"}</span>
+        <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden />
       </Button>
     </form>
   );

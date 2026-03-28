@@ -20,6 +20,7 @@ function baseIntegrations(): AdminIntegrationSettings {
     agentOwnerUid: "admin-uid",
     telegramActionsEnabled: true,
     resumeStudioV2Enabled: true,
+    resumeEditorV2Enabled: true,
     resumeAi53Enabled: true,
     resumeJobUrlParserEnabled: true,
     resumeAdvancedTemplateBuilderEnabled: true

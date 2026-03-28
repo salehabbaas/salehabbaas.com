@@ -8,6 +8,7 @@ export async function getResumeStudioFlags() {
   const runtime = await getRuntimeAdminSettings();
   return {
     resumeStudioV2Enabled: runtime.integrations.resumeStudioV2Enabled !== false,
+    resumeEditorV2Enabled: runtime.integrations.resumeEditorV2Enabled !== false,
     resumeAi53Enabled: runtime.integrations.resumeAi53Enabled !== false,
     resumeJobUrlParserEnabled: runtime.integrations.resumeJobUrlParserEnabled !== false,
     resumeAdvancedTemplateBuilderEnabled: runtime.integrations.resumeAdvancedTemplateBuilderEnabled !== false

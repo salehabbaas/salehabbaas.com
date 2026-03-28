@@ -35,10 +35,6 @@ export async function POST(request: NextRequest) {
     const { doc, forbidden } = await assertOwnedResume(body.docId, session.uid);
     if (forbidden) return forbidden;
     if (!doc) return NextResponse.json({ error: "Document not found" }, { status: 404 });
-    if (doc.page.size !== "A4") {
-      return NextResponse.json({ error: "Only A4 export is supported in this version." }, { status: 400 });
-    }
-
     const baseName = normalizeFileName(body.fileName) || "resume";
     const text = resumeToText(doc);
 

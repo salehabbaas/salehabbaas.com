@@ -71,6 +71,7 @@ export type AdminIntegrationSettings = {
   agentOwnerUid: string;
   telegramActionsEnabled: boolean;
   resumeStudioV2Enabled: boolean;
+  resumeEditorV2Enabled: boolean;
   resumeAi53Enabled: boolean;
   resumeJobUrlParserEnabled: boolean;
   resumeAdvancedTemplateBuilderEnabled: boolean;

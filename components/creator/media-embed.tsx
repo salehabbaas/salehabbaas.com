@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 function getYouTubeEmbed(url: string) {
@@ -51,11 +52,13 @@ export function CreatorMediaEmbed({ externalUrl, media }: { externalUrl?: string
         <p className="text-sm font-semibold text-foreground">LinkedIn Post</p>
         <p className="mt-2 text-sm text-foreground/75">View the full post on LinkedIn for comments and engagement.</p>
         {thumbnail ? (
-          <img
+          <Image
             src={thumbnail}
             alt="LinkedIn preview"
+            width={1200}
+            height={800}
             className="mt-4 max-h-[320px] w-full rounded-2xl border border-border/70 object-cover"
-            loading="lazy"
+            priority={false}
           />
         ) : null}
         <Link href={mediaUrl} target="_blank" className="mt-4 inline-block text-sm font-medium text-[hsl(var(--accent-strong))] hover:underline">
@@ -71,11 +74,13 @@ export function CreatorMediaEmbed({ externalUrl, media }: { externalUrl?: string
         <p className="text-sm font-semibold text-foreground">{type === "instagram" ? "Instagram" : "TikTok"} Content</p>
         <p className="mt-2 text-sm text-foreground/75">Native embed support can vary by browser and privacy settings.</p>
         {thumbnail ? (
-          <img
+          <Image
             src={thumbnail}
             alt={`${type} preview`}
+            width={1200}
+            height={800}
             className="mt-4 max-h-[320px] w-full rounded-2xl border border-border/70 object-cover"
-            loading="lazy"
+            priority={false}
           />
         ) : null}
         <Link href={mediaUrl} target="_blank" className="mt-4 inline-block text-sm font-medium text-[hsl(var(--accent-strong))] hover:underline">
@@ -89,11 +94,13 @@ export function CreatorMediaEmbed({ externalUrl, media }: { externalUrl?: string
     <div className="rounded-3xl border border-border/70 bg-card/75 p-5">
       <p className="text-sm text-foreground/75">Open media in a new tab.</p>
       {thumbnail ? (
-        <img
+        <Image
           src={thumbnail}
           alt="Media preview"
+          width={1200}
+          height={800}
           className="mt-4 max-h-[320px] w-full rounded-2xl border border-border/70 object-cover"
-          loading="lazy"
+          priority={false}
         />
       ) : null}
       <Link href={mediaUrl} target="_blank" className="mt-3 inline-block text-sm font-medium text-[hsl(var(--accent-strong))] hover:underline">

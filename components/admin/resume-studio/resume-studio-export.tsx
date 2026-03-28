@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onSnapshot, doc } from "firebase/firestore";
-import { ArrowLeft, Download, FileText, MailCheck } from "lucide-react";
+import { ArrowLeft, Download, FileText, FileType2, MailCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,7 @@ export function ResumeStudioExport({ docId, actorEmail }: { docId: string; actor
   const [fileName, setFileName] = useState("resume-export");
   const [email, setEmail] = useState(actorEmail || "");
   const [status, setStatus] = useState("");
-  const [loadingAction, setLoadingAction] = useState<"pdf" | "txt" | "email" | "">("");
+  const [loadingAction, setLoadingAction] = useState<"pdf" | "txt" | "email" | "html" | "markdown" | "docx" | "">("");
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "resumeDocuments", docId), (snap) => {
@@ -49,18 +49,39 @@ export function ResumeStudioExport({ docId, actorEmail }: { docId: string; actor
     return () => unsub();
   }, [docId, fileName]);
 
-  async function runExport(action: "download_pdf" | "download_txt" | "send_pdf_email") {
+  async function runExport(
+    action: "download_pdf" | "download_txt" | "send_pdf_email" | "download_html" | "download_markdown" | "download_docx"
+  ) {
     if (!documentRecord) return;
 
-    const mode = action === "download_pdf" ? "pdf" : action === "download_txt" ? "txt" : "email";
+    const mode =
+      action === "download_pdf"
+        ? "pdf"
+        : action === "download_txt"
+          ? "txt"
+          : action === "download_html"
+            ? "html"
+            : action === "download_markdown"
+              ? "markdown"
+              : action === "download_docx"
+                ? "docx"
+                : "email";
     setLoadingAction(mode);
     setStatus("");
 
     try {
       const endpoint =
-        action === "download_txt" ? "/api/resume-studio/export/txt" : "/api/resume-studio/export/pdf";
-      const payload =
         action === "download_txt"
+          ? "/api/resume-studio/export/txt"
+          : action === "download_html"
+            ? "/api/resume-studio/export/html"
+            : action === "download_markdown"
+              ? "/api/resume-studio/export/markdown"
+              : action === "download_docx"
+                ? "/api/resume-studio/export/docx"
+                : "/api/resume-studio/export/pdf";
+      const payload =
+        action === "download_txt" || action === "download_html" || action === "download_markdown" || action === "download_docx"
           ? {
               docId: documentRecord.id,
               fileName: fileName || documentRecord.title
@@ -92,6 +113,18 @@ export function ResumeStudioExport({ docId, actorEmail }: { docId: string; actor
         const blob = await response.blob();
         downloadBlob(blob, `${fileName || "resume"}.txt`);
         setStatus("TXT download started");
+      } else if (action === "download_html") {
+        const blob = await response.blob();
+        downloadBlob(blob, `${fileName || "resume"}.html`);
+        setStatus("HTML download started");
+      } else if (action === "download_markdown") {
+        const blob = await response.blob();
+        downloadBlob(blob, `${fileName || "resume"}.md`);
+        setStatus("Markdown download started");
+      } else if (action === "download_docx") {
+        const blob = await response.blob();
+        downloadBlob(blob, `${fileName || "resume"}.docx`);
+        setStatus("DOCX download started");
       } else {
         const payload = (await response.json()) as { fallbackUsed?: boolean };
         setStatus(payload.fallbackUsed ? "PDF emailed using fallback renderer (pdf-lib)." : "PDF sent by email");
@@ -146,7 +179,7 @@ export function ResumeStudioExport({ docId, actorEmail }: { docId: string; actor
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <Button onClick={() => runExport("download_pdf")} disabled={loadingAction !== ""}>
               <Download className="h-4 w-4" />
               {loadingAction === "pdf" ? "Preparing PDF..." : "Download PDF"}
@@ -159,11 +192,24 @@ export function ResumeStudioExport({ docId, actorEmail }: { docId: string; actor
               <FileText className="h-4 w-4" />
               {loadingAction === "txt" ? "Preparing TXT..." : "Download TXT"}
             </Button>
+            <Button variant="outline" onClick={() => runExport("download_html")} disabled={loadingAction !== ""}>
+              <FileType2 className="h-4 w-4" />
+              {loadingAction === "html" ? "Preparing HTML..." : "Download HTML"}
+            </Button>
+            <Button variant="outline" onClick={() => runExport("download_markdown")} disabled={loadingAction !== ""}>
+              <FileType2 className="h-4 w-4" />
+              {loadingAction === "markdown" ? "Preparing MD..." : "Download Markdown"}
+            </Button>
+            <Button variant="outline" onClick={() => runExport("download_docx")} disabled={loadingAction !== ""}>
+              <FileType2 className="h-4 w-4" />
+              {loadingAction === "docx" ? "Preparing DOCX..." : "Download DOCX"}
+            </Button>
           </div>
 
           <div className="rounded-2xl border border-border/70 bg-muted/25 p-3 text-sm text-muted-foreground">
             <p>
-              PDF is generated only on demand using the HTML print route with your selected template and design settings. TXT exports include section headings and plain text content for ATS-safe submissions.
+              PDF is generated only on demand using the HTML print route with your selected template and design settings.
+              TXT/HTML/Markdown/DOCX exports are serialized from structured editor content for ATS-safe interoperability.
             </p>
           </div>
 

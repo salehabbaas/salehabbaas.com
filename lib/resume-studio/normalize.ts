@@ -1,11 +1,15 @@
 import type {
+  ResumeContentFormat,
   ResumeDocumentRecord,
+  ResumeEditorEngine,
+  ResumeEditorModelVersion,
   ResumeMarginBox,
   ResumeSchemaVersion,
   ResumeSectionBlock,
   ResumeSectionKind,
   ResumeTemplateRecord
 } from "@/types/resume-studio";
+import { normalizeResumeRichTextDoc, resolveResumeSectionContent, syncResumeSectionContent } from "@/lib/resume-studio/editor-v2/content";
 
 export const RESUME_STUDIO_SCHEMA_VERSION = 2 as const;
 
@@ -44,6 +48,9 @@ const KNOWN_SECTION_KINDS: ResumeSectionKind[] = [
 ];
 
 const KNOWN_SECTION_KIND_SET = new Set<ResumeSectionKind>(KNOWN_SECTION_KINDS);
+const KNOWN_EDITOR_ENGINES: ResumeEditorEngine[] = ["legacy", "tiptap"];
+const KNOWN_CONTENT_FORMATS: ResumeContentFormat[] = ["section-data", "pm-json"];
+const KNOWN_PAGE_SIZES: ResumeDocumentRecord["page"]["size"][] = ["A4", "Letter"];
 
 function asObject(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
@@ -126,16 +133,49 @@ function normalizeSectionKind(value: unknown): ResumeSectionKind {
   return "custom";
 }
 
+function normalizeEditorModelVersion(value: unknown): ResumeEditorModelVersion {
+  return value === 2 ? 2 : 1;
+}
+
+function normalizeEditorEngine(value: unknown): ResumeEditorEngine {
+  if (typeof value === "string" && KNOWN_EDITOR_ENGINES.includes(value as ResumeEditorEngine)) {
+    return value as ResumeEditorEngine;
+  }
+  return "legacy";
+}
+
+function normalizeContentFormat(value: unknown): ResumeContentFormat {
+  if (typeof value === "string" && KNOWN_CONTENT_FORMATS.includes(value as ResumeContentFormat)) {
+    return value as ResumeContentFormat;
+  }
+  return "section-data";
+}
+
+function normalizePageSize(value: unknown): ResumeDocumentRecord["page"]["size"] {
+  if (typeof value === "string" && KNOWN_PAGE_SIZES.includes(value as ResumeDocumentRecord["page"]["size"])) {
+    return value as ResumeDocumentRecord["page"]["size"];
+  }
+  return "A4";
+}
+
 function normalizeSections(value: unknown): ResumeSectionBlock[] {
   if (!Array.isArray(value)) return [];
 
   return value.map((item, index) => {
     const record = asObject(item);
-    return {
+    const section = {
       id: asString(record.id, `section-${index + 1}`),
       kind: normalizeSectionKind(record.kind),
       data: asObject(record.data),
+      contentHtmlLegacy: record.contentHtmlLegacy ? asString(record.contentHtmlLegacy) : undefined,
+      contentDoc: record.contentDoc,
       locked: Boolean(record.locked)
+    };
+
+    const content = resolveResumeSectionContent(section);
+    return {
+      ...section,
+      ...content
     } satisfies ResumeSectionBlock;
   });
 }
@@ -229,15 +269,51 @@ export function normalizeResumeDocumentRecord(input: {
     id: input.id,
     ownerId: asString(data.ownerId),
     schemaVersion: normalizeSchemaVersion(data.schemaVersion),
+    editorModelVersion: normalizeEditorModelVersion(data.editorModelVersion),
+    editorEngine: normalizeEditorEngine(data.editorEngine),
+    contentFormat: normalizeContentFormat(data.contentFormat),
     type: data.type === "cover_letter" ? "cover_letter" : "resume",
     title: asString(data.title, "Untitled Resume"),
     linkedJobId: typeof data.linkedJobId === "string" ? data.linkedJobId : null,
     templateId: asString(data.templateId, "classic-single-column"),
     page: {
-      size: "A4",
+      size: normalizePageSize(page.size),
       margins: collapseMarginBox(marginBox),
       marginBox,
-      sectionSpacing: Math.max(0, asNumber(page.sectionSpacing, DEFAULT_SECTION_SPACING))
+      sectionSpacing: Math.max(0, asNumber(page.sectionSpacing, DEFAULT_SECTION_SPACING)),
+      header:
+        typeof page.header === "object" && page.header !== null
+          ? {
+              enabled: asBoolean(asObject(page.header).enabled, false),
+              contentDoc: normalizeResumeRichTextDoc(asObject(page.header).contentDoc)
+            }
+          : undefined,
+      footer:
+        typeof page.footer === "object" && page.footer !== null
+          ? {
+              enabled: asBoolean(asObject(page.footer).enabled, false),
+              contentDoc: normalizeResumeRichTextDoc(asObject(page.footer).contentDoc)
+            }
+          : undefined,
+      pageNumbers:
+        typeof page.pageNumbers === "object" && page.pageNumbers !== null
+          ? {
+              enabled: asBoolean(asObject(page.pageNumbers).enabled, false),
+              format:
+                asString(asObject(page.pageNumbers).format) === "page_of_total"
+                  ? "page_of_total"
+                  : asString(asObject(page.pageNumbers).format) === "numeric"
+                    ? "numeric"
+                    : undefined,
+              position:
+                asString(asObject(page.pageNumbers).position) === "left" ||
+                asString(asObject(page.pageNumbers).position) === "right" ||
+                asString(asObject(page.pageNumbers).position) === "center"
+                  ? (asString(asObject(page.pageNumbers).position) as "left" | "right" | "center")
+                  : undefined
+            }
+          : undefined,
+      columns: typeof page.columns === "number" ? Math.max(1, Math.min(2, Math.floor(page.columns))) : undefined
     },
     style: {
       primaryColor: asString(style.primaryColor, "#0f172a"),
@@ -251,8 +327,22 @@ export function normalizeResumeDocumentRecord(input: {
     },
     language: {
       mode: language.mode === "manual" ? "manual" : "auto",
-      value: language.value ? asString(language.value) : undefined
+      value: language.value ? asString(language.value) : undefined,
+      defaultDirection:
+        asString(language.defaultDirection) === "ltr" ||
+        asString(language.defaultDirection) === "rtl" ||
+        asString(language.defaultDirection) === "auto"
+          ? (asString(language.defaultDirection) as "ltr" | "rtl" | "auto")
+          : undefined
     },
+    collaboration:
+      typeof data.collaboration === "object" && data.collaboration !== null
+        ? {
+            roomId: asString(asObject(data.collaboration).roomId) || undefined,
+            lockMode: asString(asObject(data.collaboration).lockMode) === "single_editor" ? "single_editor" : "multi_editor",
+            lastSyncedAt: asIso(asObject(data.collaboration).lastSyncedAt)
+          }
+        : undefined,
     sections: normalizeSections(data.sections),
     ats: {
       lastScore: typeof ats.lastScore === "number" ? ats.lastScore : undefined,
@@ -299,7 +389,7 @@ export function normalizeResumeTemplateRecord(input: {
     category: normalizeTemplateCategory(data.category),
     previewImagePath: asString(data.previewImagePath),
     paper: {
-      size: "A4",
+      size: normalizePageSize(paper.size),
       defaultMargins: collapseMarginBox(defaultMarginBox),
       defaultMarginBox
     },
@@ -375,25 +465,36 @@ function stripUndefinedDeep<T>(value: T): T {
   return value;
 }
 
-export function toPersistedResumeDocument(doc: ResumeDocumentRecord): Omit<ResumeDocumentRecord, "id" | "createdAt" | "updatedAt"> {
+export function toPersistedResumeSnapshot(
+  doc: Omit<ResumeDocumentRecord, "id" | "createdAt" | "updatedAt">
+): Omit<ResumeDocumentRecord, "id" | "createdAt" | "updatedAt"> {
   const marginBox = resolveMarginBox({
     marginBox: doc.page.marginBox,
     margins: doc.page.margins,
     fallback: DEFAULT_MARGIN
   });
 
+  const sections = doc.sections.map((section) => syncResumeSectionContent(section));
+
   return stripUndefinedDeep({
     ownerId: doc.ownerId,
     schemaVersion: RESUME_STUDIO_SCHEMA_VERSION,
+    editorModelVersion: 2,
+    editorEngine: "tiptap" satisfies ResumeDocumentRecord["editorEngine"],
+    contentFormat: "pm-json" satisfies ResumeDocumentRecord["contentFormat"],
     type: doc.type,
     title: doc.title,
     linkedJobId: doc.linkedJobId ?? null,
     templateId: doc.templateId,
     page: {
-      size: "A4",
+      size: doc.page.size,
       margins: collapseMarginBox(marginBox),
       marginBox,
-      sectionSpacing: asNumber(doc.page.sectionSpacing, DEFAULT_SECTION_SPACING)
+      sectionSpacing: asNumber(doc.page.sectionSpacing, DEFAULT_SECTION_SPACING),
+      header: doc.page.header,
+      footer: doc.page.footer,
+      pageNumbers: doc.page.pageNumbers,
+      columns: doc.page.columns
     },
     style: {
       primaryColor: doc.style.primaryColor,
@@ -406,11 +507,16 @@ export function toPersistedResumeDocument(doc: ResumeDocumentRecord): Omit<Resum
       inheritTemplateFonts: Boolean(doc.style.inheritTemplateFonts)
     },
     language: doc.language,
-    sections: doc.sections,
+    collaboration: doc.collaboration,
+    sections,
     ats: doc.ats,
     pinned: doc.pinned ?? false,
     tags: doc.tags ?? []
   });
+}
+
+export function toPersistedResumeDocument(doc: ResumeDocumentRecord): Omit<ResumeDocumentRecord, "id" | "createdAt" | "updatedAt"> {
+  return toPersistedResumeSnapshot(doc);
 }
 
 export function toPersistedResumeTemplate(template: ResumeTemplateRecord): Omit<ResumeTemplateRecord, "id" | "createdAt" | "updatedAt"> {
@@ -428,7 +534,7 @@ export function toPersistedResumeTemplate(template: ResumeTemplateRecord): Omit<
     category: template.category,
     previewImagePath: template.previewImagePath,
     paper: {
-      size: "A4",
+      size: template.paper.size,
       defaultMargins: collapseMarginBox(defaultMarginBox),
       defaultMarginBox
     },

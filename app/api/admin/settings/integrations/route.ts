@@ -31,6 +31,7 @@ const integrationPatchSchema = z
     agentOwnerUid: z.string().optional(),
     telegramActionsEnabled: z.boolean().optional(),
     resumeStudioV2Enabled: z.boolean().optional(),
+    resumeEditorV2Enabled: z.boolean().optional(),
     resumeAi53Enabled: z.boolean().optional(),
     resumeJobUrlParserEnabled: z.boolean().optional(),
     resumeAdvancedTemplateBuilderEnabled: z.boolean().optional()

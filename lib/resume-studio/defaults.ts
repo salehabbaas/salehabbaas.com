@@ -6,6 +6,7 @@ import type {
   ResumeTemplateCategory,
   ResumeTemplateRecord
 } from "@/types/resume-studio";
+import { syncResumeSectionContent } from "@/lib/resume-studio/editor-v2/content";
 import { RESUME_STUDIO_SCHEMA_VERSION, createMarginBox } from "@/lib/resume-studio/normalize";
 
 export const ATS_SAFE_SECTION_SLOTS: ResumeSectionKind[] = [
@@ -446,12 +447,12 @@ function defaultSectionData(kind: ResumeSectionKind): Record<string, unknown> {
 }
 
 export function createSection(kind: ResumeSectionKind): ResumeSectionBlock {
-  return {
+  return syncResumeSectionContent({
     id: createStableId("section"),
     kind,
     data: defaultSectionData(kind),
     locked: kind === "header"
-  };
+  });
 }
 
 export function createDefaultSections() {
@@ -478,6 +479,9 @@ export function createDefaultResumeDocument(input: {
   return {
     ownerId: input.ownerId,
     schemaVersion: RESUME_STUDIO_SCHEMA_VERSION,
+    editorModelVersion: 2,
+    editorEngine: "tiptap",
+    contentFormat: "pm-json",
     type,
     title: input.title ?? (type === "resume" ? "Untitled Resume" : "Untitled Cover Letter"),
     linkedJobId: input.linkedJobId ?? null,
@@ -486,7 +490,11 @@ export function createDefaultResumeDocument(input: {
       size: "A4",
       margins: 22,
       marginBox: createMarginBox(22),
-      sectionSpacing: 14
+      sectionSpacing: 14,
+      header: { enabled: false },
+      footer: { enabled: false },
+      pageNumbers: { enabled: false, format: "numeric", position: "right" },
+      columns: 1
     },
     style: {
       primaryColor: "#0f172a",
@@ -499,7 +507,11 @@ export function createDefaultResumeDocument(input: {
       inheritTemplateFonts: false
     },
     language: {
-      mode: "auto"
+      mode: "auto",
+      defaultDirection: "auto"
+    },
+    collaboration: {
+      lockMode: "multi_editor"
     },
     sections: createDefaultSections(),
     ats: {},

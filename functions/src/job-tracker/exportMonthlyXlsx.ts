@@ -1,5 +1,5 @@
-import ExcelJS from "exceljs";
 import { onCall } from "firebase-functions/v2/https";
+import XlsxPopulate from "xlsx-populate";
 
 import { adminDb, adminStorage } from "../lib/admin";
 import { exportMonthlyInputSchema } from "./schemas";
@@ -110,53 +110,51 @@ export const exportMonthlyXlsx = onCall(async (request) => {
     })
   );
 
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet("YMCA Job Tracker");
-
-  worksheet.columns = YMCA_HEADERS.map((header) => ({ header, key: header, width: 28 }));
-
-  jobs.forEach((job) => {
+  const workbook = await XlsxPopulate.fromBlankAsync();
+  const sheet = workbook.sheet(0);
+  const rows = jobs.map((job) => {
     const interview = interviewsByJob.get(String(job.id));
     const contact = interview?.interviewer || "";
     const applicationDate = job.applicationDate ? new Date(job.applicationDate) : null;
     const formattedDate = applicationDate && !Number.isNaN(applicationDate.getTime()) ? formatDdMmYy(applicationDate) : "";
 
-    worksheet.addRow({
-      [YMCA_HEADERS[0]]: companyNameById.get(job.companyId) || "",
-      [YMCA_HEADERS[1]]: job.roleTitle,
-      [YMCA_HEADERS[2]]: job.salaryRateText,
-      [YMCA_HEADERS[3]]: job.jobUrl,
-      [YMCA_HEADERS[4]]: formattedDate,
-      [YMCA_HEADERS[5]]: contact,
-      [YMCA_HEADERS[6]]: mapResponse(job.status),
-      [YMCA_HEADERS[7]]: interview?.stage || "",
-      [YMCA_HEADERS[8]]: formatInterviewSummary(interview),
-      [YMCA_HEADERS[9]]: mapOffer(job.status)
-    });
+    return [
+      companyNameById.get(job.companyId) || "",
+      job.roleTitle,
+      job.salaryRateText,
+      job.jobUrl,
+      formattedDate,
+      contact,
+      mapResponse(job.status),
+      interview?.stage || "",
+      formatInterviewSummary(interview),
+      mapOffer(job.status)
+    ];
+  });
+  const rowLimit = Math.max(rows.length + 51, 100);
+
+  sheet.name("YMCA Job Tracker");
+  sheet.cell("A1").value([Array.from(YMCA_HEADERS), ...rows]);
+  YMCA_HEADERS.forEach((_, index) => {
+    sheet.column(index + 1).width(28);
+  });
+  sheet.row(1).style("bold", true);
+  sheet.range(`G2:G${rowLimit}`).dataValidation({
+    type: "list",
+    allowBlank: true,
+    formula1: "No Response,Rejected,Interview,Offer,Other"
+  });
+  sheet.range(`H2:H${rowLimit}`).dataValidation({
+    type: "list",
+    allowBlank: true,
+    formula1: "Screen,Technical,HR,Onsite,Final,Other"
   });
 
-  const rowLimit = Math.max(worksheet.rowCount + 50, 100);
-  for (let row = 2; row <= rowLimit; row += 1) {
-    worksheet.getCell(`G${row}`).dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: ['"No Response,Rejected,Interview,Offer,Other"']
-    };
-
-    worksheet.getCell(`H${row}`).dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: ['"Screen,Technical,HR,Onsite,Final,Other"']
-    };
-  }
-
-  worksheet.getRow(1).font = { bold: true };
-
-  const buffer = await workbook.xlsx.writeBuffer();
+  const buffer = Buffer.from(await workbook.outputAsync() as Uint8Array);
   const storagePath = `exports/${userId}/${month}/job-tracker-export.xlsx`;
   const file = adminStorage.bucket().file(storagePath);
 
-  await file.save(Buffer.from(buffer), {
+  await file.save(buffer, {
     contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     metadata: {
       cacheControl: "private, max-age=0, no-cache"

@@ -7,7 +7,7 @@ import { generateStructuredAi } from "@/lib/resume-studio/ai";
 import { buildAtsResult, buildJobHash } from "@/lib/resume-studio/ats";
 import { createStableId } from "@/lib/resume-studio/defaults";
 import { ensureResumeStudioFlag } from "@/lib/resume-studio/flags";
-import { RESUME_STUDIO_SCHEMA_VERSION, resolveMarginBox } from "@/lib/resume-studio/normalize";
+import { RESUME_STUDIO_SCHEMA_VERSION, resolveMarginBox, toPersistedResumeSnapshot } from "@/lib/resume-studio/normalize";
 import { assertOwnedResume, requireAdminUser } from "@/lib/resume-studio/server";
 import { extractKeywords, resumeToPlainText } from "@/lib/resume-studio/text";
 import { validateNoFabricatedClaims } from "@/lib/resume-studio/truthfulness";
@@ -44,6 +44,9 @@ function cloneDocument(base: ResumeDocumentRecord, input: { ownerId: string; lin
   return {
     ownerId: input.ownerId,
     schemaVersion: RESUME_STUDIO_SCHEMA_VERSION,
+    editorModelVersion: 2,
+    editorEngine: "tiptap",
+    contentFormat: "pm-json",
     type: base.type,
     title: input.title,
     linkedJobId: input.linkedJobId,
@@ -333,14 +336,18 @@ export async function POST(request: NextRequest) {
       finalDoc = baselineClone;
     }
 
-    await docRef.set({
+    const persistedFinalDoc = toPersistedResumeSnapshot({
       ...finalDoc,
       ats: {
         lastScore: ats.score,
-        lastCheckedAt: now,
+        lastCheckedAt: now.toISOString(),
         lastJobHash: buildJobHash(job.descriptionText),
         issues: ats.issues
-      },
+      }
+    });
+
+    await docRef.set({
+      ...persistedFinalDoc,
       createdAt: now,
       updatedAt: now
     });
@@ -358,15 +365,7 @@ export async function POST(request: NextRequest) {
       docId: docRef.id,
       ownerId: session.uid,
       note: "Initial tailored version",
-      snapshot: {
-        ...finalDoc,
-        ats: {
-          lastScore: ats.score,
-          lastCheckedAt: now.toISOString(),
-          lastJobHash: buildJobHash(job.descriptionText),
-          issues: ats.issues
-        }
-      }
+      snapshot: persistedFinalDoc
     });
 
     await writeResumeActivity({

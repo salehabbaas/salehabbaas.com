@@ -167,6 +167,19 @@ function isPmProjectData(data: Record<string, unknown>) {
   return String(data.module ?? "") === "project-management";
 }
 
+export async function getAccessibleProjects(userId: string): Promise<ProjectDoc[]> {
+  const accessibleProjectIds = await listAccessibleProjectIds(userId);
+  if (!accessibleProjectIds.size) return [];
+
+  const projectSnaps = await Promise.all([...accessibleProjectIds].map((projectId) => adminDb.collection("projects").doc(projectId).get()));
+
+  return projectSnaps
+    .filter((snap) => snap.exists)
+    .map((snap) => ({ id: snap.id, data: (snap.data() ?? {}) as Record<string, unknown> }))
+    .filter((row) => isPmProjectData(row.data))
+    .map((row) => mapProject(row.id, row.data));
+}
+
 function mapBoard(id: string, data: Record<string, unknown>): BoardDoc {
   const columns = Array.isArray(data.columns)
     ? data.columns
@@ -318,8 +331,8 @@ export async function getProjectDashboard(ownerId: string): Promise<{
   metricsByProject: Record<string, ProjectMetrics>;
   importantTasks: ImportantTaskRow[];
 }> {
-  const accessibleProjectIds = await listAccessibleProjectIds(ownerId);
-  if (!accessibleProjectIds.size) {
+  const projects = await getAccessibleProjects(ownerId);
+  if (!projects.length) {
     return {
       kpis: {
         totalProjects: 0,
@@ -334,17 +347,10 @@ export async function getProjectDashboard(ownerId: string): Promise<{
     };
   }
 
-  const [projectSnaps, tasksSnap, boardsSnap] = await Promise.all([
-    Promise.all([...accessibleProjectIds].map((projectId) => adminDb.collection("projects").doc(projectId).get())),
+  const [tasksSnap, boardsSnap] = await Promise.all([
     adminDb.collection("tasks").get(),
     adminDb.collection("boards").get()
   ]);
-
-  const projects = projectSnaps
-    .filter((snap) => snap.exists)
-    .map((snap) => ({ id: snap.id, data: (snap.data() ?? {}) as Record<string, unknown> }))
-    .filter((row) => isPmProjectData(row.data))
-    .map((row) => mapProject(row.id, row.data));
   const boards = boardsSnap.docs.map((doc) => mapBoard(doc.id, doc.data() as Record<string, unknown>));
 
   const tasks = tasksSnap.docs

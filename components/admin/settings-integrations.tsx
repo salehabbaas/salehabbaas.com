@@ -46,6 +46,7 @@ const defaultIntegrations: AdminIntegrationSettings = {
   agentOwnerUid: "",
   telegramActionsEnabled: false,
   resumeStudioV2Enabled: false,
+  resumeEditorV2Enabled: false,
   resumeAi53Enabled: false,
   resumeJobUrlParserEnabled: false,
   resumeAdvancedTemplateBuilderEnabled: false
@@ -351,6 +352,14 @@ export function SettingsIntegrations() {
                 onChange={(event) => setIntegrations((prev) => ({ ...prev, resumeStudioV2Enabled: event.target.checked }))}
               />
               Enable Resume Studio v2
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={integrations.resumeEditorV2Enabled}
+                onChange={(event) => setIntegrations((prev) => ({ ...prev, resumeEditorV2Enabled: event.target.checked }))}
+              />
+              Enable Editor v2 foundations
             </label>
             <label className="inline-flex items-center gap-2">
               <input
@@ -835,7 +844,7 @@ export function SettingsIntegrations() {
           <div className="rounded-xl border border-border/70 bg-card/70 p-3 md:col-span-2">
             <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Resume Studio Flags</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              V2: {integrations.resumeStudioV2Enabled ? "ON" : "OFF"} · AI 5.3: {integrations.resumeAi53Enabled ? "ON" : "OFF"} · JD URL parser: {" "}
+              V2: {integrations.resumeStudioV2Enabled ? "ON" : "OFF"} · Editor v2: {integrations.resumeEditorV2Enabled ? "ON" : "OFF"} · AI 5.3: {integrations.resumeAi53Enabled ? "ON" : "OFF"} · JD URL parser: {" "}
               {integrations.resumeJobUrlParserEnabled ? "ON" : "OFF"} · Advanced template builder: {" "}
               {integrations.resumeAdvancedTemplateBuilderEnabled ? "ON" : "OFF"}
             </p>

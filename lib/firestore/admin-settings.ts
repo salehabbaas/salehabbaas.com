@@ -77,6 +77,7 @@ const DEFAULT_ADMIN_INTEGRATIONS: AdminIntegrationSettings = {
   agentOwnerUid: "",
   telegramActionsEnabled: false,
   resumeStudioV2Enabled: false,
+  resumeEditorV2Enabled: false,
   resumeAi53Enabled: false,
   resumeJobUrlParserEnabled: false,
   resumeAdvancedTemplateBuilderEnabled: false
@@ -341,6 +342,10 @@ export async function getAdminIntegrationSettings(): Promise<AdminIntegrationSet
       typeof data.resumeStudioV2Enabled === "boolean"
         ? data.resumeStudioV2Enabled
         : DEFAULT_ADMIN_INTEGRATIONS.resumeStudioV2Enabled,
+    resumeEditorV2Enabled:
+      typeof data.resumeEditorV2Enabled === "boolean"
+        ? data.resumeEditorV2Enabled
+        : DEFAULT_ADMIN_INTEGRATIONS.resumeEditorV2Enabled,
     resumeAi53Enabled:
       typeof data.resumeAi53Enabled === "boolean" ? data.resumeAi53Enabled : DEFAULT_ADMIN_INTEGRATIONS.resumeAi53Enabled,
     resumeJobUrlParserEnabled:
@@ -372,6 +377,7 @@ export async function saveAdminIntegrationSettings(patch: Partial<AdminIntegrati
   if (typeof patch.agentOwnerUid === "string") payload.agentOwnerUid = patch.agentOwnerUid.trim();
   if (typeof patch.telegramActionsEnabled === "boolean") payload.telegramActionsEnabled = patch.telegramActionsEnabled;
   if (typeof patch.resumeStudioV2Enabled === "boolean") payload.resumeStudioV2Enabled = patch.resumeStudioV2Enabled;
+  if (typeof patch.resumeEditorV2Enabled === "boolean") payload.resumeEditorV2Enabled = patch.resumeEditorV2Enabled;
   if (typeof patch.resumeAi53Enabled === "boolean") payload.resumeAi53Enabled = patch.resumeAi53Enabled;
   if (typeof patch.resumeJobUrlParserEnabled === "boolean") payload.resumeJobUrlParserEnabled = patch.resumeJobUrlParserEnabled;
   if (typeof patch.resumeAdvancedTemplateBuilderEnabled === "boolean") {

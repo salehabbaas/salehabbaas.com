@@ -121,6 +121,19 @@ function pickJobDate(job: JobApplication) {
   return null;
 }
 
+function toSpreadsheetColumn(columnNumber: number) {
+  let current = columnNumber;
+  let label = "";
+
+  while (current > 0) {
+    const remainder = (current - 1) % 26;
+    label = String.fromCharCode(65 + remainder) + label;
+    current = Math.floor((current - 1) / 26);
+  }
+
+  return label;
+}
+
 type QuickFilter = "all" | "newlyApplied" | "followUp" | "interviews" | "offers";
 
 export function JobTracker() {
@@ -406,64 +419,46 @@ export function JobTracker() {
   }
 
   async function exportToExcel() {
-    const ExcelJs = await import("exceljs");
-    const workbook = new ExcelJs.Workbook();
-    const worksheet = workbook.addWorksheet("Job Tracker");
+    const { default: XlsxPopulate } = await import("xlsx-populate/browser/xlsx-populate");
+    const workbook = await XlsxPopulate.fromBlankAsync();
+    const sheet = workbook.sheet(0);
+    const rows = filtered.map((job) => [
+      job.company,
+      job.roleTitle,
+      job.salaryRate || "",
+      job.jobAdvertUrl || "",
+      job.applicationDate || "",
+      job.contact || "",
+      job.response,
+      job.interviewStage,
+      job.interviewDate || "",
+      job.interviewTime || "",
+      job.interviewerName || "",
+      job.offer || "",
+      job.notes || "",
+      job.createdAt || "",
+      job.updatedAt || ""
+    ]);
+    const columnWidths = [20, 22, 14, 28, 16, 20, 18, 20, 16, 14, 18, 18, 28, 20, 20];
+    const lastColumn = toSpreadsheetColumn(JOB_EXPORT_HEADERS.length);
+    const lastRow = Math.max(rows.length + 1, 1);
 
-    worksheet.columns = [
-      { header: JOB_EXPORT_HEADERS[0], key: "company", width: 20 },
-      { header: JOB_EXPORT_HEADERS[1], key: "roleTitle", width: 22 },
-      { header: JOB_EXPORT_HEADERS[2], key: "salaryRate", width: 14 },
-      { header: JOB_EXPORT_HEADERS[3], key: "jobAdvertUrl", width: 28 },
-      { header: JOB_EXPORT_HEADERS[4], key: "applicationDate", width: 16 },
-      { header: JOB_EXPORT_HEADERS[5], key: "contact", width: 20 },
-      { header: JOB_EXPORT_HEADERS[6], key: "response", width: 18 },
-      { header: JOB_EXPORT_HEADERS[7], key: "interviewStage", width: 20 },
-      { header: JOB_EXPORT_HEADERS[8], key: "interviewDate", width: 16 },
-      { header: JOB_EXPORT_HEADERS[9], key: "interviewTime", width: 14 },
-      { header: JOB_EXPORT_HEADERS[10], key: "interviewerName", width: 18 },
-      { header: JOB_EXPORT_HEADERS[11], key: "offer", width: 18 },
-      { header: JOB_EXPORT_HEADERS[12], key: "notes", width: 28 },
-      { header: JOB_EXPORT_HEADERS[13], key: "createdAt", width: 20 },
-      { header: JOB_EXPORT_HEADERS[14], key: "updatedAt", width: 20 }
-    ];
+    sheet.name("Job Tracker");
+    sheet.cell("A1").value([Array.from(JOB_EXPORT_HEADERS), ...rows]);
 
-    // Keep header row visible while scrolling long exports.
-    worksheet.views = [{ state: "frozen", ySplit: 1 }];
-
-    const rows = filtered.map((job) => ({
-      company: job.company,
-      roleTitle: job.roleTitle,
-      salaryRate: job.salaryRate || "",
-      jobAdvertUrl: job.jobAdvertUrl || "",
-      applicationDate: job.applicationDate || "",
-      contact: job.contact || "",
-      response: job.response,
-      interviewStage: job.interviewStage,
-      interviewDate: job.interviewDate || "",
-      interviewTime: job.interviewTime || "",
-      interviewerName: job.interviewerName || "",
-      offer: job.offer || "",
-      notes: job.notes || "",
-      createdAt: job.createdAt || "",
-      updatedAt: job.updatedAt || ""
-    }));
-
-    rows.forEach((row) => worksheet.addRow(row));
-
-    const headerRow = worksheet.getRow(1);
-    headerRow.font = { bold: true };
-    headerRow.alignment = { vertical: "middle", horizontal: "left" };
-
-    worksheet.autoFilter = {
-      from: { row: 1, column: 1 },
-      to: { row: 1, column: JOB_EXPORT_HEADERS.length }
-    };
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    columnWidths.forEach((width, index) => {
+      sheet.column(index + 1).width(width);
     });
+
+    sheet.freezePanes(0, 1);
+    sheet.row(1).style({
+      bold: true,
+      horizontalAlignment: "left",
+      verticalAlignment: "center"
+    });
+    sheet.range(`A1:${lastColumn}${lastRow}`).autoFilter();
+
+    const blob = await workbook.outputAsync({ type: "blob" }) as Blob;
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

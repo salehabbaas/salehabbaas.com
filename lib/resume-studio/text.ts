@@ -1,4 +1,5 @@
 import type { ResumeDocumentRecord, ResumeSectionBlock } from "@/types/resume-studio";
+import { legacyHtmlToPlainText, resumeRichTextDocToPlainText } from "@/lib/resume-studio/editor-v2/content";
 
 const STOP_WORDS = new Set([
   "the",
@@ -90,6 +91,18 @@ function toTextValue(value: unknown): string {
 }
 
 export function sectionToPlainText(section: ResumeSectionBlock) {
+  const structuredText = section.contentDoc ? resumeRichTextDocToPlainText(section.contentDoc) : "";
+  if (structuredText) {
+    return structuredText.replace(/\s+/g, " ").trim();
+  }
+
+  if (section.contentHtmlLegacy) {
+    const legacyText = legacyHtmlToPlainText(section.contentHtmlLegacy);
+    if (legacyText) {
+      return legacyText.replace(/\s+/g, " ").trim();
+    }
+  }
+
   return toTextValue(section.data)
     .replace(/\s+/g, " ")
     .trim();

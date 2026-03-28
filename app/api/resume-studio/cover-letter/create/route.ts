@@ -8,6 +8,7 @@ import { writeResumeActivity } from "@/lib/firestore/resume-studio";
 import { createDefaultResumeDocument } from "@/lib/resume-studio/defaults";
 import { ensureResumeStudioFlag } from "@/lib/resume-studio/flags";
 import { generateStructuredAi } from "@/lib/resume-studio/ai";
+import { toPersistedResumeSnapshot } from "@/lib/resume-studio/normalize";
 import { assertOwnedResume, requireAdminUser, resolveJobDescription } from "@/lib/resume-studio/server";
 import { resumeToPlainText } from "@/lib/resume-studio/text";
 import { validateNoFabricatedClaims } from "@/lib/resume-studio/truthfulness";
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
     const docRef = adminDb.collection("resumeDocuments").doc();
     const now = new Date();
     await docRef.set({
-      ...payload,
+      ...toPersistedResumeSnapshot(payload),
       createdAt: now,
       updatedAt: now
     });

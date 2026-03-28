@@ -6,16 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		A1B2C3D40100000000000001 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40200000000000001 /* FirebaseAuth */; };
-		A1B2C3D40100000000000002 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40200000000000002 /* FirebaseFirestore */; };
-		A1B2C3D40100000000000003 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40200000000000003 /* FirebaseStorage */; };
-		A1B2C3D40100000000000004 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40200000000000004 /* FirebaseMessaging */; };
-		A1B2C3D40100000000000005 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40200000000000005 /* FirebaseAppCheck */; };
-		A1B2C3D40100000000000006 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40200000000000006 /* FirebaseCrashlytics */; };
-		A1B2C3D40100000000000007 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40200000000000007 /* FirebaseAnalytics */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		4629BC5C2F5453A600C75BB9 /* salehabbaas.com.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = salehabbaas.com.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -33,13 +23,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1B2C3D40100000000000001 /* FirebaseAuth in Frameworks */,
-				A1B2C3D40100000000000002 /* FirebaseFirestore in Frameworks */,
-				A1B2C3D40100000000000003 /* FirebaseStorage in Frameworks */,
-				A1B2C3D40100000000000004 /* FirebaseMessaging in Frameworks */,
-				A1B2C3D40100000000000005 /* FirebaseAppCheck in Frameworks */,
-				A1B2C3D40100000000000006 /* FirebaseCrashlytics in Frameworks */,
-				A1B2C3D40100000000000007 /* FirebaseAnalytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -82,13 +65,6 @@
 			);
 			name = salehabbaas.com;
 			packageProductDependencies = (
-				A1B2C3D40200000000000001 /* FirebaseAuth */,
-				A1B2C3D40200000000000002 /* FirebaseFirestore */,
-				A1B2C3D40200000000000003 /* FirebaseStorage */,
-				A1B2C3D40200000000000004 /* FirebaseMessaging */,
-				A1B2C3D40200000000000005 /* FirebaseAppCheck */,
-				A1B2C3D40200000000000006 /* FirebaseCrashlytics */,
-				A1B2C3D40200000000000007 /* FirebaseAnalytics */,
 			);
 			productName = salehabbaas.com;
 			productReference = 4629BC5C2F5453A600C75BB9 /* salehabbaas.com.app */;
@@ -119,7 +95,6 @@
 			mainGroup = 4629BC532F5453A600C75BB9;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				A1B2C3D40300000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 4629BC5D2F5453A600C75BB9 /* Products */;
@@ -283,6 +258,8 @@
 				DEVELOPMENT_TEAM = JTZ2LJ376S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Saleh Abbaas";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -293,7 +270,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = salehabbaas;
+				PRODUCT_BUNDLE_IDENTIFIER = com.salehabbaas;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -316,6 +293,8 @@
 				DEVELOPMENT_TEAM = JTZ2LJ376S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Saleh Abbaas";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -326,7 +305,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = salehabbaas;
+				PRODUCT_BUNDLE_IDENTIFIER = com.salehabbaas;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -361,55 +340,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		A1B2C3D40300000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 11.0.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		A1B2C3D40200000000000001 /* FirebaseAuth */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A1B2C3D40300000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseAuth;
-		};
-		A1B2C3D40200000000000002 /* FirebaseFirestore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A1B2C3D40300000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseFirestore;
-		};
-		A1B2C3D40200000000000003 /* FirebaseStorage */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A1B2C3D40300000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseStorage;
-		};
-		A1B2C3D40200000000000004 /* FirebaseMessaging */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A1B2C3D40300000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseMessaging;
-		};
-		A1B2C3D40200000000000005 /* FirebaseAppCheck */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A1B2C3D40300000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseAppCheck;
-		};
-		A1B2C3D40200000000000006 /* FirebaseCrashlytics */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A1B2C3D40300000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseCrashlytics;
-		};
-		A1B2C3D40200000000000007 /* FirebaseAnalytics */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A1B2C3D40300000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseAnalytics;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 4629BC542F5453A600C75BB9 /* Project object */;
 }

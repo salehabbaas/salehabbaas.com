@@ -21,6 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/blog", changeFrequency: "daily", priority: 0.8 },
     { path: "/creator", changeFrequency: "daily", priority: 0.82 },
     { path: "/public-statement", changeFrequency: "monthly", priority: 0.68 },
+    { path: "/privacy", changeFrequency: "monthly", priority: 0.68 },
     { path: "/book-meeting", changeFrequency: "weekly", priority: 0.78 },
     { path: "/contact", changeFrequency: "weekly", priority: 0.78 },
     { path: "/blog/rss.xml", changeFrequency: "daily", priority: 0.5 },

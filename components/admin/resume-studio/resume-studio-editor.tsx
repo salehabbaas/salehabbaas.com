@@ -18,13 +18,14 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  Download,
   Eye,
-  FileText,
   History,
   LayoutTemplate,
   ListPlus,
   Loader2,
   Pencil,
+  RefreshCw,
   ScanSearch,
   Sparkles,
   SwatchBook,
@@ -98,6 +99,7 @@ const COLOR_SWATCHES = [
   "#111827",
   "#334155"
 ];
+const ZOOM_OPTIONS = [50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200];
 
 const railItems = [
   { id: "add", label: "Add Section", icon: ListPlus },
@@ -105,9 +107,7 @@ const railItems = [
   { id: "templates", label: "Templates", icon: LayoutTemplate },
   { id: "design", label: "Design & Font", icon: SwatchBook },
   { id: "improve", label: "Improve Text", icon: Wand2 },
-  { id: "ats", label: "ATS", icon: ScanSearch },
-  { id: "preview", label: "Preview / Export", icon: FileText },
-  { id: "history", label: "History", icon: History }
+  { id: "ats", label: "ATS", icon: ScanSearch }
 ] as const;
 type RailPanelId = (typeof railItems)[number]["id"] | null;
 
@@ -116,7 +116,7 @@ export function ResumeStudioEditor({ ownerId, docId, actorEmail }: { ownerId: st
   const [docState, setDocState] = useState<ResumeDocumentRecord | null>(null);
   const [activeSectionId, setActiveSectionId] = useState("");
   const [customTemplates, setCustomTemplates] = useState<ResumeTemplateRecord[]>([]);
-  const [versions, setVersions] = useState<VersionRecord[]>([]);
+  const [, setVersions] = useState<VersionRecord[]>([]);
   const [status, setStatus] = useState("");
   const [dirty, setDirty] = useState(false);
   const [zoom, setZoom] = useState(1.5);
@@ -145,6 +145,8 @@ export function ResumeStudioEditor({ ownerId, docId, actorEmail }: { ownerId: st
 
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewFileName, setPreviewFileName] = useState("");
 
   const [atsJobDescription, setAtsJobDescription] = useState("");
   const [atsJobUrl, setAtsJobUrl] = useState("");
@@ -304,6 +306,11 @@ export function ResumeStudioEditor({ ownerId, docId, actorEmail }: { ownerId: st
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  useEffect(() => {
+    if (!docState) return;
+    setPreviewFileName(sanitizeFileName(docState.title) || "resume");
+  }, [docState]);
 
   const templateMap = useMemo(() => {
     const map = new Map<string, ResumeTemplateRecord>();
@@ -536,12 +543,12 @@ export function ResumeStudioEditor({ ownerId, docId, actorEmail }: { ownerId: st
       .slice(0, 90);
   }
 
-  async function loadInlinePreview() {
+  async function loadInlinePreview(fileNameOverride?: string) {
     if (!docState) return;
     setPreviewLoading(true);
     setStatus("");
     try {
-      const fileName = sanitizeFileName(docState.title) || "resume";
+      const fileName = sanitizeFileName(fileNameOverride || previewFileName || docState.title) || "resume";
       const response = await fetch("/api/resume-studio/export/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -566,12 +573,12 @@ export function ResumeStudioEditor({ ownerId, docId, actorEmail }: { ownerId: st
     }
   }
 
-  async function downloadPdf() {
+  async function downloadPdf(fileNameOverride?: string) {
     if (!docState) return;
     setPreviewLoading(true);
     setStatus("");
     try {
-      const fileName = sanitizeFileName(docState.title) || "resume";
+      const fileName = sanitizeFileName(fileNameOverride || previewFileName || docState.title) || "resume";
       const response = await fetch("/api/resume-studio/export/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -600,6 +607,11 @@ export function ResumeStudioEditor({ ownerId, docId, actorEmail }: { ownerId: st
     } finally {
       setPreviewLoading(false);
     }
+  }
+
+  async function openPreviewDialog() {
+    setPreviewDialogOpen(true);
+    await loadInlinePreview();
   }
 
   async function saveManualVersion() {
@@ -724,51 +736,8 @@ export function ResumeStudioEditor({ ownerId, docId, actorEmail }: { ownerId: st
 
   return (
     <div className="admin-workspace space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-card/80 px-3 py-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">A4</Badge>
-          <Badge variant="secondary">Template: {selectedTemplate.name}</Badge>
-          {typeof docState.ats.lastScore === "number" ? <Badge>ATS {docState.ats.lastScore}%</Badge> : null}
-          {quality ? <Badge variant="outline">Quality {quality.score}%</Badge> : null}
-          {qualityLoading ? <Badge variant="secondary">Scanning...</Badge> : null}
-          <p className="text-sm font-medium">{docState.title}</p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={undo} disabled={!history.length}>
-            <Undo2 className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={redo} disabled={!future.length}>
-            <Redo2 className="h-4 w-4" />
-          </Button>
-
-          <Button variant="outline" size="sm" onClick={() => setZoom((current) => Math.max(0.5, Math.round((current - 0.1) * 100) / 100))}>-</Button>
-          <Badge variant="outline">{Math.round(zoom * 100)}%</Badge>
-          <Button variant="outline" size="sm" onClick={() => setZoom((current) => Math.min(2, Math.round((current + 0.1) * 100) / 100))}>+</Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setActiveRailPanel("preview");
-              void loadInlinePreview();
-            }}
-            title="Preview PDF"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-
-          <Select value="" onChange={(event) => void applyFileMenuAction(event.target.value)} className="w-[170px]">
-            <option value="">File Actions</option>
-            <option value="rename">Rename</option>
-            <option value="duplicate">Duplicate</option>
-            <option value="cover_letter">Create Cover Letter</option>
-            <option value="back">Back to Documents</option>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-[86px_minmax(0,1fr)]">
-        <aside className="rounded-2xl border border-border/70 bg-card/85 p-2">
+      <div className="grid min-h-[calc(100vh-9.5rem)] gap-3 lg:grid-cols-[86px_minmax(0,1fr)]">
+        <aside className="hidden rounded-2xl border border-border/70 bg-card/85 p-2 lg:block">
           <div className="space-y-2">
             {railItems.map((entry) => {
               const Icon = entry.icon;
@@ -791,14 +760,14 @@ export function ResumeStudioEditor({ ownerId, docId, actorEmail }: { ownerId: st
           </div>
         </aside>
 
-        <section className="grid gap-3 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <aside
-            className={cn(
-              "hidden h-[calc(100vh-9.5rem)] overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-elev2 backdrop-blur transition-all duration-300 lg:block",
-              activeRailPanel ? "translate-x-0 opacity-100" : "-translate-x-6 opacity-0 pointer-events-none"
-            )}
-          >
-            {activeRailPanel ? (
+        <section
+          className="grid min-h-[calc(100vh-9.5rem)] gap-3"
+          style={{
+            gridTemplateColumns: activeRailPanel ? "360px minmax(0,1fr) 280px" : "minmax(0,1fr) 280px"
+          }}
+        >
+          {activeRailPanel ? (
+            <aside className="hidden h-[calc(100vh-9.5rem)] overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-elev2 backdrop-blur lg:block">
               <div className="flex h-full flex-col">
                 <div className="flex items-center justify-between border-b border-border/70 px-3 py-2">
                   <p className="text-sm font-semibold">
@@ -1172,71 +1141,12 @@ export function ResumeStudioEditor({ ownerId, docId, actorEmail }: { ownerId: st
                     </div>
                   ) : null}
 
-                  {activeRailPanel === "preview" ? (
-                    <div className="space-y-3">
-                      <div className="flex flex-wrap gap-2">
-                        <Button onClick={loadInlinePreview} disabled={previewLoading}>
-                          {previewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          {previewUrl ? "Refresh Preview" : "Load Preview"}
-                        </Button>
-                        <Button variant="outline" onClick={downloadPdf} disabled={previewLoading}>
-                          Download PDF
-                        </Button>
-                      </div>
-                      <div className="h-[52vh] overflow-hidden rounded-xl border border-border/70 bg-muted/25">
-                        {previewUrl ? (
-                          <iframe title="PDF Preview" src={previewUrl} className="h-full w-full" />
-                        ) : (
-                          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Load preview to render PDF.</div>
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {activeRailPanel === "history" ? (
-                    <div className="space-y-2">
-                      <div className="grid gap-2 md:grid-cols-2">
-                        <Button variant="outline" onClick={undo} disabled={!history.length}>
-                          <Undo2 className="h-4 w-4" /> Undo
-                        </Button>
-                        <Button variant="outline" onClick={redo} disabled={!future.length}>
-                          <Redo2 className="h-4 w-4" /> Redo
-                        </Button>
-                      </div>
-                      <Button variant="outline" onClick={saveManualVersion}>Save Version</Button>
-                      <div className="space-y-2">
-                        {versions.map((version) => (
-                          <button
-                            key={version.id}
-                            type="button"
-                            className="w-full rounded-xl border border-border/70 px-3 py-2 text-left"
-                            onClick={() => {
-                              commitLocalChange(
-                                {
-                                  ...docState,
-                                  ...version.snapshot,
-                                  id: docState.id,
-                                  ownerId: docState.ownerId,
-                                  createdAt: docState.createdAt,
-                                  updatedAt: docState.updatedAt
-                                },
-                                { recordHistory: true }
-                              );
-                            }}
-                          >
-                            <p className="font-medium">{version.note || "Snapshot"}</p>
-                            <p className="text-xs text-muted-foreground">{version.createdAt ? new Date(version.createdAt).toLocaleString() : "-"}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
                 </div>
               </div>
-            ) : null}
-          </aside>
+            </aside>
+          ) : null}
 
-          <div>
+          <div className="relative z-10 flex min-h-[calc(100vh-9.5rem)] w-full justify-center">
             <ResumeCanvasEditor
               doc={docState}
               template={selectedTemplate}
@@ -1250,10 +1160,97 @@ export function ResumeStudioEditor({ ownerId, docId, actorEmail }: { ownerId: st
               onChange={(next) => commitLocalChange(next, { recordHistory: true })}
             />
           </div>
+
+          <aside className="hidden h-[calc(100vh-9.5rem)] overflow-hidden rounded-2xl border border-border/70 bg-card/90 lg:block">
+            <div className="flex h-full flex-col">
+              <div className="border-b border-border/70 px-3 py-3">
+                <p className="text-sm font-semibold">{docState.title}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Badge variant="outline">A4</Badge>
+                  <Badge variant="secondary">Template: {selectedTemplate.name}</Badge>
+                  {typeof docState.ats.lastScore === "number" ? <Badge>ATS {docState.ats.lastScore}%</Badge> : null}
+                  {quality ? <Badge variant="outline">Quality {quality.score}%</Badge> : null}
+                  {qualityLoading ? <Badge variant="secondary">Scanning...</Badge> : null}
+                </div>
+              </div>
+
+              <div className="flex-1 space-y-4 overflow-auto p-3">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Quick Tools</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    <Button variant="outline" size="sm" onClick={undo} disabled={!history.length} title="Undo">
+                      <Undo2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={redo} disabled={!future.length} title="Redo">
+                      <Redo2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => void openPreviewDialog()} title="Preview PDF">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={saveManualVersion} title="Save Version">
+                      <History className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Zoom</p>
+                  <div className="grid grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setZoom((current) => Math.max(0.5, Math.round((current - 0.1) * 100) / 100))}>-</Button>
+                    <Select
+                      value={String(Math.round(zoom * 100))}
+                      onChange={(event) => setZoom(Number(event.target.value) / 100)}
+                      className="w-full"
+                    >
+                      {ZOOM_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}%
+                        </option>
+                      ))}
+                    </Select>
+                    <Button variant="outline" size="sm" onClick={() => setZoom((current) => Math.min(2, Math.round((current + 0.1) * 100) / 100))}>+</Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Actions</p>
+                  <div className="grid gap-2">
+                    <Select value="" onChange={(event) => void applyFileMenuAction(event.target.value)} className="w-full">
+                      <option value="">File Actions</option>
+                      <option value="duplicate">Duplicate</option>
+                      <option value="cover_letter">Create Cover Letter</option>
+                      <option value="back">Back to Documents</option>
+                    </Select>
+                    <Button variant="outline" size="sm" onClick={() => setRenameOpen(true)}>
+                      <Pencil className="h-4 w-4" />
+                      Rename
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Status</p>
+                  <div className="rounded-xl border border-border/70 bg-card/70 p-3">
+                    <p className="text-sm font-medium">{status || (dirty ? "Saving..." : "Saved")}</p>
+                    {quality ? (
+                      <div className="mt-2 space-y-1 text-xs">
+                        <p>Spelling: {quality.spellingIssues.length}</p>
+                        <p>Grammar: {quality.grammarIssues.length}</p>
+                        <p>Readability: {quality.readabilityIssues.length}</p>
+                        <p className="text-muted-foreground">Live hybrid scan active</p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-border/70 px-3 py-3 text-xs text-muted-foreground">
+                {actorEmail || "admin"} · Resume Studio v3
+              </div>
+            </div>
+          </aside>
         </section>
       </div>
-
-      {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
 
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
         <DialogContent className="max-w-lg">
@@ -1270,18 +1267,48 @@ export function ResumeStudioEditor({ ownerId, docId, actorEmail }: { ownerId: st
         </DialogContent>
       </Dialog>
 
-      {quality ? (
-        <div className="rounded-2xl border border-border/70 bg-card/65 p-3">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <Badge variant="secondary">Spelling: {quality.spellingIssues.length}</Badge>
-            <Badge variant="secondary">Grammar: {quality.grammarIssues.length}</Badge>
-            <Badge variant="secondary">Readability: {quality.readabilityIssues.length}</Badge>
-            <span className="text-muted-foreground">Live hybrid scan active</span>
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>PDF Preview</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-wrap items-center gap-2 border-b border-border/70 pb-3">
+            <Input
+              value={previewFileName}
+              onChange={(event) => setPreviewFileName(sanitizeFileName(event.target.value))}
+              placeholder="pdf file name"
+              className="min-w-[220px] flex-1"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void loadInlinePreview(previewFileName)}
+              disabled={previewLoading}
+              title="Refresh preview"
+            >
+              {previewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => void downloadPdf(previewFileName)}
+              disabled={previewLoading}
+              title="Download PDF"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
-      ) : null}
+          <div className="h-[75vh] overflow-hidden rounded-xl border border-border/70 bg-muted/25">
+            {previewUrl ? (
+              <iframe title="PDF Preview" src={previewUrl} className="h-full w-full" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                {previewLoading ? "Rendering preview..." : "Open preview to render PDF."}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      <div className="text-xs text-muted-foreground">{actorEmail || "admin"} · Resume Studio v3</div>
     </div>
   );
 }

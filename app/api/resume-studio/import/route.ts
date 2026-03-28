@@ -8,7 +8,7 @@ import { writeResumeActivity } from "@/lib/firestore/resume-studio";
 import { generateStructuredAi } from "@/lib/resume-studio/ai";
 import { createDefaultResumeDocument, createSection, createStableId, getBuiltInTemplateById } from "@/lib/resume-studio/defaults";
 import { ensureResumeStudioFlag } from "@/lib/resume-studio/flags";
-import { RESUME_STUDIO_SCHEMA_VERSION, resolveMarginBox } from "@/lib/resume-studio/normalize";
+import { RESUME_STUDIO_SCHEMA_VERSION, resolveMarginBox, toPersistedResumeSnapshot } from "@/lib/resume-studio/normalize";
 import { requireAdminUser } from "@/lib/resume-studio/server";
 import type { ResumeDocumentRecord, ResumeSectionBlock, ResumeSectionKind, ResumeTemplateCategory } from "@/types/resume-studio";
 
@@ -723,7 +723,7 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     const docRef = adminDb.collection("resumeDocuments").doc();
     await docRef.set({
-      ...payload,
+      ...toPersistedResumeSnapshot(payload),
       createdAt: now,
       updatedAt: now
     });

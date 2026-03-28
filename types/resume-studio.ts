@@ -1,14 +1,255 @@
 export type ResumeDocumentType = "resume" | "cover_letter";
 
-export type ResumePageSize = "A4";
+export type ResumePageSize = "A4" | "Letter";
 export type ResumeSchemaVersion = 1 | 2;
 export type ResumeAiModel = "gpt-5.3" | "gpt-5.2";
+export type ResumeEditorModelVersion = 1 | 2;
+export type ResumeEditorEngine = "legacy" | "tiptap";
+export type ResumeContentFormat = "section-data" | "pm-json";
 
 export type ResumeMarginBox = {
   top: number;
   right: number;
   bottom: number;
   left: number;
+};
+
+export type ResumeBlockAttributes = {
+  textAlign?: "left" | "center" | "right" | "justify";
+  lineHeight?: number;
+  spacingBefore?: number;
+  spacingAfter?: number;
+  indentLevel?: number;
+  firstLineIndent?: number;
+  hangingIndent?: number;
+  direction?: "ltr" | "rtl" | "auto";
+  language?: string;
+  keepWithNext?: boolean;
+  pageBreakBefore?: boolean;
+  columnSpan?: number;
+};
+
+export type ResumeTextMark =
+  | { type: "bold" }
+  | { type: "italic" }
+  | { type: "underline" }
+  | { type: "strike" }
+  | { type: "superscript" }
+  | { type: "subscript" }
+  | { type: "code" }
+  | { type: "highlight"; attrs?: { color?: string } }
+  | { type: "textColor"; attrs: { color: string } }
+  | { type: "fontFamily"; attrs: { value: string } }
+  | { type: "fontSize"; attrs: { value: string } }
+  | { type: "link"; attrs: { href: string; target?: string; rel?: string } };
+
+export type ResumeTextNode = {
+  type: "text";
+  text: string;
+  marks?: ResumeTextMark[];
+};
+
+export type ResumeHardBreakNode = {
+  type: "hardBreak";
+};
+
+export type ResumeEmojiNode = {
+  type: "emoji";
+  attrs: {
+    shortcode: string;
+    value: string;
+  };
+};
+
+export type ResumeMentionNode = {
+  type: "mention";
+  attrs: {
+    id: string;
+    label: string;
+  };
+};
+
+export type ResumeTagNode = {
+  type: "tag";
+  attrs: {
+    value: string;
+  };
+};
+
+export type ResumeFootnoteRefNode = {
+  type: "footnoteRef";
+  attrs: {
+    id: string;
+  };
+};
+
+export type ResumeBookmarkNode = {
+  type: "bookmark";
+  attrs: {
+    id: string;
+    label?: string;
+  };
+};
+
+export type ResumeInlineNode =
+  | ResumeTextNode
+  | ResumeHardBreakNode
+  | ResumeEmojiNode
+  | ResumeMentionNode
+  | ResumeTagNode
+  | ResumeFootnoteRefNode
+  | ResumeBookmarkNode;
+
+export type ResumeParagraphNode = {
+  type: "paragraph";
+  attrs?: ResumeBlockAttributes;
+  content?: ResumeInlineNode[];
+};
+
+export type ResumeHeadingNode = {
+  type: "heading";
+  attrs?: ResumeBlockAttributes & { level?: 1 | 2 | 3 | 4 | 5 | 6 };
+  content?: ResumeInlineNode[];
+};
+
+export type ResumeListItemNode = {
+  type: "listItem";
+  content: Array<ResumeParagraphNode | ResumeHeadingNode | ResumeBulletListNode | ResumeOrderedListNode | ResumeBlockquoteNode>;
+};
+
+export type ResumeBulletListNode = {
+  type: "bulletList";
+  content: ResumeListItemNode[];
+};
+
+export type ResumeOrderedListNode = {
+  type: "orderedList";
+  content: ResumeListItemNode[];
+};
+
+export type ResumeBlockquoteNode = {
+  type: "blockquote";
+  content: Array<ResumeParagraphNode | ResumeHeadingNode | ResumeBulletListNode | ResumeOrderedListNode>;
+};
+
+export type ResumeHorizontalRuleNode = {
+  type: "horizontalRule";
+};
+
+export type ResumePageBreakNode = {
+  type: "pageBreak";
+};
+
+export type ResumeCodeBlockNode = {
+  type: "codeBlock";
+  attrs?: ResumeBlockAttributes & {
+    language?: string;
+  };
+  content?: ResumeInlineNode[];
+};
+
+export type ResumeChecklistItemNode = {
+  type: "checklistItem";
+  attrs?: {
+    checked?: boolean;
+  };
+  content: Array<ResumeParagraphNode | ResumeHeadingNode>;
+};
+
+export type ResumeChecklistNode = {
+  type: "checklist";
+  content: ResumeChecklistItemNode[];
+};
+
+export type ResumeTableCellNode = {
+  type: "tableCell";
+  attrs?: ResumeBlockAttributes & {
+    colSpan?: number;
+    rowSpan?: number;
+    header?: boolean;
+  };
+  content: Array<ResumeParagraphNode | ResumeHeadingNode | ResumeBulletListNode | ResumeOrderedListNode>;
+};
+
+export type ResumeTableRowNode = {
+  type: "tableRow";
+  content: ResumeTableCellNode[];
+};
+
+export type ResumeTableNode = {
+  type: "table";
+  attrs?: ResumeBlockAttributes & {
+    caption?: string;
+  };
+  content: ResumeTableRowNode[];
+};
+
+export type ResumeImageNode = {
+  type: "image";
+  attrs: {
+    src: string;
+    alt?: string;
+    title?: string;
+    width?: number;
+    height?: number;
+  } & ResumeBlockAttributes;
+};
+
+export type ResumeColumnsNode = {
+  type: "columns";
+  attrs?: ResumeBlockAttributes & {
+    count?: 1 | 2;
+    gap?: number;
+  };
+  content: Array<ResumeParagraphNode | ResumeHeadingNode | ResumeBulletListNode | ResumeOrderedListNode | ResumeBlockquoteNode>;
+};
+
+export type ResumeAttachmentPlaceholderNode = {
+  type: "attachmentPlaceholder";
+  attrs: {
+    fileName: string;
+    mimeType?: string;
+    nonExportable?: boolean;
+  };
+};
+
+export type ResumeVideoPlaceholderNode = {
+  type: "videoPlaceholder";
+  attrs: {
+    url: string;
+    label?: string;
+    nonExportable?: boolean;
+  };
+};
+
+export type ResumeTocPlaceholderNode = {
+  type: "tocPlaceholder";
+};
+
+export type ResumeBlockNode =
+  | ResumeParagraphNode
+  | ResumeHeadingNode
+  | ResumeBulletListNode
+  | ResumeOrderedListNode
+  | ResumeListItemNode
+  | ResumeChecklistNode
+  | ResumeChecklistItemNode
+  | ResumeBlockquoteNode
+  | ResumeCodeBlockNode
+  | ResumeTableNode
+  | ResumeTableRowNode
+  | ResumeTableCellNode
+  | ResumeImageNode
+  | ResumeColumnsNode
+  | ResumeHorizontalRuleNode
+  | ResumePageBreakNode
+  | ResumeAttachmentPlaceholderNode
+  | ResumeVideoPlaceholderNode
+  | ResumeTocPlaceholderNode;
+
+export type ResumeRichTextDoc = {
+  type: "doc";
+  content: ResumeBlockNode[];
 };
 
 export type ResumeSectionKind =
@@ -32,6 +273,8 @@ export type ResumeSectionBlock = {
   id: string;
   kind: ResumeSectionKind;
   data: ResumeSectionData;
+  contentHtmlLegacy?: string;
+  contentDoc?: ResumeRichTextDoc;
   locked?: boolean;
 };
 
@@ -132,6 +375,9 @@ export type ResumeDocumentRecord = {
   id: string;
   ownerId: string;
   schemaVersion: ResumeSchemaVersion;
+  editorModelVersion: ResumeEditorModelVersion;
+  editorEngine: ResumeEditorEngine;
+  contentFormat: ResumeContentFormat;
   type: ResumeDocumentType;
   title: string;
   linkedJobId?: string | null;
@@ -141,6 +387,20 @@ export type ResumeDocumentRecord = {
     margins?: number;
     marginBox: ResumeMarginBox;
     sectionSpacing: number;
+    header?: {
+      enabled: boolean;
+      contentDoc?: ResumeRichTextDoc;
+    };
+    footer?: {
+      enabled: boolean;
+      contentDoc?: ResumeRichTextDoc;
+    };
+    pageNumbers?: {
+      enabled: boolean;
+      format?: "numeric" | "page_of_total";
+      position?: "left" | "center" | "right";
+    };
+    columns?: number;
   };
   style: {
     primaryColor: string;
@@ -155,6 +415,12 @@ export type ResumeDocumentRecord = {
   language: {
     mode: "auto" | "manual";
     value?: string;
+    defaultDirection?: "ltr" | "rtl" | "auto";
+  };
+  collaboration?: {
+    roomId?: string;
+    lockMode?: "single_editor" | "multi_editor";
+    lastSyncedAt?: string;
   };
   sections: ResumeSectionBlock[];
   ats: {
@@ -178,7 +444,7 @@ export type ResumeVersionRecord = {
   snapshot: Omit<ResumeDocumentRecord, "id">;
 };
 
-export type ResumeExportType = "pdf" | "txt";
+export type ResumeExportType = "pdf" | "txt" | "html" | "markdown" | "docx";
 
 export type ResumeExportRecord = {
   id: string;
