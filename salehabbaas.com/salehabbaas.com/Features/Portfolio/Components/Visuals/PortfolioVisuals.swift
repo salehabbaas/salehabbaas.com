@@ -44,6 +44,9 @@ enum PortfolioVisuals {
     }
   }
 
+  // Alias for ConnectPageView
+  static func socialIcon(for title: String) -> String { linkIcon(for: title) }
+
   static func linkIcon(for title: String) -> String {
     switch title.lowercased() {
     case "email":

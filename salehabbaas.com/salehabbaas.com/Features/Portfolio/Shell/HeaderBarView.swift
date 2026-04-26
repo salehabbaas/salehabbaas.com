@@ -5,10 +5,15 @@ struct HeaderBarView: View {
   let selectedTab: PortfolioNavigationTab
   let isRegularWidth: Bool
   @Binding var colorMode: PortfolioColorMode
+  var onSearchTap: (() -> Void)? = nil
+  var onAdminTap: (() -> Void)? = nil
+
+  private var auth: AdminAuthManager { AdminAuthManager.shared }
 
   var body: some View {
     VStack(spacing: 0) {
       HStack(spacing: 10) {
+        // Logo + Name
         HStack(spacing: 10) {
           Image("SalehLogo")
             .resizable()
@@ -31,6 +36,20 @@ struct HeaderBarView: View {
             .background(.ultraThinMaterial, in: Capsule())
             .overlay(Capsule().stroke(PortfolioTheme.border, lineWidth: 1))
         }
+
+        // Search button
+        Button {
+          onSearchTap?()
+        } label: {
+          Image(systemName: "magnifyingglass")
+            .font(.system(size: 15, weight: .bold))
+            .foregroundStyle(PortfolioTheme.ink)
+            .frame(width: 40, height: 40)
+            .background(.ultraThinMaterial, in: Circle())
+            .overlay(Circle().stroke(PortfolioTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Search")
 
         if isRegularWidth {
           Link(destination: content.contact.email.url) {
@@ -64,6 +83,23 @@ struct HeaderBarView: View {
           }
         }
 
+        // Admin button (hidden – long press logo or triple tap)
+        Button {
+          onAdminTap?()
+        } label: {
+          ZStack {
+            Image(systemName: auth.isAuthenticated ? "person.crop.circle.fill.badge.checkmark" : "gearshape.fill")
+              .font(.system(size: 15, weight: .bold))
+              .foregroundStyle(auth.isAuthenticated ? PortfolioTheme.accent : PortfolioTheme.secondaryInk)
+              .frame(width: 40, height: 40)
+              .background(.ultraThinMaterial, in: Circle())
+              .overlay(Circle().stroke(PortfolioTheme.border, lineWidth: 1))
+          }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Admin Panel")
+
+        // Color mode toggle
         Button {
           var updated = colorMode
           updated.toggle()

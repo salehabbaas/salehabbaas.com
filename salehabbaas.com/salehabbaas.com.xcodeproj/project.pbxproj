@@ -6,14 +6,76 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		46335EB52F7944540099502F /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 46335EB42F7944540099502F /* WidgetKit.framework */; };
+		46335EB72F7944540099502F /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 46335EB62F7944540099502F /* SwiftUI.framework */; };
+		46335EC62F7944550099502F /* SalehAbbaasWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 46335EB22F7944540099502F /* SalehAbbaasWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		46335EC42F7944550099502F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4629BC542F5453A600C75BB9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 46335EB12F7944540099502F;
+			remoteInfo = SalehAbbaasWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		46335ECB2F7944550099502F /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				46335EC62F7944550099502F /* SalehAbbaasWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		4605D0EE2F795B73008B7AC7 /* salehabbaas.com.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = salehabbaas.com.entitlements; sourceTree = "<group>"; };
 		4629BC5C2F5453A600C75BB9 /* salehabbaas.com.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = salehabbaas.com.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		46335EB22F7944540099502F /* SalehAbbaasWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SalehAbbaasWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		46335EB42F7944540099502F /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		46335EB62F7944540099502F /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		46335ECD2F7944DD0099502F /* SalehAbbaasWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SalehAbbaasWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		46335EC72F7944550099502F /* Exceptions for "SalehAbbaasWidget" folder in "SalehAbbaasWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				SalehAbbaasLiveActivity.swift,
+			);
+			target = 46335EB12F7944540099502F /* SalehAbbaasWidgetExtension */;
+		};
+		46335ECC2F7944660099502F /* Exceptions for "SalehAbbaasWidget" folder in "salehabbaas.com" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				SalehAbbaasLiveActivity.swift,
+			);
+			target = 4629BC5B2F5453A600C75BB9 /* salehabbaas.com */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		4629BC5E2F5453A600C75BB9 /* salehabbaas.com */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = salehabbaas.com;
+			sourceTree = "<group>";
+		};
+		46335EB82F7944540099502F /* SalehAbbaasWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				46335ECC2F7944660099502F /* Exceptions for "SalehAbbaasWidget" folder in "salehabbaas.com" target */,
+				46335EC72F7944550099502F /* Exceptions for "SalehAbbaasWidget" folder in "SalehAbbaasWidgetExtension" target */,
+			);
+			path = SalehAbbaasWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -26,13 +88,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		46335EAF2F7944540099502F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				46335EB72F7944540099502F /* SwiftUI.framework in Frameworks */,
+				46335EB52F7944540099502F /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		4629BC532F5453A600C75BB9 = {
 			isa = PBXGroup;
 			children = (
+				4605D0EE2F795B73008B7AC7 /* salehabbaas.com.entitlements */,
+				46335ECD2F7944DD0099502F /* SalehAbbaasWidgetExtension.entitlements */,
 				4629BC5E2F5453A600C75BB9 /* salehabbaas.com */,
+				46335EB82F7944540099502F /* SalehAbbaasWidget */,
+				46335EB32F7944540099502F /* Frameworks */,
 				4629BC5D2F5453A600C75BB9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,8 +116,18 @@
 			isa = PBXGroup;
 			children = (
 				4629BC5C2F5453A600C75BB9 /* salehabbaas.com.app */,
+				46335EB22F7944540099502F /* SalehAbbaasWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		46335EB32F7944540099502F /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				46335EB42F7944540099502F /* WidgetKit.framework */,
+				46335EB62F7944540099502F /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -55,10 +140,12 @@
 				4629BC582F5453A600C75BB9 /* Sources */,
 				4629BC592F5453A600C75BB9 /* Frameworks */,
 				4629BC5A2F5453A600C75BB9 /* Resources */,
+				46335ECB2F7944550099502F /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				46335EC52F7944550099502F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				4629BC5E2F5453A600C75BB9 /* salehabbaas.com */,
@@ -70,6 +157,28 @@
 			productReference = 4629BC5C2F5453A600C75BB9 /* salehabbaas.com.app */;
 			productType = "com.apple.product-type.application";
 		};
+		46335EB12F7944540099502F /* SalehAbbaasWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 46335EC82F7944550099502F /* Build configuration list for PBXNativeTarget "SalehAbbaasWidgetExtension" */;
+			buildPhases = (
+				46335EAE2F7944540099502F /* Sources */,
+				46335EAF2F7944540099502F /* Frameworks */,
+				46335EB02F7944540099502F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				46335EB82F7944540099502F /* SalehAbbaasWidget */,
+			);
+			name = SalehAbbaasWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = SalehAbbaasWidgetExtension;
+			productReference = 46335EB22F7944540099502F /* SalehAbbaasWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -77,11 +186,14 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2630;
+				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					4629BC5B2F5453A600C75BB9 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					46335EB12F7944540099502F = {
+						CreatedOnToolsVersion = 26.4;
 					};
 				};
 			};
@@ -102,12 +214,20 @@
 			projectRoot = "";
 			targets = (
 				4629BC5B2F5453A600C75BB9 /* salehabbaas.com */,
+				46335EB12F7944540099502F /* SalehAbbaasWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		4629BC5A2F5453A600C75BB9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		46335EB02F7944540099502F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -124,7 +244,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		46335EAE2F7944540099502F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		46335EC52F7944550099502F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 46335EB12F7944540099502F /* SalehAbbaasWidgetExtension */;
+			targetProxy = 46335EC42F7944550099502F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		4629BC652F5453A600C75BB9 /* Debug */ = {
@@ -253,11 +388,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = salehabbaas.com.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JTZ2LJ376S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "salehabbaas-com-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Saleh Abbaas";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -288,11 +425,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = salehabbaas.com.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JTZ2LJ376S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "salehabbaas-com-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Saleh Abbaas";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -318,6 +457,72 @@
 			};
 			name = Release;
 		};
+		46335EC92F7944550099502F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = SalehAbbaasWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = JTZ2LJ376S;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SalehAbbaasWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SalehAbbaasWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.salehabbaas.SalehAbbaasWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		46335ECA2F7944550099502F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = SalehAbbaasWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = JTZ2LJ376S;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SalehAbbaasWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SalehAbbaasWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.salehabbaas.SalehAbbaasWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -335,6 +540,15 @@
 			buildConfigurations = (
 				4629BC682F5453A600C75BB9 /* Debug */,
 				4629BC692F5453A600C75BB9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		46335EC82F7944550099502F /* Build configuration list for PBXNativeTarget "SalehAbbaasWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				46335EC92F7944550099502F /* Debug */,
+				46335ECA2F7944550099502F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

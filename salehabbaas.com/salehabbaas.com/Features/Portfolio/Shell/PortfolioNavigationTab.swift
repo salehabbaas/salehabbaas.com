@@ -6,7 +6,7 @@ enum PortfolioNavigationTab: String, CaseIterable, Identifiable {
   case skills
   case experience
   case focus
-  case contact
+  case connect
 
   var id: String { rawValue }
 
@@ -17,7 +17,7 @@ enum PortfolioNavigationTab: String, CaseIterable, Identifiable {
     case .skills: "Skills"
     case .experience: "Experience"
     case .focus: "Focus"
-    case .contact: "Contact"
+    case .connect: "Connect"
     }
   }
 
@@ -28,7 +28,7 @@ enum PortfolioNavigationTab: String, CaseIterable, Identifiable {
     case .skills: "hammer.fill"
     case .experience: "briefcase.fill"
     case .focus: "scope"
-    case .contact: "paperplane.fill"
+    case .connect: "paperplane.fill"
     }
   }
 
@@ -39,7 +39,7 @@ enum PortfolioNavigationTab: String, CaseIterable, Identifiable {
     case .skills: 2
     case .experience: 3
     case .focus: 0
-    case .contact: 1
+    case .connect: 1
     }
   }
 }

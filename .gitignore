@@ -19,6 +19,7 @@ functions/lib
 functions/node_modules
 .DS_Store
 *firebase-adminsdk*.json
+*.tsbuildinfo
 
 .firebase/
 .spm-clones/
@@ -26,3 +27,11 @@ functions/node_modules
 # iOS Firebase config (contains API keys)
 **/GoogleService-Info.plist
 !**/GoogleService-Info.example.plist
+
+# Xcode user-local files
+**/xcuserdata/
+*.xcuserstate
+
+# Local certificates/CSR artifacts
+*.certSigningRequest
+**/certificates/

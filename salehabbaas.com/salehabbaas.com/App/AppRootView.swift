@@ -3,6 +3,13 @@ import SwiftUI
 struct AppRootView: View {
   @AppStorage("portfolio.colorMode") private var colorModeRawValue = PortfolioColorMode.light.rawValue
   @State private var showsLanding = true
+  @State private var showSearch = false
+  @State private var showAdmin = false
+  @State private var showAdminLogin = false
+
+  private let content = ContentProvider.shared
+  private let auth = AdminAuthManager.shared
+  private let push = PushNotificationManager.shared
 
   private var colorMode: Binding<PortfolioColorMode> {
     Binding(
@@ -14,7 +21,18 @@ struct AppRootView: View {
   var body: some View {
     ZStack {
       NavigationStack {
-        PortfolioShellView(content: .saleh, colorMode: colorMode)
+        PortfolioShellView(
+          content: content.document,
+          colorMode: colorMode,
+          onSearchTap: { showSearch = true },
+          onAdminTap: {
+            if auth.isAuthenticated {
+              showAdmin = true
+            } else {
+              showAdminLogin = true
+            }
+          }
+        )
       }
       .toolbar(.hidden, for: .navigationBar)
       .preferredColorScheme(colorMode.wrappedValue.colorScheme)
@@ -22,7 +40,7 @@ struct AppRootView: View {
       .scaleEffect(showsLanding ? 1.03 : 1)
 
       if showsLanding {
-        LaunchScreenView(profile: PortfolioDocument.saleh.profile, colorMode: colorMode.wrappedValue) {
+        LaunchScreenView(profile: content.document.profile, colorMode: colorMode.wrappedValue) {
           withAnimation(.smooth(duration: 0.55, extraBounce: 0)) {
             showsLanding = false
           }
@@ -32,6 +50,32 @@ struct AppRootView: View {
       }
     }
     .preferredColorScheme(colorMode.wrappedValue.colorScheme)
+    .environment(content)
+    .sheet(isPresented: $showSearch) {
+      GlobalSearchView(colorMode: colorMode.wrappedValue)
+        .preferredColorScheme(colorMode.wrappedValue.colorScheme)
+        .environment(content)
+    }
+    .sheet(isPresented: $showAdminLogin) {
+      AdminLoginView(colorMode: colorMode.wrappedValue)
+        .preferredColorScheme(colorMode.wrappedValue.colorScheme)
+        .environment(content)
+        .onDisappear {
+          if auth.isAuthenticated { showAdmin = true }
+        }
+    }
+    .sheet(isPresented: $showAdmin) {
+      AdminHubView(colorMode: colorMode.wrappedValue)
+        .preferredColorScheme(colorMode.wrappedValue.colorScheme)
+        .environment(content)
+    }
+    .task {
+      await content.loadAll()
+      await push.refreshStatus()
+      if push.permissionStatus == .notDetermined {
+        _ = await push.requestPermission()
+      }
+    }
   }
 }
 

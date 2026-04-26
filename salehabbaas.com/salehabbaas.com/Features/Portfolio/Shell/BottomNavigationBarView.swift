@@ -8,24 +8,26 @@ struct BottomNavigationBarView: View {
 
   var body: some View {
     navigationDock
-    .padding(.horizontal, isRegularWidth ? 22 : 12)
-    .padding(.top, 6)
-    .padding(.bottom, 8)
-    .onGeometryChange(for: CGFloat.self) { geometry in
-      geometry.size.height
-    } action: { newValue in
-      onHeightChange(newValue)
-    }
+      .padding(.horizontal, isRegularWidth ? 22 : 12)
+      .padding(.top, 6)
+      .padding(.bottom, 8)
+      .onGeometryChange(for: CGFloat.self) { geometry in
+        geometry.size.height
+      } action: { newValue in
+        onHeightChange(newValue)
+      }
   }
 
   private var navigationDock: some View {
-    HStack(spacing: 8) {
-      ForEach(PortfolioNavigationTab.allCases) { tab in
-        navigationButton(for: tab)
-          .frame(maxWidth: .infinity)
+    ScrollView(.horizontal, showsIndicators: false) {
+      HStack(spacing: 6) {
+        ForEach(PortfolioNavigationTab.allCases) { tab in
+          navigationButton(for: tab)
+        }
       }
+      .padding(6)
     }
-    .padding(6)
+    .scrollBounceBehavior(.basedOnSize)
     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     .overlay(
       RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -57,7 +59,7 @@ struct BottomNavigationBarView: View {
         }
       }
       .foregroundStyle(isSelected ? Color.white : PortfolioTheme.ink)
-      .frame(maxWidth: .infinity, minHeight: 48)
+      .frame(minWidth: isSelected ? 72 : 48, minHeight: 48)
       .padding(.horizontal, 8)
       .background {
         RoundedRectangle(cornerRadius: 18, style: .continuous)

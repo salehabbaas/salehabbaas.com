@@ -16,6 +16,19 @@ const schema = z.object({
   startAt: z.string().min(10)
 });
 
+function toDate(value: unknown): Date | null {
+  if (value instanceof Date) return value;
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (typeof value === "object" && value && "toDate" in value && typeof value.toDate === "function") {
+    const parsed = value.toDate();
+    return parsed instanceof Date && !Number.isNaN(parsed.getTime()) ? parsed : null;
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -40,6 +53,12 @@ export async function POST(request: Request) {
     }
 
     const end = new Date(start.getTime() + meetingType.durationMinutes * 60 * 1000);
+    const maxConfiguredDurationMinutes = settings.meetingTypes.reduce(
+      (max, type) => Math.max(max, Number(type.durationMinutes) || 0),
+      meetingType.durationMinutes
+    );
+    const overlapWindowMinutes = Math.max(maxConfiguredDurationMinutes, 24 * 60);
+    const overlapWindowStart = new Date(start.getTime() - overlapWindowMinutes * 60 * 1000);
 
     const availability = await getAvailabilityDays(settings.maxDaysAhead);
     const availableSlotSet = new Set(availability.days.flatMap((day) => day.slots));
@@ -66,15 +85,22 @@ export async function POST(request: Request) {
           throw new Error("SLOT_LOCK_CONFLICT");
         }
 
+        // Use single-field range filters for overlap candidate lookup to avoid multi-range composite index requirements.
         const overlapQuery = adminDb
           .collection("bookings")
-          .where("status", "==", "confirmed")
-          .where("startAt", "<", end)
-          .where("endAt", ">", start)
-          .limit(1);
+          .where("startAt", ">=", overlapWindowStart)
+          .where("startAt", "<", end);
 
         const overlapSnapshot = await transaction.get(overlapQuery);
-        if (!overlapSnapshot.empty) {
+        const hasOverlap = overlapSnapshot.docs.some((doc) => {
+          const data = doc.data();
+          if (String(data.status ?? "") !== "confirmed") return false;
+          const existingStart = toDate(data.startAt);
+          const existingEnd = toDate(data.endAt);
+          if (!existingStart || !existingEnd) return false;
+          return existingStart < end && existingEnd > start;
+        });
+        if (hasOverlap) {
           throw new Error("BOOKING_OVERLAP");
         }
 

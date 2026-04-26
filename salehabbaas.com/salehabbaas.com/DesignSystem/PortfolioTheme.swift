@@ -106,6 +106,7 @@ extension View {
 }
 
 struct PortfolioPrimaryButtonStyle: ButtonStyle {
+  var colorMode: PortfolioColorMode? = nil
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .font(.system(.subheadline, design: .rounded, weight: .semibold))
@@ -121,6 +122,7 @@ struct PortfolioPrimaryButtonStyle: ButtonStyle {
 }
 
 struct PortfolioSecondaryButtonStyle: ButtonStyle {
+  var colorMode: PortfolioColorMode? = nil
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .font(.system(.subheadline, design: .rounded, weight: .semibold))
@@ -135,5 +137,23 @@ struct PortfolioSecondaryButtonStyle: ButtonStyle {
       )
       .scaleEffect(configuration.isPressed ? 0.98 : 1)
       .animation(.snappy(duration: 0.25), value: configuration.isPressed)
+  }
+}
+
+// MARK: - ColorMode-aware shims (colorMode is handled at root via preferredColorScheme)
+
+extension PortfolioTheme {
+  static func ink(_ colorMode: PortfolioColorMode) -> Color { ink }
+  static func secondaryInk(_ colorMode: PortfolioColorMode) -> Color { secondaryInk }
+  static func accent(_ colorMode: PortfolioColorMode) -> Color { accent }
+  static func accentStrong(_ colorMode: PortfolioColorMode) -> Color { accentStrong }
+  static func softBackground(_ colorMode: PortfolioColorMode) -> Color { softBackground }
+  static func divider(_ colorMode: PortfolioColorMode) -> Color { divider }
+  static func panel(_ colorMode: PortfolioColorMode) -> Color { panel }
+}
+
+extension View {
+  func portfolioPanel(colorMode: PortfolioColorMode, cornerRadius: CGFloat = 30) -> some View {
+    portfolioPanel(fill: PortfolioTheme.panel, cornerRadius: cornerRadius)
   }
 }

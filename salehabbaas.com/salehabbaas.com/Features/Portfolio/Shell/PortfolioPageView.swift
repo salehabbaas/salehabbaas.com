@@ -8,6 +8,7 @@ struct PortfolioPageView: View {
   let heroVisible: Bool
   let size: CGSize
   let footerHeight: CGFloat
+  var maxContentWidth: CGFloat? = nil
 
   var body: some View {
     ScrollView(showsIndicators: false) {
@@ -23,11 +24,12 @@ struct PortfolioPageView: View {
           ExperiencePageView(content: content)
         case .focus:
           FocusPageView(content: content, isRegularWidth: isRegularWidth)
-        case .contact:
-          ContactPageView(content: content)
+        case .connect:
+          ConnectPageView(contact: content.contact, colorMode: colorMode)
         }
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
+      .frame(maxWidth: maxContentWidth ?? .infinity, alignment: .leading)
+      .frame(maxWidth: .infinity, alignment: .center)
       .padding(.horizontal, isRegularWidth ? 28 : 18)
       .padding(.top, 26)
       .padding(.bottom, footerHeight + 28)
@@ -40,7 +42,7 @@ struct PortfolioPageView: View {
 
 #Preview {
   PortfolioPageView(
-    tab: .about,
+    tab: .connect,
     content: .saleh,
     colorMode: .light,
     isRegularWidth: false,
