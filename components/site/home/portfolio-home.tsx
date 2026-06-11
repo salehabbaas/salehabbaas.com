@@ -8,6 +8,7 @@ import {
   ArrowUp,
   ArrowUpRight,
   Briefcase,
+  CalendarDays,
   ChevronDown,
   Code2,
   Database,
@@ -35,6 +36,8 @@ import { cn } from "@/lib/utils";
 
 type SocialLink = { label: string; url: string };
 type PortfolioHomeProps = { socialLinks: SocialLink[] };
+
+const BOOK_MEETING_URL = "https://calendly.com/saleh-artelo/30min";
 
 const EXPERIENCES = [
   {
@@ -80,25 +83,29 @@ const PROJECTS = [
     name: "Agentic Personal Assistant",
     tech: "LangChain · LangGraph · OpenAI · Pinecone · Docker",
     description: "Multi-agent RAG system with tool-calling, multi-step reasoning, and PDF ingestion pipeline. Live token/cost dashboard with LangSmith tracing.",
-    accent: "from-cyan-500/20 via-sky-500/10 to-transparent",
+    color: "from-violet-500/18 to-fuchsia-500/14 dark:from-violet-500/20 dark:to-purple-600/20",
+    border: "border-violet-500/25 dark:border-violet-500/30",
   },
   {
     name: "AIPlace",
     tech: "Python · FastAPI · OpenCLIP · pgvector · Next.js",
     description: "Computer vision pipeline using OpenCLIP embeddings and pgvector cosine search. ~85ms p50 recognition latency from live camera frames.",
-    accent: "from-blue-500/20 via-indigo-500/10 to-transparent",
+    color: "from-blue-500/18 to-cyan-500/14 dark:from-blue-500/20 dark:to-cyan-500/20",
+    border: "border-blue-500/25 dark:border-blue-500/30",
   },
   {
     name: "Platr",
     tech: "TypeScript · Next.js · Flutter · Prisma · Stripe · Firebase",
     description: "Cross-platform food marketplace with JWT auth, Stripe payments, Firebase real-time sync, and Gemini AI recommendations.",
-    accent: "from-emerald-500/20 via-teal-500/10 to-transparent",
+    color: "from-emerald-500/18 to-teal-500/14 dark:from-emerald-500/20 dark:to-teal-500/20",
+    border: "border-emerald-500/25 dark:border-emerald-500/30",
   },
   {
     name: "DeepOncology",
     tech: "Python · PyTorch · TensorFlow",
     description: "V-Net architecture for 3D segmentation of PET/CT scans, tumour classification, and patient survival prediction.",
-    accent: "from-orange-500/20 via-rose-500/10 to-transparent",
+    color: "from-rose-500/18 to-orange-500/14 dark:from-rose-500/20 dark:to-orange-500/20",
+    border: "border-rose-500/25 dark:border-rose-500/30",
   },
 ];
 
@@ -175,7 +182,6 @@ const NAV_ITEMS = [
   { id: "hero", label: "Home" },
   { id: "experience", label: "Experience" },
   { id: "projects", label: "Projects" },
-  { id: "systems", label: "Systems" },
   { id: "skills", label: "Skills" },
   { id: "education", label: "Education" },
   { id: "contact", label: "Contact" },
@@ -226,11 +232,11 @@ function Section({
   return (
     <motion.section
       id={id}
-      initial={reduced ? { opacity: 1 } : { opacity: 0, y: 48 }}
+      initial={reduced ? { opacity: 1 } : { opacity: 0, y: 60 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.18 }}
-      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-      className={cn("relative mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28", className)}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      className={cn("relative mx-auto max-w-6xl px-5 py-24 md:px-8 md:py-32", className)}
     >
       {children}
     </motion.section>
@@ -244,7 +250,7 @@ function FadeChild({ children, delay = 0, className }: { children: React.ReactNo
       initial={reduced ? { opacity: 1 } : { opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
       className={className}
     >
       {children}
@@ -257,21 +263,22 @@ function FloatingNav() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setVisible(window.scrollY > 400);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
+    const handler = () => setVisible(window.scrollY > 400);
+    window.addEventListener("scroll", handler, { passive: true });
+    handler();
+    return () => window.removeEventListener("scroll", handler);
   }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        const visibleEntries = entries.filter((entry) => entry.isIntersecting);
-        if (!visibleEntries.length) return;
-        const winner = visibleEntries.sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        setActive(winner.target.id);
+        const visible = entries.filter((entry) => entry.isIntersecting);
+        if (visible.length) {
+          const sorted = visible.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+          setActive(sorted[0].target.id);
+        }
       },
-      { rootMargin: "-25% 0px -45% 0px", threshold: [0.15, 0.35, 0.55] }
+      { rootMargin: "-30% 0px -40% 0px", threshold: [0.1, 0.3, 0.5] }
     );
 
     NAV_ITEMS.forEach(({ id }) => {
@@ -283,30 +290,30 @@ function FloatingNav() {
   }, []);
 
   const scrollTo = useCallback((id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   return (
     <AnimatePresence>
       {visible ? (
         <motion.nav
-          initial={{ y: -70, opacity: 0 }}
+          initial={{ y: -80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -70, opacity: 0 }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed left-1/2 top-4 z-50 hidden -translate-x-1/2 xl:block"
+          exit={{ y: -80, opacity: 0 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="fixed left-1/2 top-4 z-50 hidden -translate-x-1/2 lg:block"
         >
-          <div className="flex items-center gap-1 rounded-full border border-border/70 bg-card/80 px-2 py-1.5 shadow-[0_18px_60px_-32px_rgba(15,23,42,0.45)] backdrop-blur-xl">
+          <div className="flex items-center gap-1 rounded-full border border-slate-200/70 bg-white/80 px-2 py-1.5 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-black/70">
             {NAV_ITEMS.map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => scrollTo(id)}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition",
+                  "rounded-full px-3 py-1.5 text-xs font-medium tracking-wide transition-all duration-300",
                   active === id
-                    ? "bg-foreground text-background"
-                    : "text-foreground/60 hover:bg-primary/10 hover:text-foreground"
+                    ? "bg-slate-950 text-white shadow-lg dark:bg-white dark:text-black"
+                    : "text-slate-500 hover:text-slate-950 dark:text-white/60 dark:hover:text-white"
                 )}
               >
                 {label}
@@ -321,12 +328,10 @@ function FloatingNav() {
 
 function ScrollProgressBar() {
   const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, { stiffness: 220, damping: 32, mass: 0.2 });
-
+  const scaleX = useSpring(scrollYProgress, { stiffness: 200, damping: 30 });
   return (
     <motion.div
-      aria-hidden="true"
-      className="fixed inset-x-0 top-0 z-[70] h-[3px] origin-left bg-[linear-gradient(90deg,hsl(var(--accent-strong)),hsl(var(--accent)),hsl(var(--primary)))]"
+      className="fixed left-0 right-0 top-0 z-[60] h-[2px] origin-left bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500"
       style={{ scaleX }}
     />
   );
@@ -342,29 +347,21 @@ function BackToTopButton() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const goToTop = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
-
   return (
     <AnimatePresence>
       {visible ? (
         <motion.button
           type="button"
-          onClick={goToTop}
-          initial={{ opacity: 0, y: 18, scale: 0.92 }}
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          initial={{ opacity: 0, y: 14, scale: 0.94 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 18, scale: 0.92 }}
+          exit={{ opacity: 0, y: 14, scale: 0.94 }}
           whileHover={{ y: -3 }}
-          whileTap={{ scale: 0.97 }}
-          transition={{ duration: 0.24, ease: "easeOut" }}
-          className="fixed bottom-6 right-5 z-[65] inline-flex h-12 w-12 items-center justify-center rounded-full border border-primary/25 bg-card/85 text-foreground shadow-[0_24px_60px_-28px_rgba(15,23,42,0.55)] backdrop-blur-xl hover:border-primary/40 hover:bg-primary/10 md:bottom-8 md:right-8"
+          whileTap={{ scale: 0.98 }}
+          className="fixed bottom-6 right-5 z-[65] inline-flex h-12 w-12 items-center justify-center rounded-full border border-slate-300/70 bg-white/80 text-slate-950 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.35)] backdrop-blur-xl dark:border-white/12 dark:bg-black/70 dark:text-white md:bottom-8 md:right-8"
           aria-label="Back to top"
         >
-          <motion.span
-            animate={{ y: [0, -2, 0] }}
-            transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-          >
+          <motion.span animate={{ y: [0, -2, 0] }} transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}>
             <ArrowUp className="h-5 w-5" />
           </motion.span>
         </motion.button>
@@ -375,9 +372,11 @@ function BackToTopButton() {
 
 function GridBackground() {
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--accent)/0.12),transparent_34%),radial-gradient(circle_at_85%_10%,hsl(var(--primary)/0.14),transparent_30%),radial-gradient(circle_at_50%_100%,hsl(var(--accent-strong)/0.08),transparent_40%)] dark:bg-[radial-gradient(circle_at_top_left,hsl(var(--accent)/0.18),transparent_30%),radial-gradient(circle_at_85%_10%,hsl(var(--primary)/0.18),transparent_28%),radial-gradient(circle_at_50%_100%,hsl(var(--accent-strong)/0.14),transparent_40%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(hsl(var(--foreground)/0.04)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--foreground)/0.04)_1px,transparent_1px)] bg-[size:70px_70px] dark:bg-[linear-gradient(hsl(var(--foreground)/0.05)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--foreground)/0.05)_1px,transparent_1px)]" />
+    <div className="pointer-events-none fixed inset-0 z-0">
+      <div className="absolute inset-0 bg-[hsl(210,40%,98%)] dark:bg-[hsl(225,50%,4%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.05)_1px,transparent_1px)] bg-[size:64px_64px] dark:bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(56,189,248,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(56,189,248,0.08),transparent_50%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.06),transparent_50%)]" />
     </div>
   );
 }
@@ -391,17 +390,6 @@ function getSocialIcon(label: string) {
   return Globe;
 }
 
-function StatCard({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="rounded-[1.75rem] border border-border/70 bg-card/70 px-5 py-6 text-center shadow-[0_16px_50px_-35px_rgba(15,23,42,0.35)] backdrop-blur">
-      <div className="bg-[linear-gradient(135deg,hsl(var(--accent-strong)),hsl(var(--primary)))] bg-clip-text font-display text-4xl font-bold text-transparent md:text-5xl">
-        {value}
-      </div>
-      <div className="mt-2 text-sm text-foreground/65">{label}</div>
-    </div>
-  );
-}
-
 export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
   const typedText = useTypewriter(
     ["Software Engineer", "AI Systems Builder", "Healthcare Integration Specialist", "Cloud Architect", "Open Source Contributor"],
@@ -411,11 +399,10 @@ export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
   const [showAdminPanelLink, setShowAdminPanelLink] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.72], [1, 0.18]);
-  const heroScale = useTransform(scrollYProgress, [0, 0.72], [1, 0.96]);
-  const heroY = useTransform(scrollYProgress, [0, 0.72], [0, 72]);
-  const scrollCueOpacity = useTransform(scrollYProgress, [0, 0.18, 0.34], [0.95, 0.72, 0]);
-  const scrollCueY = useTransform(scrollYProgress, [0, 0.34], [0, 18]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
+  const heroScale = useTransform(scrollYProgress, [0, 0.7], [1, 0.95]);
+  const heroY = useTransform(scrollYProgress, [0, 0.7], [0, 80]);
+  const scrollOpacity = useTransform(scrollYProgress, [0, 0.18, 0.3], [1, 0.8, 0]);
 
   useEffect(() => {
     let active = true;
@@ -454,200 +441,202 @@ export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
   }, []);
 
   return (
-    <div className="relative min-h-screen overflow-x-clip bg-transparent text-foreground">
+    <div className="relative min-h-screen bg-slate-50 text-slate-950 dark:bg-[hsl(225,50%,4%)] dark:text-white">
       <GridBackground />
       <ScrollProgressBar />
       <FloatingNav />
       <BackToTopButton />
 
-      <motion.div ref={heroRef} id="hero" style={{ opacity: heroOpacity, scale: heroScale, y: heroY }} className="relative z-10">
-        <section className="relative flex min-h-[100dvh] items-center px-5 pb-24 pt-28 md:px-8 md:pb-28">
-          <div className="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(circle_at_top,hsl(var(--accent)/0.18),transparent_55%)] dark:bg-[radial-gradient(circle_at_top,hsl(var(--accent)/0.28),transparent_55%)]" />
-          <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.08fr_0.92fr]">
-            <div className="space-y-7 text-center lg:text-left">
-              <FadeChild>
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-4 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-300">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                  </span>
-                  Available for opportunities
-                </div>
-              </FadeChild>
+      <motion.div ref={heroRef} id="hero" style={{ opacity: heroOpacity, scale: heroScale, y: heroY }}>
+        <section className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-5 pt-14">
+          <div className="absolute left-[10%] top-[20%] h-72 w-72 rounded-full bg-cyan-500/12 blur-[100px] dark:bg-cyan-500/10" />
+          <div className="absolute bottom-[20%] right-[10%] h-96 w-96 rounded-full bg-violet-500/10 blur-[120px] dark:bg-violet-500/8" />
 
-              <FadeChild delay={0.06}>
-                <div className="flex items-center justify-center gap-2 font-mono text-base text-primary/85 lg:justify-start md:text-lg">
-                  <Terminal className="h-5 w-5" />
-                  <span className="text-foreground/40">$</span>
-                  <span>{typedText}</span>
-                  <motion.span
-                    animate={{ opacity: [1, 0] }}
-                    transition={{ duration: 0.65, repeat: Infinity, repeatType: "reverse" }}
-                    className="inline-block h-5 w-[2px] bg-primary"
+          <div className="relative z-10 flex flex-col items-center gap-8 pb-24 text-center">
+            <FadeChild>
+              <motion.div whileHover={{ scale: 1.03 }} transition={{ type: "spring", stiffness: 260, damping: 18 }} className="relative">
+                <div className="absolute -inset-2 rounded-[2rem] bg-gradient-to-br from-cyan-400 via-blue-500 to-violet-500 opacity-70 blur-md" />
+                <div className="relative h-44 w-44 overflow-hidden rounded-[2rem] border border-slate-200/80 bg-slate-100 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.45)] dark:border-white/15 dark:bg-white/5 md:h-56 md:w-56">
+                  <Image
+                    src="/SalehAbbaas.jpeg"
+                    alt="Saleh Abbaas"
+                    fill
+                    priority
+                    sizes="(min-width: 768px) 224px, 176px"
+                    className="object-cover object-top"
                   />
                 </div>
-              </FadeChild>
+              </motion.div>
+            </FadeChild>
 
-              <FadeChild delay={0.1}>
-                <h1 className="text-balance font-display text-5xl font-bold tracking-tight text-foreground md:text-7xl lg:text-[5.4rem]">
-                  Saleh Abbaas
-                </h1>
-              </FadeChild>
-
-              <FadeChild delay={0.16}>
-                <p className="mx-auto max-w-2xl text-base leading-8 text-foreground/68 lg:mx-0 md:text-lg">
-                  Building production healthcare integrations, AI systems, and secure digital platforms with a focus on reliability,
-                  interoperability, and measurable delivery.
-                </p>
-              </FadeChild>
-
-              <FadeChild delay={0.22}>
-                <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-                  <Button asChild size="lg" className="px-7">
-                    <a href="#contact">
-                      Get in touch
-                      <Send className="h-4 w-4" />
-                    </a>
-                  </Button>
-                  <Button asChild size="lg" variant="outline" className="px-7">
-                    <a href="#projects">
-                      View projects
-                      <ArrowUpRight className="h-4 w-4" />
-                    </a>
-                  </Button>
-                </div>
-              </FadeChild>
-
-              <FadeChild delay={0.28}>
-                <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-foreground/58 lg:justify-start">
-                  <span className="inline-flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-primary" />
-                    Ottawa, ON, Canada
-                  </span>
-                  <span>5+ years across healthcare, public health, and enterprise systems.</span>
-                </div>
-              </FadeChild>
-
-              <FadeChild delay={0.34}>
-                <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-                  {socialLinks.slice(0, 5).map((link) => {
-                    const Icon = getSocialIcon(link.label);
-                    return (
-                      <a
-                        key={link.label}
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/75 text-foreground/55 shadow-[0_14px_40px_-30px_rgba(15,23,42,0.3)] transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
-                        aria-label={link.label}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </a>
-                    );
-                  })}
-                </div>
-              </FadeChild>
-            </div>
-
-            <FadeChild delay={0.12} className="mx-auto w-full max-w-[30rem]">
-              <div className="relative">
-                <div className="absolute -inset-6 rounded-[3rem] bg-[radial-gradient(circle_at_top,hsl(var(--accent)/0.25),transparent_58%)] blur-3xl dark:bg-[radial-gradient(circle_at_top,hsl(var(--accent)/0.38),transparent_58%)]" />
-                <div className="relative overflow-hidden rounded-[2.5rem] border border-border/70 bg-card/80 p-4 shadow-[0_40px_120px_-60px_rgba(15,23,42,0.55)] backdrop-blur-xl">
-                  <div className="relative aspect-[4/4.8] overflow-hidden rounded-[2rem] bg-[linear-gradient(180deg,hsl(var(--primary)/0.16),transparent_28%),linear-gradient(135deg,hsl(var(--accent)/0.1),hsl(var(--background)))]">
-                    <Image
-                      src="/SalehAbbaas.jpeg"
-                      alt="Saleh Abbaas portrait"
-                      fill
-                      priority
-                      sizes="(min-width: 1024px) 34rem, (min-width: 768px) 28rem, 84vw"
-                      className="object-cover object-top"
-                    />
-                    <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background/55 via-background/10 to-transparent" />
-                  </div>
-
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {[
-                      "HL7/FHIR integrations",
-                      "Clinical data platforms",
-                      "AI-enabled product systems",
-                      "Cloud-ready delivery",
-                    ].map((item) => (
-                      <div key={item} className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-sm text-foreground/72">
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+            <FadeChild delay={0.1}>
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                </span>
+                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Available for opportunities</span>
               </div>
             </FadeChild>
-          </div>
 
-          <motion.div
-            aria-hidden="true"
-            style={{ opacity: scrollCueOpacity, y: scrollCueY }}
-            className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center md:bottom-10"
-          >
-            <div className="flex flex-col items-center gap-2 rounded-full border border-border/60 bg-card/65 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.28em] text-foreground/42 backdrop-blur-xl">
-              <span>Scroll</span>
-              <motion.div animate={{ y: [0, 6, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}>
+            <FadeChild delay={0.15}>
+              <h1 className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-500 bg-clip-text font-display text-5xl font-bold tracking-tight text-transparent dark:from-white dark:via-white dark:to-white/60 md:text-7xl lg:text-8xl">
+                Saleh Abbaas
+              </h1>
+            </FadeChild>
+
+            <FadeChild delay={0.2}>
+              <div className="flex items-center gap-2 font-mono text-lg text-cyan-700 dark:text-cyan-300 md:text-xl">
+                <Terminal className="h-5 w-5 text-cyan-500 dark:text-cyan-400" />
+                <span className="text-slate-400 dark:text-white/40">$</span>
+                <span>{typedText}</span>
+                <motion.span
+                  animate={{ opacity: [1, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse" }}
+                  className="inline-block h-5 w-[2px] bg-cyan-500 dark:bg-cyan-400"
+                />
+              </div>
+            </FadeChild>
+
+            <FadeChild delay={0.25}>
+              <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-white/50">
+                <MapPin className="h-4 w-4" />
+                <span>Ottawa, ON, Canada</span>
+              </div>
+            </FadeChild>
+
+            <FadeChild delay={0.3}>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <a
+                  href="#contact"
+                  className="group inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-slate-800 hover:shadow-[0_0_30px_rgba(15,23,42,0.18)] dark:bg-white dark:text-black dark:hover:bg-white/90 dark:hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                >
+                  Get in touch
+                  <Send className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </a>
+                <a
+                  href="#projects"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/70 px-6 py-3 text-sm font-semibold text-slate-900 transition-all hover:border-slate-400 hover:bg-white dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:border-white/40 dark:hover:bg-white/5"
+                >
+                  View projects
+                  <ArrowUpRight className="h-4 w-4" />
+                </a>
+                <a
+                  href={BOOK_MEETING_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 px-6 py-3 text-sm font-semibold text-cyan-700 transition-all hover:bg-cyan-500/15 dark:text-cyan-200"
+                >
+                  Book a Meeting with Saleh
+                  <CalendarDays className="h-4 w-4" />
+                </a>
+              </div>
+            </FadeChild>
+
+            <FadeChild delay={0.35}>
+              <div className="flex items-center gap-4">
+                {socialLinks.slice(0, 5).map((link) => {
+                  const Icon = getSocialIcon(link.label);
+                  return (
+                    <a
+                      key={link.label}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group rounded-full border border-slate-200 bg-white/75 p-2.5 transition-all hover:border-slate-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/30 dark:hover:bg-white/5"
+                      aria-label={link.label}
+                    >
+                      <Icon className="h-4 w-4 text-slate-500 transition-colors group-hover:text-slate-950 dark:text-white/50 dark:group-hover:text-white" />
+                    </a>
+                  );
+                })}
+              </div>
+            </FadeChild>
+
+            <motion.a
+              href="#experience"
+              style={{ opacity: scrollOpacity }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.2 }}
+              className="absolute bottom-8 left-1/2 -translate-x-1/2 rounded-full border border-slate-200 bg-white/80 px-4 py-3 text-slate-500 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.28)] backdrop-blur transition hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-950 dark:border-white/10 dark:bg-black/55 dark:text-white/55 dark:hover:border-white/25 dark:hover:text-white"
+            >
+              <motion.span animate={{ y: [0, 6, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }} className="flex flex-col items-center gap-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.25em]">Scroll</span>
                 <ChevronDown className="h-4 w-4" />
-              </motion.div>
-            </div>
-          </motion.div>
+              </motion.span>
+            </motion.a>
+          </div>
         </section>
       </motion.div>
 
-      <Section id="stats" className="z-10 py-8 md:py-12">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <FadeChild><StatCard value="5+" label="Years Experience" /></FadeChild>
-          <FadeChild delay={0.06}><StatCard value="3" label="Organizations" /></FadeChild>
-          <FadeChild delay={0.12}><StatCard value="10+" label="Hospital Systems" /></FadeChild>
-          <FadeChild delay={0.18}><StatCard value="3,000+" label="Platform Users" /></FadeChild>
+      <Section id="stats" className="py-12 md:py-16">
+        <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+          {[
+            { value: "5+", label: "Years Experience" },
+            { value: "3", label: "Organizations" },
+            { value: "10+", label: "Hospital Systems" },
+            { value: "3,000+", label: "Platform Users" },
+          ].map((stat, index) => (
+            <FadeChild key={stat.label} delay={index * 0.1}>
+              <div className="text-center">
+                <div className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text font-display text-4xl font-bold text-transparent dark:from-cyan-300 dark:to-blue-400 md:text-5xl">
+                  {stat.value}
+                </div>
+                <div className="mt-1 text-sm text-slate-500 dark:text-white/50">{stat.label}</div>
+              </div>
+            </FadeChild>
+          ))}
         </div>
       </Section>
 
-      <Section id="experience" className="z-10">
+      <Section id="experience">
         <FadeChild>
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Career</p>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-cyan-600 dark:text-cyan-400">Career</p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Experience</h2>
-          <p className="mt-3 max-w-2xl text-base text-foreground/58">
+          <p className="mt-3 max-w-2xl text-base text-slate-500 dark:text-white/50">
             5+ years building production systems across healthcare, public health, and enterprise environments.
           </p>
         </FadeChild>
 
-        <div className="relative mt-14">
-          <div className="absolute left-4 top-0 hidden h-full w-px bg-gradient-to-b from-primary/40 via-primary/10 to-transparent md:block" />
-          <div className="space-y-8 md:space-y-10">
+        <div className="relative mt-16">
+          <div className="absolute left-0 top-0 hidden h-full w-px bg-gradient-to-b from-cyan-500/50 via-blue-500/30 to-transparent md:left-8 md:block" />
+
+          <div className="space-y-12">
             {EXPERIENCES.map((experience, index) => (
-              <FadeChild key={experience.company} delay={index * 0.08}>
-                <div className="relative md:pl-16">
-                  <div className="absolute left-[9px] top-8 hidden h-4 w-4 rounded-full border border-primary/30 bg-background shadow-[0_0_0_6px_hsl(var(--accent)/0.1)] md:block" />
-                  <article className="rounded-[2rem] border border-border/70 bg-card/72 p-6 shadow-[0_22px_70px_-45px_rgba(15,23,42,0.35)] backdrop-blur">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
+              <FadeChild key={experience.company} delay={index * 0.15}>
+                <div className="group relative md:pl-20">
+                  <div className="absolute left-0 top-1 hidden h-4 w-4 md:left-[25px] md:block">
+                    <div className="absolute inset-0 rounded-full bg-cyan-400/30 transition-all group-hover:scale-150 group-hover:bg-cyan-400/50" />
+                    <div className="absolute inset-[3px] rounded-full bg-cyan-500 dark:bg-cyan-400" />
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 backdrop-blur-sm transition-all duration-500 hover:border-slate-300 hover:bg-white md:p-8 dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:border-white/[0.12] dark:hover:bg-white/[0.04]">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-xl font-bold text-foreground md:text-2xl">{experience.role}</h3>
-                        <p className="mt-1 text-base font-medium text-primary">{experience.company}</p>
+                        <h3 className="text-xl font-bold text-slate-950 dark:text-white md:text-2xl">{experience.role}</h3>
+                        <p className="mt-1 text-base font-medium text-cyan-600 dark:text-cyan-300">{experience.company}</p>
                       </div>
-                      <div className="text-left md:text-right">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 py-1 text-xs text-foreground/58">
+                      <div className="text-right">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-white/60">
                           <Briefcase className="h-3 w-3" />
                           {experience.period}
                         </span>
-                        <p className="mt-2 inline-flex items-center gap-1 text-xs text-foreground/45">
+                        <p className="mt-1 flex items-center justify-end gap-1 text-xs text-slate-400 dark:text-white/40">
                           <MapPin className="h-3 w-3" />
                           {experience.location}
                         </p>
                       </div>
                     </div>
                     <ul className="mt-5 space-y-3">
-                      {experience.highlights.map((highlight) => (
-                        <li key={highlight} className="flex gap-3 text-sm leading-relaxed text-foreground/62">
-                          <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                      {experience.highlights.map((highlight, itemIndex) => (
+                        <li key={itemIndex} className="flex gap-3 text-sm leading-relaxed text-slate-600 dark:text-white/60">
+                          <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500/70 dark:text-cyan-400/60" />
                           <span>{highlight}</span>
                         </li>
                       ))}
                     </ul>
-                  </article>
+                  </div>
                 </div>
               </FadeChild>
             ))}
@@ -655,72 +644,158 @@ export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
         </div>
       </Section>
 
-      <Section id="projects" className="z-10">
+      <Section id="projects">
         <FadeChild>
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Work</p>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-violet-600 dark:text-violet-400">Work</p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Featured Projects</h2>
-          <p className="mt-3 max-w-2xl text-base text-foreground/58">
+          <p className="mt-3 max-w-2xl text-base text-slate-500 dark:text-white/50">
             Open source and production systems spanning AI agents, computer vision, and full-stack platforms.
           </p>
         </FadeChild>
 
-        <div className="mt-14 grid gap-6 md:grid-cols-2">
+        <div className="mt-16 grid gap-6 md:grid-cols-2">
           {PROJECTS.map((project, index) => (
-            <FadeChild key={project.name} delay={index * 0.08}>
-              <motion.article
-                whileHover={{ y: -5 }}
-                transition={{ type: "spring", stiffness: 280, damping: 24 }}
-                className="group relative overflow-hidden rounded-[2rem] border border-border/70 bg-card/72 p-6 shadow-[0_24px_70px_-45px_rgba(15,23,42,0.35)] backdrop-blur"
+            <FadeChild key={project.name} delay={index * 0.1}>
+              <motion.div
+                whileHover={{ y: -4 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className={cn(
+                  "group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-6 transition-all duration-500 hover:shadow-2xl md:p-8",
+                  project.border,
+                  project.color
+                )}
               >
-                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-80", project.accent)} />
-                <div className="relative">
-                  <div className="absolute right-0 top-0 rounded-full border border-border/60 bg-background/65 p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    <ArrowUpRight className="h-4 w-4 text-foreground/60" />
-                  </div>
-                  <h3 className="text-xl font-bold text-foreground">{project.name}</h3>
-                  <p className="mt-1 font-mono text-xs text-foreground/42">{project.tech}</p>
-                  <p className="mt-4 text-sm leading-relaxed text-foreground/64">{project.description}</p>
+                <div className="absolute right-4 top-4 rounded-full border border-slate-200 p-2 opacity-0 transition-opacity group-hover:opacity-100 dark:border-white/10">
+                  <ArrowUpRight className="h-4 w-4 text-slate-500 dark:text-white/60" />
                 </div>
-              </motion.article>
+                <h3 className="text-xl font-bold text-slate-950 dark:text-white">{project.name}</h3>
+                <p className="mt-1 font-mono text-xs text-slate-500 dark:text-white/40">{project.tech}</p>
+                <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-white/60">{project.description}</p>
+              </motion.div>
             </FadeChild>
           ))}
         </div>
       </Section>
 
-      <Section id="systems" className="z-10">
+      <Section id="skills">
         <FadeChild>
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Product Systems</p>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">Expertise</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Technical Skills</h2>
+        </FadeChild>
+
+        <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {SKILL_CATEGORIES.map((category, index) => {
+            const CategoryIcon = category.icon;
+            return (
+              <FadeChild key={category.title} delay={index * 0.08}>
+                <div className="group rounded-2xl border border-slate-200 bg-white/80 p-6 transition-all duration-500 hover:border-slate-300 hover:bg-white dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:border-white/[0.12] dark:hover:bg-white/[0.04]">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-white/5">
+                      <CategoryIcon className="h-5 w-5 text-slate-700 dark:text-white/70" />
+                    </div>
+                    <h3 className="text-base font-semibold text-slate-950 dark:text-white">{category.title}</h3>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {category.items.map((item) => (
+                      <span
+                        key={item}
+                        className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-700 dark:border-white/[0.06] dark:bg-white/[0.03] dark:text-white/50 dark:hover:border-white/20 dark:hover:text-white/70"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </FadeChild>
+            );
+          })}
+        </div>
+      </Section>
+
+      <Section id="certifications" className="pb-14">
+        <FadeChild>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400">Credentials</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Certifications</h2>
+        </FadeChild>
+
+        <div className="mt-16 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {CERTIFICATIONS.map((certification, index) => (
+            <FadeChild key={certification.name} delay={index * 0.08}>
+              <div className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white/80 p-5 transition-all duration-500 hover:border-slate-300 hover:bg-white dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:border-white/[0.12] dark:hover:bg-white/[0.04]">
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2">
+                  <GraduationCap className="h-5 w-5 text-amber-500 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{certification.name}</h3>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-white/40">{certification.org}</p>
+                  {certification.year ? <p className="mt-0.5 text-xs text-slate-400 dark:text-white/30">{certification.year}</p> : null}
+                </div>
+              </div>
+            </FadeChild>
+          ))}
+        </div>
+      </Section>
+
+      <Section id="education" className="pt-0">
+        <FadeChild>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400">Education</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Academic Foundation</h2>
+        </FadeChild>
+
+        <FadeChild delay={0.12}>
+          <div className="mt-10 rounded-2xl border border-slate-200 bg-white/80 p-6 dark:border-white/[0.06] dark:bg-white/[0.02] md:p-8">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-2">
+                <GraduationCap className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-slate-950 dark:text-white">{EDUCATION.degree}</h3>
+                <p className="text-sm text-slate-500 dark:text-white/40">
+                  {EDUCATION.school} — {EDUCATION.period}
+                </p>
+              </div>
+            </div>
+          </div>
+        </FadeChild>
+      </Section>
+
+      <Section id="systems" className="pt-0">
+        <FadeChild>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-fuchsia-600 dark:text-fuchsia-400">Product Systems</p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">What I Built Online Systems</h2>
-          <p className="mt-3 max-w-2xl text-base text-foreground/58">
-            Public products and digital systems built for interactive discovery, branded identity, and real-world usage.
+          <p className="mt-3 max-w-2xl text-base text-slate-500 dark:text-white/50">
+            Live systems built for public use, interactive product experiences, and branded digital workflows.
           </p>
         </FadeChild>
 
-        <div className="mt-14 grid gap-6 lg:grid-cols-2">
+        <div className="mt-16 grid gap-6 md:grid-cols-2">
           {ONLINE_SYSTEMS.map((system, index) => (
-            <FadeChild key={system.name} delay={index * 0.08}>
+            <FadeChild key={system.name} delay={index * 0.1}>
               <motion.a
                 href={system.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                whileHover={{ y: -6 }}
-                transition={{ type: "spring", stiffness: 280, damping: 24 }}
-                className="group flex h-full flex-col rounded-[2rem] border border-border/70 bg-card/75 p-6 shadow-[0_28px_80px_-48px_rgba(15,23,42,0.38)] backdrop-blur"
+                whileHover={{ y: -4 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white/82 p-6 transition-all duration-500 hover:border-slate-300 hover:bg-white hover:shadow-2xl dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:border-white/[0.12] dark:hover:bg-white/[0.04] md:p-8"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div className="rounded-[1.5rem] border border-border/70 bg-background/75 p-4">
-                    <Image src={system.logo} alt={`${system.name} logo`} width={150} height={54} className="h-10 w-auto object-contain" />
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                    <Image src={system.logo} alt={`${system.name} logo`} width={152} height={56} className="h-10 w-auto object-contain" />
                   </div>
-                  <div className="rounded-full border border-primary/20 bg-primary/10 p-2 text-primary transition group-hover:translate-x-1 group-hover:-translate-y-1">
-                    <ArrowUpRight className="h-4 w-4" />
+                  <div className="rounded-full border border-slate-200 p-2 opacity-0 transition-opacity group-hover:opacity-100 dark:border-white/10">
+                    <ArrowUpRight className="h-4 w-4 text-slate-500 dark:text-white/60" />
                   </div>
                 </div>
-                <p className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-primary">{system.eyebrow}</p>
-                <h3 className="mt-2 text-2xl font-bold text-foreground">{system.name}</h3>
-                <p className="mt-4 flex-1 text-sm leading-7 text-foreground/64">{system.description}</p>
-                <div className="mt-6 flex flex-wrap gap-2">
+                <p className="mt-6 text-xs font-semibold uppercase tracking-[0.25em] text-fuchsia-600 dark:text-fuchsia-400">{system.eyebrow}</p>
+                <h3 className="mt-2 text-xl font-bold text-slate-950 dark:text-white">{system.name}</h3>
+                <p className="mt-4 flex-1 text-sm leading-relaxed text-slate-600 dark:text-white/60">{system.description}</p>
+                <div className="mt-5 flex flex-wrap gap-2">
                   {system.tags.map((tag) => (
-                    <span key={tag} className="rounded-full border border-border/70 bg-background/70 px-3 py-1 text-xs text-foreground/58">
+                    <span
+                      key={tag}
+                      className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-500 dark:border-white/[0.06] dark:bg-white/[0.03] dark:text-white/50"
+                    >
                       {tag}
                     </span>
                   ))}
@@ -731,130 +806,56 @@ export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
         </div>
       </Section>
 
-      <Section id="skills" className="z-10">
-        <FadeChild>
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Expertise</p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Technical Skills</h2>
-        </FadeChild>
-
-        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {SKILL_CATEGORIES.map((category, index) => {
-            const CategoryIcon = category.icon;
-
-            return (
-              <FadeChild key={category.title} delay={index * 0.06}>
-                <article className="rounded-[2rem] border border-border/70 bg-card/72 p-6 shadow-[0_22px_70px_-45px_rgba(15,23,42,0.35)] backdrop-blur">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl border border-primary/20 bg-primary/10 p-2.5">
-                      <CategoryIcon className="h-5 w-5 text-primary" />
-                    </div>
-                    <h3 className="text-base font-semibold text-foreground">{category.title}</h3>
-                  </div>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {category.items.map((item) => (
-                      <span
-                        key={item}
-                        className="rounded-md border border-border/70 bg-background/70 px-2.5 py-1 text-xs text-foreground/58 transition-colors hover:border-primary/20 hover:text-foreground/78"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </article>
-              </FadeChild>
-            );
-          })}
-        </div>
-      </Section>
-
-      <Section id="certifications" className="z-10 pb-10 md:pb-14">
-        <FadeChild>
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Credentials</p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Certifications</h2>
-        </FadeChild>
-
-        <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {CERTIFICATIONS.map((certification, index) => (
-            <FadeChild key={certification.name} delay={index * 0.06}>
-              <article className="flex items-start gap-4 rounded-[1.75rem] border border-border/70 bg-card/72 p-5 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.32)] backdrop-blur">
-                <div className="rounded-xl border border-primary/20 bg-primary/10 p-2.5">
-                  <GraduationCap className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">{certification.name}</h3>
-                  <p className="mt-1 text-xs text-foreground/52">{certification.org}</p>
-                  {certification.year ? <p className="mt-1 text-xs text-foreground/36">{certification.year}</p> : null}
-                </div>
-              </article>
-            </FadeChild>
-          ))}
-        </div>
-      </Section>
-
-      <Section id="education" className="z-10 pt-0">
-        <FadeChild>
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Education</p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Academic Foundation</h2>
-        </FadeChild>
-
-        <FadeChild delay={0.08}>
-          <article className="mt-10 rounded-[2rem] border border-border/70 bg-card/75 p-7 shadow-[0_24px_70px_-44px_rgba(15,23,42,0.34)] backdrop-blur md:p-8">
-            <div className="flex items-center gap-4">
-              <div className="rounded-2xl border border-primary/20 bg-primary/10 p-3">
-                <GraduationCap className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">{EDUCATION.degree}</h3>
-                <p className="mt-1 text-sm text-foreground/58">
-                  {EDUCATION.school} — {EDUCATION.period}
-                </p>
-              </div>
-            </div>
-          </article>
-        </FadeChild>
-      </Section>
-
-      <Section id="contact" className="z-10 pt-10">
-        <div className="relative overflow-hidden rounded-[2.5rem] border border-border/70 bg-card/75 p-8 shadow-[0_34px_90px_-48px_rgba(15,23,42,0.42)] backdrop-blur md:p-14">
-          <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-[90px]" />
-          <div className="absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-accent/10 blur-[90px]" />
+      <Section id="contact">
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-cyan-500/8 via-blue-500/5 to-violet-500/10 p-8 dark:border-white/[0.08] dark:from-cyan-500/10 dark:via-blue-500/5 dark:to-violet-500/10 md:p-14">
+          <div className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-cyan-500/10 blur-[80px]" />
+          <div className="absolute -bottom-20 -left-20 h-60 w-60 rounded-full bg-violet-500/10 blur-[80px]" />
 
           <div className="relative z-10">
             <FadeChild>
-              <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Connect</p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">
+              <p className="text-sm font-medium uppercase tracking-[0.25em] text-cyan-600 dark:text-cyan-400">Connect</p>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white md:text-5xl">
                 Let&apos;s build something
                 <br />
-                <span className="bg-[linear-gradient(135deg,hsl(var(--accent-strong)),hsl(var(--primary)))] bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-cyan-500 to-violet-500 bg-clip-text text-transparent dark:from-cyan-300 dark:to-violet-400">
                   together.
                 </span>
               </h2>
-              <p className="mt-4 max-w-2xl text-base text-foreground/60">
+              <p className="mt-4 max-w-xl text-base text-slate-600 dark:text-white/50">
                 Available for software engineering roles, AI agent development, healthcare integration architecture, and consulting in Canada.
               </p>
             </FadeChild>
 
-            <FadeChild delay={0.1}>
+            <FadeChild delay={0.15}>
               <div className="mt-8 flex flex-wrap gap-4">
                 <a
                   href="mailto:salehabbaas97@gmail.com"
-                  className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background transition hover:opacity-92"
+                  className="group inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition-all hover:shadow-[0_0_30px_rgba(15,23,42,0.16)] dark:bg-white dark:text-black dark:hover:shadow-[0_0_30px_rgba(255,255,255,0.15)]"
                 >
                   <Mail className="h-4 w-4" />
                   salehabbaas97@gmail.com
                 </a>
                 <a
                   href="tel:+14384513699"
-                  className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/65 px-6 py-3 text-sm font-semibold text-foreground transition hover:border-primary/30 hover:bg-primary/10"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/75 px-6 py-3 text-sm font-semibold text-slate-950 transition-all hover:border-slate-400 hover:bg-white dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:border-white/40 dark:hover:bg-white/5"
                 >
                   <Phone className="h-4 w-4" />
                   (438) 451-3699
                 </a>
+                <a
+                  href={BOOK_MEETING_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 px-6 py-3 text-sm font-semibold text-cyan-700 transition-all hover:bg-cyan-500/15 dark:text-cyan-200"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  Book a Meeting with Saleh
+                </a>
               </div>
             </FadeChild>
 
-            <FadeChild delay={0.16}>
-              <div className="mt-6 flex flex-wrap items-center gap-3">
+            <FadeChild delay={0.25}>
+              <div className="mt-6 flex items-center gap-3">
                 {socialLinks.slice(0, 5).map((link) => {
                   const Icon = getSocialIcon(link.label);
                   return (
@@ -863,10 +864,10 @@ export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-background/70 text-foreground/55 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
+                      className="rounded-full border border-slate-200 bg-white/75 p-2.5 transition-all hover:border-slate-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/30 dark:hover:bg-white/5"
                       aria-label={link.label}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-4 w-4 text-slate-500 transition-colors hover:text-slate-950 dark:text-white/50 dark:hover:text-white" />
                     </a>
                   );
                 })}
@@ -874,20 +875,20 @@ export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
             </FadeChild>
 
             {showAdminPanelLink ? (
-              <FadeChild delay={0.22}>
-                <div className="mt-10 rounded-[1.75rem] border border-primary/20 bg-primary/10 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Admin Access</p>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
-                    <p className="max-w-xl text-sm leading-7 text-foreground/65">
+              <FadeChild delay={0.32}>
+                <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/8 p-5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-700 dark:text-cyan-300">Admin Access</p>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-white/60">
                       Your admin session is active. Open the CMS directly from the public site.
                     </p>
-                    <Button asChild variant="outline" className="border-primary/25 bg-background/70">
-                      <Link href="/admin">
-                        Open CMS
-                        <ArrowUpRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
                   </div>
+                  <Button asChild variant="outline" className="border-cyan-400/30 bg-white/70 dark:bg-white/5">
+                    <Link href="/admin">
+                      Open CMS
+                      <ArrowUpRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
                 </div>
               </FadeChild>
             ) : null}
@@ -895,10 +896,10 @@ export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
         </div>
       </Section>
 
-      <footer className="relative z-10 border-t border-border/70 py-8">
+      <footer className="relative z-10 border-t border-slate-200 py-8 dark:border-white/[0.06]">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 md:px-8">
-          <p className="text-xs text-foreground/40">© {new Date().getFullYear()} Saleh Abbaas. All rights reserved.</p>
-          <p className="text-xs text-foreground/40">Software engineering, AI systems, and healthcare interoperability.</p>
+          <p className="text-xs text-slate-500 dark:text-white/30">© {new Date().getFullYear()} Saleh Abbaas. All rights reserved.</p>
+          <p className="text-xs text-slate-500 dark:text-white/30">Software engineering, AI systems, and healthcare interoperability.</p>
         </div>
       </footer>
     </div>
