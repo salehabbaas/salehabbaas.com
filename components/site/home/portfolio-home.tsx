@@ -46,7 +46,7 @@ const EXPERIENCES = [
     company: "The Ottawa Hospital",
     location: "Ottawa, ON",
     highlights: [
-      "Engineered HL7 v2 and FHIR R4 integration workflows in Rhapsody, routing high-volume clinical messages across 10+ hospital systems",
+      "Engineered HL7 v2 and FHIR R4 integration workflows in Rhapsody, routing high-volume clinical messages across more than 10 enterprise clinical systems",
       "Reduced mean time to resolve interface incidents by ~40% via diagnostic runbooks and centralized log analysis",
       "Delivered Power BI dashboards for real-time visibility into message throughput, lab turnaround, and SLA compliance",
       "Designed PHIPA/HIPAA-compliant backend APIs and integration middleware for secure patient data access",
@@ -176,6 +176,13 @@ const ONLINE_SYSTEMS = [
       "Editable QR codes, digital business cards, mobile portfolio pages, and scan analytics with drafts, version history, and branded export workflows.",
     tags: ["Dynamic QR", "Digital Profiles", "Analytics"],
   },
+];
+
+const STATS = [
+  { value: 5, suffix: "+", label: "Years Experience" },
+  { value: 3, suffix: "", label: "Organizations" },
+  { value: 10, prefix: "More than ", suffix: "", label: "Enterprise Systems" },
+  { value: 3000, suffix: "+", label: "Platform Users" },
 ];
 
 const NAV_ITEMS = [
@@ -370,6 +377,90 @@ function BackToTopButton() {
   );
 }
 
+function CountUp({
+  value,
+  prefix = "",
+  suffix = "",
+  duration = 1.6,
+}: {
+  value: number;
+  prefix?: string;
+  suffix?: string;
+  duration?: number;
+}) {
+  const reduced = useReducedMotion();
+  const [displayValue, setDisplayValue] = useState(reduced ? value : 0);
+
+  useEffect(() => {
+    if (reduced) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const totalSteps = Math.max(20, Math.round(duration * 30));
+    const intervalMs = (duration * 1000) / totalSteps;
+    let currentStep = 0;
+    let delayTimer = 0;
+    let intervalId = 0;
+
+    const beginAnimation = () => {
+      intervalId = window.setInterval(() => {
+        currentStep += 1;
+        const progress = Math.min(currentStep / totalSteps, 1);
+        const eased = 1 - (1 - progress) ** 3;
+        setDisplayValue(Math.round(value * eased));
+
+        if (progress >= 1) {
+          window.clearInterval(intervalId);
+        }
+      }, intervalMs);
+    };
+
+    delayTimer = window.setTimeout(beginAnimation, 250);
+
+    return () => {
+      window.clearTimeout(delayTimer);
+      window.clearInterval(intervalId);
+    };
+  }, [duration, reduced, value]);
+
+  return (
+    <span>
+      {prefix}
+      {displayValue.toLocaleString()}
+      {suffix}
+    </span>
+  );
+}
+
+function HeroScrollCue() {
+  return (
+    <motion.button
+      type="button"
+      onClick={() => document.getElementById("stats")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 1.1, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.985 }}
+      className="absolute bottom-5 left-1/2 z-20 flex w-[min(calc(100%-2.5rem),22rem)] -translate-x-1/2 items-center justify-between rounded-[1.6rem] border border-slate-200/80 bg-white/88 px-4 py-3 text-left text-slate-950 shadow-[0_28px_80px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl transition dark:border-white/10 dark:bg-black/60 dark:text-white sm:bottom-7 sm:px-5"
+      aria-label="Scroll to numbers section"
+    >
+      <div className="min-w-0">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-400 dark:text-white/40">Start here</div>
+        <div className="mt-1 text-sm font-semibold sm:text-[15px]">View the numbers behind the experience</div>
+      </div>
+      <motion.span
+        animate={{ y: [0, 4, 0] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+        className="ml-4 inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-slate-950 text-white dark:bg-white dark:text-black"
+      >
+        <ChevronDown className="h-5 w-5" />
+      </motion.span>
+    </motion.button>
+  );
+}
+
 function GridBackground() {
   return (
     <div className="pointer-events-none fixed inset-0 z-0">
@@ -552,42 +643,44 @@ export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
                 })}
               </div>
             </FadeChild>
-
-            <motion.a
-              href="#experience"
-              style={{ opacity: scrollOpacity }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.2 }}
-              className="absolute bottom-8 left-1/2 -translate-x-1/2 rounded-full border border-slate-200 bg-white/80 px-4 py-3 text-slate-500 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.28)] backdrop-blur transition hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-950 dark:border-white/10 dark:bg-black/55 dark:text-white/55 dark:hover:border-white/25 dark:hover:text-white"
-            >
-              <motion.span animate={{ y: [0, 6, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }} className="flex flex-col items-center gap-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.25em]">Scroll</span>
-                <ChevronDown className="h-4 w-4" />
-              </motion.span>
-            </motion.a>
           </div>
+          <motion.div style={{ opacity: scrollOpacity }}>
+            <HeroScrollCue />
+          </motion.div>
         </section>
       </motion.div>
 
-      <Section id="stats" className="py-12 md:py-16">
-        <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-          {[
-            { value: "5+", label: "Years Experience" },
-            { value: "3", label: "Organizations" },
-            { value: "10+", label: "Hospital Systems" },
-            { value: "3,000+", label: "Platform Users" },
-          ].map((stat, index) => (
-            <FadeChild key={stat.label} delay={index * 0.1}>
-              <div className="text-center">
-                <div className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text font-display text-4xl font-bold text-transparent dark:from-cyan-300 dark:to-blue-400 md:text-5xl">
-                  {stat.value}
-                </div>
-                <div className="mt-1 text-sm text-slate-500 dark:text-white/50">{stat.label}</div>
+      <Section id="stats" className="pt-14 md:pt-18 pb-10 md:pb-14">
+        <motion.div>
+          <FadeChild>
+          <div className="rounded-[2rem] border border-slate-200/80 bg-white/75 p-6 shadow-[0_30px_80px_-50px_rgba(15,23,42,0.35)] backdrop-blur-xl dark:border-white/[0.08] dark:bg-white/[0.03] md:p-8">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.25em] text-cyan-600 dark:text-cyan-400">By The Numbers</p>
+                <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">A quick snapshot before the timeline</h2>
               </div>
-            </FadeChild>
-          ))}
-        </div>
+              <p className="max-w-xl text-sm leading-relaxed text-slate-500 dark:text-white/55">
+                Core delivery metrics from healthcare, public health, and enterprise software work. This section stays separate, but it leads directly into the full experience timeline.
+              </p>
+            </div>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-4">
+              {STATS.map((stat, index) => (
+                <FadeChild key={stat.label} delay={index * 0.08}>
+                  <div className="rounded-[1.6rem] border border-slate-200/75 bg-slate-50/85 p-5 text-center transition-transform duration-300 hover:-translate-y-1 dark:border-white/[0.08] dark:bg-white/[0.03]">
+                    <div className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text font-display text-3xl font-bold text-transparent dark:from-cyan-300 dark:to-blue-400 md:text-4xl">
+                      <CountUp value={stat.value} prefix={stat.prefix} suffix={stat.suffix} />
+                    </div>
+                    <div className="mt-2 text-sm text-slate-500 dark:text-white/50">{stat.label}</div>
+                  </div>
+                </FadeChild>
+              ))}
+            </div>
+          </div>
+
+          <div className="mx-auto mt-6 hidden h-14 w-px bg-gradient-to-b from-cyan-500/60 via-blue-500/35 to-transparent md:block" />
+          </FadeChild>
+        </motion.div>
       </Section>
 
       <Section id="experience">
