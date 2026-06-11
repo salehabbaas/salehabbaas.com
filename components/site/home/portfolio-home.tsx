@@ -1,8 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { motion, useScroll, useSpring, useTransform, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { onAuthStateChanged } from "firebase/auth";
+import { AnimatePresence, motion, useScroll, useSpring, useTransform } from "framer-motion";
 import {
+  ArrowUp,
   ArrowUpRight,
   Briefcase,
   ChevronDown,
@@ -11,7 +14,6 @@ import {
   Github,
   Globe,
   GraduationCap,
-  Heart,
   Linkedin,
   Mail,
   MapPin,
@@ -21,18 +23,19 @@ import {
   Shield,
   Sparkles,
   Terminal,
+  Youtube,
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/firebase/client";
 import { useReducedMotion } from "@/lib/motion/useReducedMotion";
 import { cn } from "@/lib/utils";
 
-/* ─── Types ─── */
 type SocialLink = { label: string; url: string };
 type PortfolioHomeProps = { socialLinks: SocialLink[] };
 
-/* ─── Data from resume ─── */
 const EXPERIENCES = [
   {
     period: "Dec 2024 — Sep 2025",
@@ -77,29 +80,25 @@ const PROJECTS = [
     name: "Agentic Personal Assistant",
     tech: "LangChain · LangGraph · OpenAI · Pinecone · Docker",
     description: "Multi-agent RAG system with tool-calling, multi-step reasoning, and PDF ingestion pipeline. Live token/cost dashboard with LangSmith tracing.",
-    color: "from-violet-500/20 to-purple-600/20",
-    border: "border-violet-500/30",
+    accent: "from-cyan-500/20 via-sky-500/10 to-transparent",
   },
   {
     name: "AIPlace",
     tech: "Python · FastAPI · OpenCLIP · pgvector · Next.js",
     description: "Computer vision pipeline using OpenCLIP embeddings and pgvector cosine search. ~85ms p50 recognition latency from live camera frames.",
-    color: "from-blue-500/20 to-cyan-500/20",
-    border: "border-blue-500/30",
+    accent: "from-blue-500/20 via-indigo-500/10 to-transparent",
   },
   {
     name: "Platr",
     tech: "TypeScript · Next.js · Flutter · Prisma · Stripe · Firebase",
     description: "Cross-platform food marketplace with JWT auth, Stripe payments, Firebase real-time sync, and Gemini AI recommendations.",
-    color: "from-emerald-500/20 to-teal-500/20",
-    border: "border-emerald-500/30",
+    accent: "from-emerald-500/20 via-teal-500/10 to-transparent",
   },
   {
     name: "DeepOncology",
     tech: "Python · PyTorch · TensorFlow",
     description: "V-Net architecture for 3D segmentation of PET/CT scans, tumour classification, and patient survival prediction.",
-    color: "from-rose-500/20 to-orange-500/20",
-    border: "border-rose-500/30",
+    accent: "from-orange-500/20 via-rose-500/10 to-transparent",
   },
 ];
 
@@ -145,7 +144,43 @@ const CERTIFICATIONS = [
   { name: "Oracle Database 12c Administrator", org: "Experts Turnkey Solutions", year: "" },
 ];
 
-/* ─── Typewriter Hook ─── */
+const EDUCATION = {
+  degree: "B.S., Management Information Systems",
+  school: "An Najah National University",
+  period: "Sep 2014 to Dec 2018",
+};
+
+const ONLINE_SYSTEMS = [
+  {
+    name: "Artelo.ai",
+    href: "https://artelo.ai",
+    logo: "/artelo-ai-logo.png",
+    eyebrow: "AR + AI tourism platform",
+    description:
+      "Augmented reality and AI discovery platform for landmarks and cultural destinations, with search, contextual guides, and natural-language tour assistance.",
+    tags: ["AR Discovery", "AI Tour Guide", "Firebase AI Logic"],
+  },
+  {
+    name: "ArteloQR",
+    href: "https://artelo.ai/arteloqr",
+    logo: "/arteloqr-logo.png",
+    eyebrow: "Dynamic QR workspace",
+    description:
+      "Editable QR codes, digital business cards, mobile portfolio pages, and scan analytics with drafts, version history, and branded export workflows.",
+    tags: ["Dynamic QR", "Digital Profiles", "Analytics"],
+  },
+];
+
+const NAV_ITEMS = [
+  { id: "hero", label: "Home" },
+  { id: "experience", label: "Experience" },
+  { id: "projects", label: "Projects" },
+  { id: "systems", label: "Systems" },
+  { id: "skills", label: "Skills" },
+  { id: "education", label: "Education" },
+  { id: "contact", label: "Contact" },
+];
+
 function useTypewriter(texts: string[], speed = 60, pause = 2000) {
   const [display, setDisplay] = useState("");
   const [textIndex, setTextIndex] = useState(0);
@@ -157,28 +192,27 @@ function useTypewriter(texts: string[], speed = 60, pause = 2000) {
     const timeout = deleting ? speed / 2 : speed;
 
     if (!deleting && charIndex === current.length) {
-      const t = setTimeout(() => setDeleting(true), pause);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setDeleting(true), pause);
+      return () => clearTimeout(timer);
     }
 
     if (deleting && charIndex === 0) {
       setDeleting(false);
-      setTextIndex((p) => (p + 1) % texts.length);
+      setTextIndex((previous) => (previous + 1) % texts.length);
       return;
     }
 
-    const t = setTimeout(() => {
-      setCharIndex((p) => p + (deleting ? -1 : 1));
+    const timer = setTimeout(() => {
+      setCharIndex((previous) => previous + (deleting ? -1 : 1));
       setDisplay(current.slice(0, charIndex + (deleting ? -1 : 1)));
     }, timeout);
 
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [charIndex, deleting, pause, speed, textIndex, texts]);
 
   return display;
 }
 
-/* ─── Section wrapper with reveal ─── */
 function Section({
   id,
   children,
@@ -192,18 +226,17 @@ function Section({
   return (
     <motion.section
       id={id}
-      initial={reduced ? { opacity: 1 } : { opacity: 0, y: 60 }}
+      initial={reduced ? { opacity: 1 } : { opacity: 0, y: 48 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.15 }}
-      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-      className={cn("relative mx-auto max-w-6xl px-5 py-24 md:px-8 md:py-32", className)}
+      viewport={{ once: true, amount: 0.18 }}
+      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+      className={cn("relative mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28", className)}
     >
       {children}
     </motion.section>
   );
 }
 
-/* ─── Staggered child ─── */
 function FadeChild({ children, delay = 0, className }: { children: React.ReactNode; delay?: number; className?: string }) {
   const reduced = useReducedMotion();
   return (
@@ -211,7 +244,7 @@ function FadeChild({ children, delay = 0, className }: { children: React.ReactNo
       initial={reduced ? { opacity: 1 } : { opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
       className={className}
     >
       {children}
@@ -219,71 +252,61 @@ function FadeChild({ children, delay = 0, className }: { children: React.ReactNo
   );
 }
 
-/* ─── Floating navigation ─── */
-const NAV_ITEMS = [
-  { id: "hero", label: "Home" },
-  { id: "experience", label: "Experience" },
-  { id: "projects", label: "Projects" },
-  { id: "skills", label: "Skills" },
-  { id: "certifications", label: "Certs" },
-  { id: "contact", label: "Contact" },
-];
-
 function FloatingNav() {
   const [active, setActive] = useState("hero");
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const handler = () => setVisible(window.scrollY > 400);
-    window.addEventListener("scroll", handler, { passive: true });
-    handler();
-    return () => window.removeEventListener("scroll", handler);
+    const onScroll = () => setVisible(window.scrollY > 400);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting);
-        if (visible.length > 0) {
-          const sorted = visible.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-          setActive(sorted[0].target.id);
-        }
+        const visibleEntries = entries.filter((entry) => entry.isIntersecting);
+        if (!visibleEntries.length) return;
+        const winner = visibleEntries.sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        setActive(winner.target.id);
       },
-      { rootMargin: "-30% 0px -40% 0px", threshold: [0.1, 0.3, 0.5] }
+      { rootMargin: "-25% 0px -45% 0px", threshold: [0.15, 0.35, 0.55] }
     );
 
     NAV_ITEMS.forEach(({ id }) => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
+      const node = document.getElementById(id);
+      if (node) observer.observe(node);
     });
 
     return () => observer.disconnect();
   }, []);
 
   const scrollTo = useCallback((id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   return (
     <AnimatePresence>
-      {visible && (
+      {visible ? (
         <motion.nav
-          initial={{ y: -80, opacity: 0 }}
+          initial={{ y: -70, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -80, opacity: 0 }}
-          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed left-1/2 top-4 z-50 -translate-x-1/2"
+          exit={{ y: -70, opacity: 0 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          className="fixed left-1/2 top-4 z-50 hidden -translate-x-1/2 xl:block"
         >
-          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-black/70 px-2 py-1.5 shadow-2xl backdrop-blur-xl">
+          <div className="flex items-center gap-1 rounded-full border border-border/70 bg-card/80 px-2 py-1.5 shadow-[0_18px_60px_-32px_rgba(15,23,42,0.45)] backdrop-blur-xl">
             {NAV_ITEMS.map(({ id, label }) => (
               <button
                 key={id}
+                type="button"
                 onClick={() => scrollTo(id)}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-xs font-medium tracking-wide transition-all duration-300",
+                  "rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition",
                   active === id
-                    ? "bg-white text-black shadow-lg"
-                    : "text-white/60 hover:text-white"
+                    ? "bg-foreground text-background"
+                    : "text-foreground/60 hover:bg-primary/10 hover:text-foreground"
                 )}
               >
                 {label}
@@ -291,263 +314,340 @@ function FloatingNav() {
             ))}
           </div>
         </motion.nav>
-      )}
+      ) : null}
     </AnimatePresence>
   );
 }
 
-/* ─── Scroll progress bar ─── */
 function ScrollProgressBar() {
   const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, { stiffness: 200, damping: 30 });
+  const scaleX = useSpring(scrollYProgress, { stiffness: 220, damping: 32, mass: 0.2 });
+
   return (
     <motion.div
-      className="fixed left-0 right-0 top-0 z-[60] h-[2px] origin-left bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500"
+      aria-hidden="true"
+      className="fixed inset-x-0 top-0 z-[70] h-[3px] origin-left bg-[linear-gradient(90deg,hsl(var(--accent-strong)),hsl(var(--accent)),hsl(var(--primary)))]"
       style={{ scaleX }}
     />
   );
 }
 
-/* ─── Animated background grid ─── */
+function BackToTopButton() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 700);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const goToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  return (
+    <AnimatePresence>
+      {visible ? (
+        <motion.button
+          type="button"
+          onClick={goToTop}
+          initial={{ opacity: 0, y: 18, scale: 0.92 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 18, scale: 0.92 }}
+          whileHover={{ y: -3 }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ duration: 0.24, ease: "easeOut" }}
+          className="fixed bottom-6 right-5 z-[65] inline-flex h-12 w-12 items-center justify-center rounded-full border border-primary/25 bg-card/85 text-foreground shadow-[0_24px_60px_-28px_rgba(15,23,42,0.55)] backdrop-blur-xl hover:border-primary/40 hover:bg-primary/10 md:bottom-8 md:right-8"
+          aria-label="Back to top"
+        >
+          <motion.span
+            animate={{ y: [0, -2, 0] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <ArrowUp className="h-5 w-5" />
+          </motion.span>
+        </motion.button>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
 function GridBackground() {
   return (
-    <div className="pointer-events-none fixed inset-0 z-0">
-      {/* Solid dark base to fully cover the old body background */}
-      <div className="absolute inset-0 bg-[hsl(225,50%,4%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(56,189,248,0.08),transparent_50%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.06),transparent_50%)]" />
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--accent)/0.12),transparent_34%),radial-gradient(circle_at_85%_10%,hsl(var(--primary)/0.14),transparent_30%),radial-gradient(circle_at_50%_100%,hsl(var(--accent-strong)/0.08),transparent_40%)] dark:bg-[radial-gradient(circle_at_top_left,hsl(var(--accent)/0.18),transparent_30%),radial-gradient(circle_at_85%_10%,hsl(var(--primary)/0.18),transparent_28%),radial-gradient(circle_at_50%_100%,hsl(var(--accent-strong)/0.14),transparent_40%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(hsl(var(--foreground)/0.04)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--foreground)/0.04)_1px,transparent_1px)] bg-[size:70px_70px] dark:bg-[linear-gradient(hsl(var(--foreground)/0.05)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--foreground)/0.05)_1px,transparent_1px)]" />
     </div>
   );
 }
 
-/* ─── Main Component ─── */
+function getSocialIcon(label: string) {
+  const lower = label.toLowerCase();
+  if (lower.includes("youtube")) return Youtube;
+  if (lower.includes("github")) return Github;
+  if (lower.includes("linkedin")) return Linkedin;
+  if (lower.includes("mail") || lower.includes("email")) return Mail;
+  return Globe;
+}
+
+function StatCard({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-[1.75rem] border border-border/70 bg-card/70 px-5 py-6 text-center shadow-[0_16px_50px_-35px_rgba(15,23,42,0.35)] backdrop-blur">
+      <div className="bg-[linear-gradient(135deg,hsl(var(--accent-strong)),hsl(var(--primary)))] bg-clip-text font-display text-4xl font-bold text-transparent md:text-5xl">
+        {value}
+      </div>
+      <div className="mt-2 text-sm text-foreground/65">{label}</div>
+    </div>
+  );
+}
+
 export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
   const typedText = useTypewriter(
-    [
-      "Software Engineer",
-      "AI Systems Builder",
-      "Healthcare Integration Specialist",
-      "Cloud Architect",
-      "Open Source Contributor",
-    ],
+    ["Software Engineer", "AI Systems Builder", "Healthcare Integration Specialist", "Cloud Architect", "Open Source Contributor"],
     70,
     2200
   );
-
+  const [showAdminPanelLink, setShowAdminPanelLink] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
-  const heroScale = useTransform(scrollYProgress, [0, 0.7], [1, 0.95]);
-  const heroY = useTransform(scrollYProgress, [0, 0.7], [0, 80]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.72], [1, 0.18]);
+  const heroScale = useTransform(scrollYProgress, [0, 0.72], [1, 0.96]);
+  const heroY = useTransform(scrollYProgress, [0, 0.72], [0, 72]);
+  const scrollCueOpacity = useTransform(scrollYProgress, [0, 0.18, 0.34], [0.95, 0.72, 0]);
+  const scrollCueY = useTransform(scrollYProgress, [0, 0.34], [0, 18]);
+
+  useEffect(() => {
+    let active = true;
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!active) return;
+      if (!user) {
+        setShowAdminPanelLink(false);
+        return;
+      }
+
+      try {
+        const existingSession = await fetch("/api/admin/session", { method: "GET", cache: "no-store" });
+        if (existingSession.ok) {
+          if (active) setShowAdminPanelLink(true);
+          return;
+        }
+
+        const idToken = await user.getIdToken();
+        const repairedSession = await fetch("/api/admin/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken }),
+        });
+
+        if (active) setShowAdminPanelLink(repairedSession.ok);
+      } catch {
+        if (active) setShowAdminPanelLink(false);
+      }
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
 
   return (
-    <div className="relative min-h-screen bg-[hsl(225,50%,4%)] text-white">
+    <div className="relative min-h-screen overflow-x-clip bg-transparent text-foreground">
       <GridBackground />
       <ScrollProgressBar />
       <FloatingNav />
+      <BackToTopButton />
 
-      {/* ═══ HERO ═══ */}
-      <motion.div ref={heroRef} id="hero" style={{ opacity: heroOpacity, scale: heroScale, y: heroY }}>
-        <section className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-5">
-          {/* Decorative orbs */}
-          <div className="absolute left-[10%] top-[20%] h-72 w-72 rounded-full bg-cyan-500/10 blur-[100px]" />
-          <div className="absolute bottom-[20%] right-[10%] h-96 w-96 rounded-full bg-violet-500/8 blur-[120px]" />
+      <motion.div ref={heroRef} id="hero" style={{ opacity: heroOpacity, scale: heroScale, y: heroY }} className="relative z-10">
+        <section className="relative flex min-h-[100dvh] items-center px-5 pb-24 pt-28 md:px-8 md:pb-28">
+          <div className="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(circle_at_top,hsl(var(--accent)/0.18),transparent_55%)] dark:bg-[radial-gradient(circle_at_top,hsl(var(--accent)/0.28),transparent_55%)]" />
+          <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.08fr_0.92fr]">
+            <div className="space-y-7 text-center lg:text-left">
+              <FadeChild>
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-4 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-300">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                  </span>
+                  Available for opportunities
+                </div>
+              </FadeChild>
 
-          <div className="relative z-10 flex flex-col items-center gap-8 text-center">
-            {/* Profile image */}
-            <FadeChild>
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className="relative"
-              >
-                <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-violet-500 opacity-75 blur-sm" />
-                <div className="relative h-32 w-32 overflow-hidden rounded-full border-2 border-white/20 md:h-40 md:w-40">
-                  <Image
-                    src="/SalehAbbaasCricle.jpeg"
-                    alt="Saleh Abbaas"
-                    fill
-                    priority
-                    sizes="(min-width: 768px) 160px, 128px"
-                    className="object-cover"
+              <FadeChild delay={0.06}>
+                <div className="flex items-center justify-center gap-2 font-mono text-base text-primary/85 lg:justify-start md:text-lg">
+                  <Terminal className="h-5 w-5" />
+                  <span className="text-foreground/40">$</span>
+                  <span>{typedText}</span>
+                  <motion.span
+                    animate={{ opacity: [1, 0] }}
+                    transition={{ duration: 0.65, repeat: Infinity, repeatType: "reverse" }}
+                    className="inline-block h-5 w-[2px] bg-primary"
                   />
                 </div>
-              </motion.div>
-            </FadeChild>
+              </FadeChild>
 
-            {/* Status badge */}
-            <FadeChild delay={0.1}>
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                </span>
-                <span className="text-xs font-medium text-emerald-300">Available for opportunities</span>
-              </div>
-            </FadeChild>
+              <FadeChild delay={0.1}>
+                <h1 className="text-balance font-display text-5xl font-bold tracking-tight text-foreground md:text-7xl lg:text-[5.4rem]">
+                  Saleh Abbaas
+                </h1>
+              </FadeChild>
 
-            {/* Name */}
-            <FadeChild delay={0.15}>
-              <h1 className="bg-gradient-to-b from-white via-white to-white/60 bg-clip-text font-display text-5xl font-bold tracking-tight text-transparent md:text-7xl lg:text-8xl">
-                Saleh Abbaas
-              </h1>
-            </FadeChild>
+              <FadeChild delay={0.16}>
+                <p className="mx-auto max-w-2xl text-base leading-8 text-foreground/68 lg:mx-0 md:text-lg">
+                  Building production healthcare integrations, AI systems, and secure digital platforms with a focus on reliability,
+                  interoperability, and measurable delivery.
+                </p>
+              </FadeChild>
 
-            {/* Typewriter */}
-            <FadeChild delay={0.2}>
-              <div className="flex items-center gap-2 font-mono text-lg text-cyan-300 md:text-xl">
-                <Terminal className="h-5 w-5 text-cyan-400" />
-                <span className="text-white/40">$</span>
-                <span>{typedText}</span>
-                <motion.span
-                  animate={{ opacity: [1, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse" }}
-                  className="inline-block h-5 w-[2px] bg-cyan-400"
-                />
-              </div>
-            </FadeChild>
-
-            {/* Location */}
-            <FadeChild delay={0.25}>
-              <div className="flex items-center gap-2 text-sm text-white/50">
-                <MapPin className="h-4 w-4" />
-                <span>Ottawa, ON, Canada</span>
-              </div>
-            </FadeChild>
-
-            {/* CTA buttons */}
-            <FadeChild delay={0.3}>
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <a
-                  href="#contact"
-                  className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition-all hover:bg-white/90 hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]"
-                >
-                  Get in touch
-                  <Send className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </a>
-                <a
-                  href="#projects"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white transition-all hover:border-white/40 hover:bg-white/5"
-                >
-                  View projects
-                  <ArrowUpRight className="h-4 w-4" />
-                </a>
-              </div>
-            </FadeChild>
-
-            {/* Social links */}
-            <FadeChild delay={0.35}>
-              <div className="flex items-center gap-4">
-                {socialLinks.slice(0, 5).map((link) => {
-                  const Icon = getSocialIcon(link.label);
-                  return (
-                    <a
-                      key={link.label}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group rounded-full border border-white/10 p-2.5 transition-all hover:border-white/30 hover:bg-white/5"
-                      aria-label={link.label}
-                    >
-                      <Icon className="h-4 w-4 text-white/50 transition-colors group-hover:text-white" />
+              <FadeChild delay={0.22}>
+                <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+                  <Button asChild size="lg" className="px-7">
+                    <a href="#contact">
+                      Get in touch
+                      <Send className="h-4 w-4" />
                     </a>
-                  );
-                })}
+                  </Button>
+                  <Button asChild size="lg" variant="outline" className="px-7">
+                    <a href="#projects">
+                      View projects
+                      <ArrowUpRight className="h-4 w-4" />
+                    </a>
+                  </Button>
+                </div>
+              </FadeChild>
+
+              <FadeChild delay={0.28}>
+                <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-foreground/58 lg:justify-start">
+                  <span className="inline-flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    Ottawa, ON, Canada
+                  </span>
+                  <span>5+ years across healthcare, public health, and enterprise systems.</span>
+                </div>
+              </FadeChild>
+
+              <FadeChild delay={0.34}>
+                <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+                  {socialLinks.slice(0, 5).map((link) => {
+                    const Icon = getSocialIcon(link.label);
+                    return (
+                      <a
+                        key={link.label}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/75 text-foreground/55 shadow-[0_14px_40px_-30px_rgba(15,23,42,0.3)] transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
+                        aria-label={link.label}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </a>
+                    );
+                  })}
+                </div>
+              </FadeChild>
+            </div>
+
+            <FadeChild delay={0.12} className="mx-auto w-full max-w-[30rem]">
+              <div className="relative">
+                <div className="absolute -inset-6 rounded-[3rem] bg-[radial-gradient(circle_at_top,hsl(var(--accent)/0.25),transparent_58%)] blur-3xl dark:bg-[radial-gradient(circle_at_top,hsl(var(--accent)/0.38),transparent_58%)]" />
+                <div className="relative overflow-hidden rounded-[2.5rem] border border-border/70 bg-card/80 p-4 shadow-[0_40px_120px_-60px_rgba(15,23,42,0.55)] backdrop-blur-xl">
+                  <div className="relative aspect-[4/4.8] overflow-hidden rounded-[2rem] bg-[linear-gradient(180deg,hsl(var(--primary)/0.16),transparent_28%),linear-gradient(135deg,hsl(var(--accent)/0.1),hsl(var(--background)))]">
+                    <Image
+                      src="/SalehAbbaas.jpeg"
+                      alt="Saleh Abbaas portrait"
+                      fill
+                      priority
+                      sizes="(min-width: 1024px) 34rem, (min-width: 768px) 28rem, 84vw"
+                      className="object-cover object-top"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background/55 via-background/10 to-transparent" />
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {[
+                      "HL7/FHIR integrations",
+                      "Clinical data platforms",
+                      "AI-enabled product systems",
+                      "Cloud-ready delivery",
+                    ].map((item) => (
+                      <div key={item} className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-sm text-foreground/72">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </FadeChild>
-
-            {/* Scroll indicator */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.5 }}
-              className="absolute bottom-8 left-1/2 -translate-x-1/2"
-            >
-              <motion.div
-                animate={{ y: [0, 8, 0] }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                className="flex flex-col items-center gap-2"
-              >
-                <span className="text-[10px] uppercase tracking-[0.25em] text-white/30">Scroll</span>
-                <ChevronDown className="h-4 w-4 text-white/30" />
-              </motion.div>
-            </motion.div>
           </div>
+
+          <motion.div
+            aria-hidden="true"
+            style={{ opacity: scrollCueOpacity, y: scrollCueY }}
+            className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center md:bottom-10"
+          >
+            <div className="flex flex-col items-center gap-2 rounded-full border border-border/60 bg-card/65 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.28em] text-foreground/42 backdrop-blur-xl">
+              <span>Scroll</span>
+              <motion.div animate={{ y: [0, 6, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}>
+                <ChevronDown className="h-4 w-4" />
+              </motion.div>
+            </div>
+          </motion.div>
         </section>
       </motion.div>
 
-      {/* ═══ STATS BAR ═══ */}
-      <Section id="stats" className="py-12 md:py-16">
-        <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-          {[
-            { value: "5+", label: "Years Experience" },
-            { value: "3", label: "Organizations" },
-            { value: "10+", label: "Hospital Systems" },
-            { value: "3,000+", label: "Platform Users" },
-          ].map((stat, i) => (
-            <FadeChild key={stat.label} delay={i * 0.1}>
-              <div className="text-center">
-                <div className="bg-gradient-to-r from-cyan-300 to-blue-400 bg-clip-text font-display text-4xl font-bold text-transparent md:text-5xl">
-                  {stat.value}
-                </div>
-                <div className="mt-1 text-sm text-white/50">{stat.label}</div>
-              </div>
-            </FadeChild>
-          ))}
+      <Section id="stats" className="z-10 py-8 md:py-12">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <FadeChild><StatCard value="5+" label="Years Experience" /></FadeChild>
+          <FadeChild delay={0.06}><StatCard value="3" label="Organizations" /></FadeChild>
+          <FadeChild delay={0.12}><StatCard value="10+" label="Hospital Systems" /></FadeChild>
+          <FadeChild delay={0.18}><StatCard value="3,000+" label="Platform Users" /></FadeChild>
         </div>
       </Section>
 
-      {/* ═══ EXPERIENCE ═══ */}
-      <Section id="experience">
+      <Section id="experience" className="z-10">
         <FadeChild>
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-cyan-400">Career</p>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Career</p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Experience</h2>
-          <p className="mt-3 max-w-2xl text-base text-white/50">
+          <p className="mt-3 max-w-2xl text-base text-foreground/58">
             5+ years building production systems across healthcare, public health, and enterprise environments.
           </p>
         </FadeChild>
 
-        <div className="relative mt-16">
-          {/* Timeline line */}
-          <div className="absolute left-0 top-0 hidden h-full w-px bg-gradient-to-b from-cyan-500/50 via-blue-500/30 to-transparent md:left-8 md:block" />
-
-          <div className="space-y-12">
-            {EXPERIENCES.map((exp, i) => (
-              <FadeChild key={exp.company} delay={i * 0.15}>
-                <div className="group relative md:pl-20">
-                  {/* Timeline dot */}
-                  <div className="absolute left-0 top-1 hidden h-4 w-4 md:left-[25px] md:block">
-                    <div className="absolute inset-0 rounded-full bg-cyan-400/30 transition-all group-hover:scale-150 group-hover:bg-cyan-400/50" />
-                    <div className="absolute inset-[3px] rounded-full bg-cyan-400" />
-                  </div>
-
-                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 backdrop-blur-sm transition-all duration-500 hover:border-white/[0.12] hover:bg-white/[0.04] md:p-8">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="relative mt-14">
+          <div className="absolute left-4 top-0 hidden h-full w-px bg-gradient-to-b from-primary/40 via-primary/10 to-transparent md:block" />
+          <div className="space-y-8 md:space-y-10">
+            {EXPERIENCES.map((experience, index) => (
+              <FadeChild key={experience.company} delay={index * 0.08}>
+                <div className="relative md:pl-16">
+                  <div className="absolute left-[9px] top-8 hidden h-4 w-4 rounded-full border border-primary/30 bg-background shadow-[0_0_0_6px_hsl(var(--accent)/0.1)] md:block" />
+                  <article className="rounded-[2rem] border border-border/70 bg-card/72 p-6 shadow-[0_22px_70px_-45px_rgba(15,23,42,0.35)] backdrop-blur">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
-                        <h3 className="text-xl font-bold text-white md:text-2xl">{exp.role}</h3>
-                        <p className="mt-1 text-base font-medium text-cyan-300">{exp.company}</p>
+                        <h3 className="text-xl font-bold text-foreground md:text-2xl">{experience.role}</h3>
+                        <p className="mt-1 text-base font-medium text-primary">{experience.company}</p>
                       </div>
-                      <div className="text-right">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60">
+                      <div className="text-left md:text-right">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 py-1 text-xs text-foreground/58">
                           <Briefcase className="h-3 w-3" />
-                          {exp.period}
+                          {experience.period}
                         </span>
-                        <p className="mt-1 flex items-center justify-end gap-1 text-xs text-white/40">
+                        <p className="mt-2 inline-flex items-center gap-1 text-xs text-foreground/45">
                           <MapPin className="h-3 w-3" />
-                          {exp.location}
+                          {experience.location}
                         </p>
                       </div>
                     </div>
                     <ul className="mt-5 space-y-3">
-                      {exp.highlights.map((h, j) => (
-                        <li key={j} className="flex gap-3 text-sm leading-relaxed text-white/60">
-                          <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-400/60" />
-                          <span>{h}</span>
+                      {experience.highlights.map((highlight) => (
+                        <li key={highlight} className="flex gap-3 text-sm leading-relaxed text-foreground/62">
+                          <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                          <span>{highlight}</span>
                         </li>
                       ))}
                     </ul>
-                  </div>
+                  </article>
                 </div>
               </FadeChild>
             ))}
@@ -555,150 +655,197 @@ export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
         </div>
       </Section>
 
-      {/* ═══ PROJECTS ═══ */}
-      <Section id="projects">
+      <Section id="projects" className="z-10">
         <FadeChild>
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-violet-400">Work</p>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Work</p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Featured Projects</h2>
-          <p className="mt-3 max-w-2xl text-base text-white/50">
+          <p className="mt-3 max-w-2xl text-base text-foreground/58">
             Open source and production systems spanning AI agents, computer vision, and full-stack platforms.
           </p>
         </FadeChild>
 
-        <div className="mt-16 grid gap-6 md:grid-cols-2">
-          {PROJECTS.map((project, i) => (
-            <FadeChild key={project.name} delay={i * 0.1}>
-              <motion.div
-                whileHover={{ y: -4 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className={cn(
-                  "group relative overflow-hidden rounded-2xl border p-6 transition-all duration-500 md:p-8",
-                  project.border,
-                  "bg-gradient-to-br",
-                  project.color,
-                  "hover:shadow-2xl"
-                )}
+        <div className="mt-14 grid gap-6 md:grid-cols-2">
+          {PROJECTS.map((project, index) => (
+            <FadeChild key={project.name} delay={index * 0.08}>
+              <motion.article
+                whileHover={{ y: -5 }}
+                transition={{ type: "spring", stiffness: 280, damping: 24 }}
+                className="group relative overflow-hidden rounded-[2rem] border border-border/70 bg-card/72 p-6 shadow-[0_24px_70px_-45px_rgba(15,23,42,0.35)] backdrop-blur"
               >
-                <div className="absolute right-4 top-4 rounded-full border border-white/10 p-2 opacity-0 transition-opacity group-hover:opacity-100">
-                  <ArrowUpRight className="h-4 w-4 text-white/60" />
+                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-80", project.accent)} />
+                <div className="relative">
+                  <div className="absolute right-0 top-0 rounded-full border border-border/60 bg-background/65 p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    <ArrowUpRight className="h-4 w-4 text-foreground/60" />
+                  </div>
+                  <h3 className="text-xl font-bold text-foreground">{project.name}</h3>
+                  <p className="mt-1 font-mono text-xs text-foreground/42">{project.tech}</p>
+                  <p className="mt-4 text-sm leading-relaxed text-foreground/64">{project.description}</p>
                 </div>
-                <h3 className="text-xl font-bold text-white">{project.name}</h3>
-                <p className="mt-1 font-mono text-xs text-white/40">{project.tech}</p>
-                <p className="mt-4 text-sm leading-relaxed text-white/60">{project.description}</p>
-              </motion.div>
+              </motion.article>
             </FadeChild>
           ))}
         </div>
       </Section>
 
-      {/* ═══ SKILLS ═══ */}
-      <Section id="skills">
+      <Section id="systems" className="z-10">
         <FadeChild>
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-emerald-400">Expertise</p>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Product Systems</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">What I Built Online Systems</h2>
+          <p className="mt-3 max-w-2xl text-base text-foreground/58">
+            Public products and digital systems built for interactive discovery, branded identity, and real-world usage.
+          </p>
+        </FadeChild>
+
+        <div className="mt-14 grid gap-6 lg:grid-cols-2">
+          {ONLINE_SYSTEMS.map((system, index) => (
+            <FadeChild key={system.name} delay={index * 0.08}>
+              <motion.a
+                href={system.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ y: -6 }}
+                transition={{ type: "spring", stiffness: 280, damping: 24 }}
+                className="group flex h-full flex-col rounded-[2rem] border border-border/70 bg-card/75 p-6 shadow-[0_28px_80px_-48px_rgba(15,23,42,0.38)] backdrop-blur"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="rounded-[1.5rem] border border-border/70 bg-background/75 p-4">
+                    <Image src={system.logo} alt={`${system.name} logo`} width={150} height={54} className="h-10 w-auto object-contain" />
+                  </div>
+                  <div className="rounded-full border border-primary/20 bg-primary/10 p-2 text-primary transition group-hover:translate-x-1 group-hover:-translate-y-1">
+                    <ArrowUpRight className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-primary">{system.eyebrow}</p>
+                <h3 className="mt-2 text-2xl font-bold text-foreground">{system.name}</h3>
+                <p className="mt-4 flex-1 text-sm leading-7 text-foreground/64">{system.description}</p>
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {system.tags.map((tag) => (
+                    <span key={tag} className="rounded-full border border-border/70 bg-background/70 px-3 py-1 text-xs text-foreground/58">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </motion.a>
+            </FadeChild>
+          ))}
+        </div>
+      </Section>
+
+      <Section id="skills" className="z-10">
+        <FadeChild>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Expertise</p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Technical Skills</h2>
         </FadeChild>
 
-        <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {SKILL_CATEGORIES.map((cat, i) => {
-            const CatIcon = cat.icon;
+        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {SKILL_CATEGORIES.map((category, index) => {
+            const CategoryIcon = category.icon;
+
             return (
-              <FadeChild key={cat.title} delay={i * 0.08}>
-                <div className="group rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all duration-500 hover:border-white/[0.12] hover:bg-white/[0.04]">
+              <FadeChild key={category.title} delay={index * 0.06}>
+                <article className="rounded-[2rem] border border-border/70 bg-card/72 p-6 shadow-[0_22px_70px_-45px_rgba(15,23,42,0.35)] backdrop-blur">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-                      <CatIcon className="h-5 w-5 text-white/70" />
+                    <div className="rounded-xl border border-primary/20 bg-primary/10 p-2.5">
+                      <CategoryIcon className="h-5 w-5 text-primary" />
                     </div>
-                    <h3 className="text-base font-semibold text-white">{cat.title}</h3>
+                    <h3 className="text-base font-semibold text-foreground">{category.title}</h3>
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {cat.items.map((item) => (
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {category.items.map((item) => (
                       <span
                         key={item}
-                        className="rounded-md border border-white/[0.06] bg-white/[0.03] px-2.5 py-1 text-xs text-white/50 transition-colors hover:border-white/20 hover:text-white/70"
+                        className="rounded-md border border-border/70 bg-background/70 px-2.5 py-1 text-xs text-foreground/58 transition-colors hover:border-primary/20 hover:text-foreground/78"
                       >
                         {item}
                       </span>
                     ))}
                   </div>
-                </div>
+                </article>
               </FadeChild>
             );
           })}
         </div>
       </Section>
 
-      {/* ═══ CERTIFICATIONS ═══ */}
-      <Section id="certifications">
+      <Section id="certifications" className="z-10 pb-10 md:pb-14">
         <FadeChild>
-          <p className="text-sm font-medium uppercase tracking-[0.25em] text-amber-400">Credentials</p>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Credentials</p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Certifications</h2>
         </FadeChild>
 
-        <div className="mt-16 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {CERTIFICATIONS.map((cert, i) => (
-            <FadeChild key={cert.name} delay={i * 0.08}>
-              <div className="group flex items-start gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-500 hover:border-white/[0.12] hover:bg-white/[0.04]">
-                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2">
-                  <GraduationCap className="h-5 w-5 text-amber-400" />
+        <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {CERTIFICATIONS.map((certification, index) => (
+            <FadeChild key={certification.name} delay={index * 0.06}>
+              <article className="flex items-start gap-4 rounded-[1.75rem] border border-border/70 bg-card/72 p-5 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.32)] backdrop-blur">
+                <div className="rounded-xl border border-primary/20 bg-primary/10 p-2.5">
+                  <GraduationCap className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-white">{cert.name}</h3>
-                  <p className="mt-0.5 text-xs text-white/40">{cert.org}</p>
-                  {cert.year && <p className="mt-0.5 text-xs text-white/30">{cert.year}</p>}
+                  <h3 className="text-sm font-semibold text-foreground">{certification.name}</h3>
+                  <p className="mt-1 text-xs text-foreground/52">{certification.org}</p>
+                  {certification.year ? <p className="mt-1 text-xs text-foreground/36">{certification.year}</p> : null}
                 </div>
-              </div>
+              </article>
             </FadeChild>
           ))}
         </div>
+      </Section>
 
-        {/* Education */}
-        <FadeChild delay={0.3}>
-          <div className="mt-10 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 md:p-8">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-2">
-                <GraduationCap className="h-5 w-5 text-blue-400" />
+      <Section id="education" className="z-10 pt-0">
+        <FadeChild>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Education</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Academic Foundation</h2>
+        </FadeChild>
+
+        <FadeChild delay={0.08}>
+          <article className="mt-10 rounded-[2rem] border border-border/70 bg-card/75 p-7 shadow-[0_24px_70px_-44px_rgba(15,23,42,0.34)] backdrop-blur md:p-8">
+            <div className="flex items-center gap-4">
+              <div className="rounded-2xl border border-primary/20 bg-primary/10 p-3">
+                <GraduationCap className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">B.S., Management Information Systems</h3>
-                <p className="text-sm text-white/40">An Najah National University — Sep 2014 to Dec 2018</p>
+                <h3 className="text-lg font-semibold text-foreground">{EDUCATION.degree}</h3>
+                <p className="mt-1 text-sm text-foreground/58">
+                  {EDUCATION.school} — {EDUCATION.period}
+                </p>
               </div>
             </div>
-          </div>
+          </article>
         </FadeChild>
       </Section>
 
-      {/* ═══ CONTACT ═══ */}
-      <Section id="contact">
-        <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-violet-500/10 p-8 md:p-14">
-          {/* Decorative */}
-          <div className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-cyan-500/10 blur-[80px]" />
-          <div className="absolute -bottom-20 -left-20 h-60 w-60 rounded-full bg-violet-500/10 blur-[80px]" />
+      <Section id="contact" className="z-10 pt-10">
+        <div className="relative overflow-hidden rounded-[2.5rem] border border-border/70 bg-card/75 p-8 shadow-[0_34px_90px_-48px_rgba(15,23,42,0.42)] backdrop-blur md:p-14">
+          <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-[90px]" />
+          <div className="absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-accent/10 blur-[90px]" />
 
           <div className="relative z-10">
             <FadeChild>
-              <p className="text-sm font-medium uppercase tracking-[0.25em] text-cyan-400">Connect</p>
+              <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Connect</p>
               <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">
                 Let&apos;s build something
                 <br />
-                <span className="bg-gradient-to-r from-cyan-300 to-violet-400 bg-clip-text text-transparent">together.</span>
+                <span className="bg-[linear-gradient(135deg,hsl(var(--accent-strong)),hsl(var(--primary)))] bg-clip-text text-transparent">
+                  together.
+                </span>
               </h2>
-              <p className="mt-4 max-w-xl text-base text-white/50">
+              <p className="mt-4 max-w-2xl text-base text-foreground/60">
                 Available for software engineering roles, AI agent development, healthcare integration architecture, and consulting in Canada.
               </p>
             </FadeChild>
 
-            <FadeChild delay={0.15}>
+            <FadeChild delay={0.1}>
               <div className="mt-8 flex flex-wrap gap-4">
                 <a
                   href="mailto:salehabbaas97@gmail.com"
-                  className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition-all hover:shadow-[0_0_30px_rgba(255,255,255,0.15)]"
+                  className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background transition hover:opacity-92"
                 >
                   <Mail className="h-4 w-4" />
                   salehabbaas97@gmail.com
                 </a>
                 <a
                   href="tel:+14384513699"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white transition-all hover:border-white/40 hover:bg-white/5"
+                  className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/65 px-6 py-3 text-sm font-semibold text-foreground transition hover:border-primary/30 hover:bg-primary/10"
                 >
                   <Phone className="h-4 w-4" />
                   (438) 451-3699
@@ -706,8 +853,8 @@ export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
               </div>
             </FadeChild>
 
-            <FadeChild delay={0.25}>
-              <div className="mt-6 flex items-center gap-3">
+            <FadeChild delay={0.16}>
+              <div className="mt-6 flex flex-wrap items-center gap-3">
                 {socialLinks.slice(0, 5).map((link) => {
                   const Icon = getSocialIcon(link.label);
                   return (
@@ -716,39 +863,44 @@ export function PortfolioHome({ socialLinks }: PortfolioHomeProps) {
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-full border border-white/10 p-2.5 transition-all hover:border-white/30 hover:bg-white/5"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-background/70 text-foreground/55 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
                       aria-label={link.label}
                     >
-                      <Icon className="h-4 w-4 text-white/50 transition-colors hover:text-white" />
+                      <Icon className="h-4 w-4" />
                     </a>
                   );
                 })}
               </div>
             </FadeChild>
+
+            {showAdminPanelLink ? (
+              <FadeChild delay={0.22}>
+                <div className="mt-10 rounded-[1.75rem] border border-primary/20 bg-primary/10 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Admin Access</p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
+                    <p className="max-w-xl text-sm leading-7 text-foreground/65">
+                      Your admin session is active. Open the CMS directly from the public site.
+                    </p>
+                    <Button asChild variant="outline" className="border-primary/25 bg-background/70">
+                      <Link href="/admin">
+                        Open CMS
+                        <ArrowUpRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </FadeChild>
+            ) : null}
           </div>
         </div>
       </Section>
 
-      {/* ═══ FOOTER ═══ */}
-      <footer className="relative z-10 border-t border-white/[0.06] py-8">
+      <footer className="relative z-10 border-t border-border/70 py-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 md:px-8">
-          <p className="text-xs text-white/30">
-            &copy; {new Date().getFullYear()} Saleh Abbaas. All rights reserved.
-          </p>
-          <p className="flex items-center gap-1 text-xs text-white/30">
-            Built with <Heart className="h-3 w-3 text-rose-400" /> Next.js &amp; Tailwind CSS
-          </p>
+          <p className="text-xs text-foreground/40">© {new Date().getFullYear()} Saleh Abbaas. All rights reserved.</p>
+          <p className="text-xs text-foreground/40">Software engineering, AI systems, and healthcare interoperability.</p>
         </div>
       </footer>
     </div>
   );
-}
-
-/* ─── Helpers ─── */
-function getSocialIcon(label: string) {
-  const lower = label.toLowerCase();
-  if (lower.includes("github")) return Github;
-  if (lower.includes("linkedin")) return Linkedin;
-  if (lower.includes("mail") || lower.includes("email")) return Mail;
-  return Globe;
 }

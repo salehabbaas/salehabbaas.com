@@ -134,7 +134,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(() => { try { const stored = localStorage.getItem('theme'); const dark = stored ? stored === 'dark' : true; if (dark) document.documentElement.classList.add('dark'); } catch (_) {} })();"
+              "(() => { try { const stored = localStorage.getItem('theme'); const dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches; document.documentElement.classList.toggle('dark', dark); } catch (_) {} })();"
           }}
         />
         {GTM_ID ? (
