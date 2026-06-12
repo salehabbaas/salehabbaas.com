@@ -9,7 +9,6 @@ import {
   ArrowUpRight,
   Briefcase,
   CalendarDays,
-  ChevronDown,
   Code2,
   Database,
   Github,
@@ -178,10 +177,10 @@ const ONLINE_SYSTEMS = [
   },
 ];
 
-const STATS = [
+const STATS: Array<{ value: number; prefix?: string; suffix?: string; label: string }> = [
   { value: 5, suffix: "+", label: "Years Experience" },
   { value: 3, suffix: "", label: "Organizations" },
-  { value: 10, prefix: "More than ", suffix: "", label: "Enterprise Systems" },
+  { value: 10, suffix: "+", label: "Enterprise Systems" },
   { value: 3000, suffix: "+", label: "Platform Users" },
 ];
 
@@ -443,19 +442,15 @@ function HeroScrollCue() {
       transition={{ delay: 1.1, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.985 }}
-      className="absolute bottom-5 left-1/2 z-20 flex w-[min(calc(100%-2.5rem),22rem)] -translate-x-1/2 items-center justify-between rounded-[1.6rem] border border-slate-200/80 bg-white/88 px-4 py-3 text-left text-slate-950 shadow-[0_28px_80px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl transition dark:border-white/10 dark:bg-black/60 dark:text-white sm:bottom-7 sm:px-5"
+      className="absolute bottom-5 left-1/2 z-20 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200/80 bg-white/88 text-slate-950 shadow-[0_28px_80px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl transition dark:border-white/10 dark:bg-black/60 dark:text-white sm:bottom-7"
       aria-label="Scroll to numbers section"
     >
-      <div className="min-w-0">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-400 dark:text-white/40">Start here</div>
-        <div className="mt-1 text-sm font-semibold sm:text-[15px]">View the numbers behind the experience</div>
-      </div>
       <motion.span
         animate={{ y: [0, 4, 0] }}
         transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-        className="ml-4 inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-slate-950 text-white dark:bg-white dark:text-black"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-white dark:bg-white dark:text-black"
       >
-        <ChevronDown className="h-5 w-5" />
+        <span className="text-lg leading-none">↓</span>
       </motion.span>
     </motion.button>
   );
